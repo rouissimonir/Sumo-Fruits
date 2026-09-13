@@ -6,6 +6,8 @@ workflows:
 
     environment:
       xcode: latest
+      groups:
+        - ios_signing
       vars:
         GODOT_VERSION: "4.7.2"
         EXPORT_PRESET: "iOS"
