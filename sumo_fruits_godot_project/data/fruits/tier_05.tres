@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="FruitData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/FruitData.gd" id="1"]
+[resource]
+script = ExtResource("1")
+tier = 5
+display_name = "Peach"
+radius = 46.0
+mass = 11.5
+linear_damp = 1.2
+restitution = 0.75
+knockback_resistance = 0.40
+color = Color(1, 0.702, 0.541, 1)
+secondary_color = Color(0.902, 0.522, 0.333, 1)
+mawashi_color = Color(0.557, 0.267, 0.678, 1)
+eye_offset = 13.0
+eye_size = 6.5
+pupil_size = 3.0
+mawashi_width = 9.0

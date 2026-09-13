@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="FruitData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/data/FruitData.gd" id="1_data"]
+
+[resource]
+script = ExtResource("1_data")
+tier = 11
+display_name = "Yokozuna Pineapple"
+radius = 160.0
+mass = 150.0
+linear_damp = 3.0
+restitution = 0.50
+knockback_resistance = 1.0
+color = Color(1.0, 0.843, 0.0, 1.0)
+secondary_color = Color(0.831, 0.686, 0.216, 1.0)
+mawashi_color = Color(0.753, 0.224, 0.169, 1.0)
+eye_offset = 42.0
+eye_size = 18.0
+pupil_size = 8.5
+mawashi_width = 30.0
