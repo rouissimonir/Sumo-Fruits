@@ -77,6 +77,8 @@ workflows:
     environment:
       xcode: latest
       node: latest
+      groups:
+        - ios_signing
       vars:
         XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
