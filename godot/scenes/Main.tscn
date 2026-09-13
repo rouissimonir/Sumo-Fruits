@@ -1,0 +1,30 @@
+[gd_scene load_steps=7 format=3 uid="uid://sumo_main_scene"]
+
+[ext_resource type="Script" path="res://scripts/Main.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/arena/BowlArena.gd" id="2_arena"]
+[ext_resource type="Script" path="res://scripts/gameplay/SlingshotLauncher.gd" id="3_launcher"]
+[ext_resource type="Script" path="res://scripts/gameplay/MergeClashManager.gd" id="4_merge"]
+[ext_resource type="PackedScene" path="res://scenes/HUD.tscn" id="5_hud"]
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_main")
+
+[node name="BowlArena" type="Node2D" parent="."]
+position = Vector2(450, 480)
+script = ExtResource("2_arena")
+radius = 380.0
+slope_k = 0.55
+
+[node name="MergeClashManager" type="Node" parent="."]
+script = ExtResource("4_merge")
+
+[node name="SlingshotLauncher" type="Node2D" parent="."]
+position = Vector2(450, 915)
+script = ExtResource("3_launcher")
+max_pull = 180.0
+k_spring = 13.5
+
+[node name="Camera2D" type="Camera2D" parent="."]
+position = Vector2(450, 500)
+
+[node name="HUD" parent="." instance=ExtResource("5_hud")]

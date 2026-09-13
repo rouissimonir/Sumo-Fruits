@@ -1,0 +1,37 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; but for Sumo Fruits: The Bumper Bowl, standard values are defined here.
+
+config_version=5
+
+[application]
+
+config/name="Sumo Fruits: The Bumper Bowl"
+run/main_scene="res://scenes/Main.tscn"
+config/features=PackedStringArray("4.3", "Forward Plus")
+config/icon="res://icon.svg"
+
+[autoload]
+
+Juice="*res://scripts/presentation/JuiceManager.gd"
+Sound="*res://scripts/presentation/SoundSynth.gd"
+
+[display]
+
+window/size/viewport_width=900
+window/size/viewport_height=1000
+window/stretch/mode="canvas_items"
+window/stretch/aspect="keep"
+
+[layer_names]
+
+2d_physics/layer_1="Player Fruits"
+2d_physics/layer_2="Arena Boundary"
+2d_physics/layer_3="Hazards"
+2d_physics/layer_4="Falloff Detection"
+
+[physics]
+
+2d/default_gravity=0.0
+common/physics_ticks_per_second=120
+2d/solver/contact_max_allowed_penetration=0.2
