@@ -79,6 +79,7 @@ workflows:
       node: latest
       groups:
         - ios_signing
+        - ios_certs
       vars:
         XCODE_PROJECT: "ios/App/App.xcodeproj"
         XCODE_SCHEME: "App"
