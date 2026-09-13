@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="FruitData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/FruitData.gd" id="1"]
+[resource]
+script = ExtResource("1")
+tier = 8
+display_name = "Melon"
+radius = 88.0
+mass = 40.0
+linear_damp = 1.8
+restitution = 0.68
+knockback_resistance = 0.82
+color = Color(0.714, 0.91, 0.357, 1)
+secondary_color = Color(0.537, 0.741, 0.192, 1)
+mawashi_color = Color(0.161, 0.502, 0.725, 1)
+eye_offset = 24.0
+eye_size = 11.0
+pupil_size = 5.2
+mawashi_width = 17.0

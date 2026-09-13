@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="FruitData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/FruitData.gd" id="1"]
+[resource]
+script = ExtResource("1")
+tier = 6
+display_name = "Orange"
+radius = 58.0
+mass = 18.0
+linear_damp = 1.4
+restitution = 0.72
+knockback_resistance = 0.55
+color = Color(1, 0.635, 0.122, 1)
+secondary_color = Color(0.839, 0.463, 0, 1)
+mawashi_color = Color(0.086, 0.627, 0.522, 1)
+eye_offset = 16.0
+eye_size = 8.0
+pupil_size = 3.8
+mawashi_width = 11.0

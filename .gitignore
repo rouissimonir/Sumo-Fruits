@@ -6,3 +6,13 @@ coverage/
 *.log
 .env*
 !.env.example
+.godot-verify-env/
+sumo_fruits_godot_project/.godot/
+sumo_fruits_godot_project/build/
+
+# Capacitor iOS
+ios/App/Pods/
+ios/App/build/
+ios/App/DerivedData/
+ios/App/App/public/
+ios/.DS_Store

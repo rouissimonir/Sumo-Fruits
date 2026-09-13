@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="FruitData" load_steps=2 format=3]
+[ext_resource type="Script" path="res://scripts/data/FruitData.gd" id="1"]
+[resource]
+script = ExtResource("1")
+tier = 4
+display_name = "Strawberry"
+radius = 36.0
+mass = 7.0
+linear_damp = 1.1
+restitution = 0.78
+knockback_resistance = 0.28
+color = Color(1, 0.231, 0.384, 1)
+secondary_color = Color(0.82, 0.11, 0.255, 1)
+mawashi_color = Color(0.945, 0.769, 0.059, 1)
+eye_offset = 10.0
+eye_size = 5.5
+pupil_size = 2.5
+mawashi_width = 7.0

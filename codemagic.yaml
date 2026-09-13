@@ -1,8 +1,6 @@
-
 workflows:
   godot-ios:
-    name: Godot iOS Build
-
+    name: Sumo Fruits - Godot iOS export
     instance_type: mac_mini_m2
     max_build_duration: 60
 
@@ -13,40 +11,108 @@ workflows:
         EXPORT_PRESET: "iOS"
 
     scripts:
-      - name: Download Godot
+      - name: Validate required iOS identity
         script: |
-          curl -L \
-            "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_macos.universal.zip" \
-            -o godot.zip
+          : "${BUNDLE_ID:?Set BUNDLE_ID in Codemagic environment variables}"
+          : "${APP_STORE_TEAM_ID:?Set APP_STORE_TEAM_ID in Codemagic environment variables}"
 
+      - name: Download Godot and export templates
+        script: |
+          curl --fail --location --retry 3 \
+            "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_macos.universal.zip" \
+            --output godot.zip
           unzip -q godot.zip
 
-      - name: Download Godot export templates
-        script: |
-          curl -L \
+          curl --fail --location --retry 3 \
             "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz" \
-            -o templates.tpz
-
+            --output templates.tpz
           unzip -q templates.tpz
 
           TEMPLATE_DIR="$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
-
           mkdir -p "$TEMPLATE_DIR"
           cp -R templates/* "$TEMPLATE_DIR/"
+          chmod +x ./Godot.app/Contents/MacOS/Godot
 
-      - name: Select Xcode
+      - name: Configure iOS export identity
         script: |
-          sudo xcode-select -switch /Applications/Xcode.app
+          cd sumo_fruits_godot_project
+          sed -i '' "s|__BUNDLE_ID__|${BUNDLE_ID}|g" export_presets.cfg
+          sed -i '' "s|__APP_STORE_TEAM_ID__|${APP_STORE_TEAM_ID}|g" export_presets.cfg
 
-      - name: Export Godot project for iOS
+      - name: Validate Godot project
         script: |
-          mkdir -p build
+          ./Godot.app/Contents/MacOS/Godot \
+            --headless \
+            --editor \
+            --path sumo_fruits_godot_project \
+            --quit
 
           ./Godot.app/Contents/MacOS/Godot \
             --headless \
-            --path . \
+            --path sumo_fruits_godot_project \
+            --script res://tests/smoke_test.gd
+
+      - name: Export Xcode project
+        script: |
+          mkdir -p sumo_fruits_godot_project/build
+          ./Godot.app/Contents/MacOS/Godot \
+            --headless \
+            --path sumo_fruits_godot_project \
             --export-release "$EXPORT_PRESET" \
-            build/MyGame.zip
+            sumo_fruits_godot_project/build/SumoFruits.zip
 
     artifacts:
-      - build/*.zip
+      - sumo_fruits_godot_project/build/*.zip
+
+  ios-capacitor:
+    name: Sumo Fruits - Capacitor iOS build
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    integrations:
+      app_store_connect: my_asc_key # name this the same in Codemagic > Team integrations > App Store Connect
+
+    environment:
+      xcode: latest
+      cocoapods: default
+      node: latest
+      vars:
+        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
+        XCODE_SCHEME: "App"
+        BUNDLE_ID: "com.mounirrouissi.sumofruits"
+
+    scripts:
+      - name: Install JS dependencies
+        script: npm install
+
+      - name: Build web assets
+        script: npm run build
+
+      - name: Sync Capacitor iOS project
+        script: npx cap sync ios
+
+      - name: Install CocoaPods dependencies
+        script: |
+          cd ios/App
+          pod install
+
+      - name: Set up code signing
+        script: |
+          keychain initialize
+          app-store-connect fetch-signing-files "$BUNDLE_ID" --type IOS_APP_STORE --create
+          keychain add-certificates
+          xcode-project use-profiles
+
+      - name: Build ipa
+        script: |
+          xcode-project build-ipa \
+            --workspace "$XCODE_WORKSPACE" \
+            --scheme "$XCODE_SCHEME"
+
+    artifacts:
+      - build/ios/ipa/*.ipa
+
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
