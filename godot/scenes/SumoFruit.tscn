@@ -1,0 +1,18 @@
+[gd_scene load_steps=3 format=3 uid="uid://sumo_fruit_scene"]
+
+[ext_resource type="Script" path="res://scripts/actors/SumoFruit.gd" id="1_fruit"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_1"]
+radius = 16.0
+
+[node name="SumoFruit" type="RigidBody2D" groups=["fruits"]]
+collision_layer = 1
+collision_mask = 7
+contact_monitor = true
+max_contacts_reported = 16
+script = ExtResource("1_fruit")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_1")
+
+[node name="VisualRoot" type="Node2D" parent="."]
