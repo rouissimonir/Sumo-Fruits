@@ -7,23 +7,42 @@ workflows:
       node: 20
       xcode: latest
       vars:
-        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
-        XCODE_SCHEME: "App"
+        APP_ID: "com.sumofruits.game"
+        APP_NAME: "Sumo Fruits"
     scripts:
       - name: Install dependencies & Build Web App
         script: |
           npm ci || npm install
           npm run build
-      - name: Capacitor Sync
+      - name: Initialize Capacitor iOS if missing
         script: |
-          npx cap sync ios || echo "Capacitor iOS sync skipped if ios/ is not generated yet"
-      - name: Build iOS Archive / IPA
+          # Install Capacitor CLI and core if not present
+          npm install --no-save @capacitor/cli @capacitor/core @capacitor/ios
+          
+          # Initialize capacitor config if missing
+          if [ ! -f "capacitor.config.json" ] && [ ! -f "capacitor.config.ts" ]; then
+            npx cap init "$APP_NAME" "$APP_ID" --web-dir dist
+          fi
+          
+          # Add iOS platform if directory does not exist
+          if [ ! -d "ios" ]; then
+            npx cap add ios
+          fi
+          
+          # Sync web build to native iOS project
+          npx cap sync ios
+          
+          # Install CocoaPods
+          cd ios/App && pod install && cd ../..
+      - name: Build iOS IPA
         script: |
-          if [ -d "ios/App" ]; then
+          WORKSPACE="ios/App/App.xcworkspace"
+          if [ -d "$WORKSPACE" ]; then
             xcode-project build-ipa \
-              --workspace "$XCODE_WORKSPACE" \
-              --scheme "$XCODE_SCHEME"
+              --workspace "$WORKSPACE" \
+              --scheme "App"
           else
+            echo "Packaging Web build output as fallback archive"
             mkdir -p build
             zip -r build/dist-web-package.zip dist/
           fi
@@ -39,14 +58,27 @@ workflows:
     environment:
       node: 20
       java: 17
+      vars:
+        APP_ID: "com.sumofruits.game"
+        APP_NAME: "Sumo Fruits"
     scripts:
       - name: Install dependencies & Build Web App
         script: |
           npm ci || npm install
           npm run build
-      - name: Capacitor Sync
+      - name: Initialize Capacitor Android if missing
         script: |
-          npx cap sync android || echo "Capacitor Android sync skipped if android/ is not generated yet"
+          npm install --no-save @capacitor/cli @capacitor/core @capacitor/android
+          
+          if [ ! -f "capacitor.config.json" ] && [ ! -f "capacitor.config.ts" ]; then
+            npx cap init "$APP_NAME" "$APP_ID" --web-dir dist
+          fi
+          
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
+          
+          npx cap sync android
       - name: Build Android APK
         script: |
           if [ -d "android" ]; then
