@@ -840,8 +840,8 @@ function drawFruit(
   ctx.fill();
   ctx.stroke();
 
-  // Front knot & Tier Number Buckle (e.g. 1, 2, 3... 11)
-  drawMawashiBuckle(ctx, beltY, beltH, fruit.tier, cat.mawashiColor, fruit.team);
+  // Authentic Front Sumo Knot (Maetate / Sagari Silk Fold)
+  drawMawashiKnot(ctx, beltY, beltH, radius, fruit.tier, cat.mawashiColor, fruit.team);
 
   // 5. Animated Eyes & Expression
   drawFace(ctx, fruit, cat);
@@ -1056,36 +1056,81 @@ function drawFruitBotanicals(
   ctx.restore();
 }
 
-function drawMawashiBuckle(
+function drawMawashiKnot(
   ctx: CanvasRenderingContext2D,
   beltY: number,
   beltH: number,
+  radius: number,
   tier: number,
   mawashiColor: string,
   team?: 'PLAYER' | 'RIVAL' | 'PLAYER_1' | 'PLAYER_2'
 ) {
-  const buckleW = Math.max(16, beltH * 1.55);
-  const buckleH = Math.max(12, beltH * 1.35);
+  const knotW = Math.max(12, beltH * 1.3);
+  const knotH = Math.max(8, beltH * 1.1);
 
   ctx.save();
-  // Buckle Base Plate
-  ctx.fillStyle = team === 'PLAYER_1' ? '#3B120F' : team === 'PLAYER_2' ? '#0F263B' : '#181512';
-  ctx.strokeStyle = team === 'PLAYER_1' ? '#E74C3C' : team === 'PLAYER_2' ? '#3498DB' : '#F59E0B';
-  ctx.lineWidth = team === 'PLAYER_1' || team === 'PLAYER_2' ? 2 : 1.5;
+
+  // Central woven silk loop/knot (Maetate)
+  const isP1 = team === 'PLAYER_1';
+  const isP2 = team === 'PLAYER_2';
+  const goldAccent = isP1 ? '#FF6B6B' : isP2 ? '#4DABF7' : '#FFD700';
+
+  // 1. Central knot base
+  ctx.fillStyle = isP1 ? '#C0392B' : isP2 ? '#2980B9' : mawashiColor;
+  ctx.strokeStyle = '#181512';
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.roundRect(-buckleW * 0.5, beltY - buckleH * 0.5, buckleW, buckleH, 3);
+  ctx.roundRect(-knotW * 0.5, beltY - knotH * 0.5, knotW, knotH, Math.max(2, knotH * 0.3));
   ctx.fill();
   ctx.stroke();
 
-  // Tier Number inside belt buckle
-  ctx.fillStyle = team === 'PLAYER_1' ? '#FFD2CC' : team === 'PLAYER_2' ? '#CCEBFF' : '#FFD700';
-  const fontSize = Math.max(8, Math.min(13, buckleH * 0.78));
-  ctx.font = `900 ${fontSize}px system-ui, -apple-system, sans-serif`;
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
+  // 2. Silk cord tie / Gold cord wrap in center
+  ctx.fillStyle = goldAccent;
+  ctx.beginPath();
+  ctx.roundRect(-knotW * 0.18, beltY - knotH * 0.55, knotW * 0.36, knotH * 1.1, 2);
+  ctx.fill();
 
-  const label = team === 'PLAYER_1' ? `東${tier}` : team === 'PLAYER_2' ? `西${tier}` : `${tier}`;
-  ctx.fillText(label, 0, beltY + 0.5);
+  // 3. Sagari (hanging stiffened silk fringe cords from the front of the belt)
+  const sagariCount = tier >= 9 ? 5 : tier >= 5 ? 3 : 2;
+  const sagariLen = Math.max(6, beltH * 1.25);
+  const sagariSpacing = Math.max(2.5, knotW / (sagariCount + 1));
+  const startX = -((sagariCount - 1) * sagariSpacing) / 2;
+
+  ctx.strokeStyle = '#FFFFFF';
+  ctx.lineWidth = Math.max(1, radius * 0.035);
+  ctx.lineCap = 'round';
+
+  for (let i = 0; i < sagariCount; i++) {
+    const sx = startX + i * sagariSpacing;
+    const sy = beltY + knotH * 0.35;
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    ctx.lineTo(sx + (i - (sagariCount - 1) / 2) * 0.8, sy + sagariLen);
+    ctx.stroke();
+  }
+
+  // 4. Yokozuna / Ozeki Grand Champion Sacred Emblems (Tier 10 & 11)
+  if (tier === 11) {
+    // Yokozuna Sacred White Shide (Zigzag ceremonial paper ornaments)
+    ctx.fillStyle = '#FFFFFF';
+    ctx.strokeStyle = '#B0BEC5';
+    ctx.lineWidth = 0.8;
+    for (const offset of [-knotW * 0.7, knotW * 0.7]) {
+      ctx.beginPath();
+      ctx.moveTo(offset, beltY - 2);
+      ctx.lineTo(offset + 3, beltY + 3);
+      ctx.lineTo(offset, beltY + 8);
+      ctx.lineTo(offset + 4, beltY + 12);
+      ctx.lineTo(offset + 1, beltY + 14);
+      ctx.stroke();
+    }
+  } else if (tier >= 9) {
+    // Sekiwake / Ozeki small gold crest stud
+    ctx.fillStyle = '#FFE066';
+    ctx.beginPath();
+    ctx.arc(0, beltY, Math.max(1.8, knotH * 0.22), 0, Math.PI * 2);
+    ctx.fill();
+  }
 
   ctx.restore();
 }
