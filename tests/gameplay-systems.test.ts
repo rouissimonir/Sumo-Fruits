@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ArenaConditionManager } from '../src/game/ArenaConditionManager';
+import { GameEngine } from '../src/game/GameEngine';
 import { VersusManager } from '../src/game/VersusManager';
-import { advanceEnglishSpin, DEFAULT_ARENA, predictTrajectory } from '../src/physics/bowlMotion';
+import { advanceEnglishSpin, createMawashiTail, DEFAULT_ARENA, predictTrajectory } from '../src/physics/bowlMotion';
 import { MergeClashManager } from '../src/physics/mergeClashManager';
 import { FRUIT_CATALOG, SumoFruitInstance } from '../src/types/game';
 import { DEFAULT_SETTINGS, loadGameSettings } from '../src/types/settings';
@@ -77,6 +78,35 @@ test('closing ring contracts every five shots and enforces a two-second grace', 
   assert.deepEqual(manager.updateOutOfBounds([outside], 0, 0, 0.02).eliminatedIds, [10]);
 });
 
+test('closing-ring elimination commits the ring-out and deducts a life', () => {
+  const engine = new GameEngine();
+  engine.arena = {
+    ...engine.arena,
+    centerX: 0,
+    centerY: 0,
+    radius: 100,
+    radiusX: 100,
+    radiusY: 100,
+    slopeK: 0,
+  };
+  engine.arenaConditionManager.setCondition('CLOSING_RING', 100);
+  for (let shot = 1; shot <= 5; shot++) {
+    engine.arenaConditionManager.onShotCommitted(shot, 100);
+  }
+
+  const endangeredFruit = fruit(20, 'PLAYER');
+  endangeredFruit.x = 98;
+  endangeredFruit.y = 0;
+  endangeredFruit.leftTail = createMawashiTail(92, 10, FRUIT_CATALOG[0].radius);
+  endangeredFruit.rightTail = createMawashiTail(104, 10, FRUIT_CATALOG[0].radius);
+  engine.fruits = [endangeredFruit];
+
+  for (let i = 0; i < 121; i++) engine.update(1 / 60);
+
+  assert.equal(engine.lives, 2);
+  assert.equal(endangeredFruit.state, 'RING_OUT');
+});
+
 test('daily basho selection is stable for the same UTC date', () => {
   const date = new Date('2026-09-14T23:59:59Z');
   assert.deepEqual(
@@ -86,13 +116,43 @@ test('daily basho selection is stable for the same UTC date', () => {
 });
 
 test('staging and launching fruits with entryPending cannot trigger ring-outs', () => {
+  const engine = new GameEngine();
+  engine.arena = {
+    ...engine.arena,
+    centerX: 0,
+    centerY: 0,
+    radius: 100,
+    radiusX: 100,
+    radiusY: 100,
+    slopeK: 0,
+  };
   const launchingFruit = fruit(99, 'PLAYER');
   launchingFruit.entryPending = true;
   launchingFruit.hasEnteredRing = false;
+  launchingFruit.x = 140;
+  launchingFruit.leftTail = createMawashiTail(134, 10, FRUIT_CATALOG[0].radius);
+  launchingFruit.rightTail = createMawashiTail(146, 10, FRUIT_CATALOG[0].radius);
+  engine.fruits = [launchingFruit];
 
-  // Verify initial flags
+  for (let i = 0; i < 120; i++) engine.update(1 / 60);
+
+  assert.equal(engine.lives, 3);
+  assert.equal(launchingFruit.state, 'IN_RING');
   assert.equal(launchingFruit.entryPending, true);
   assert.equal(launchingFruit.hasEnteredRing, false);
+});
+
+test('crossing a stored high score announces the record immediately', () => {
+  const engine = new GameEngine();
+  engine.score = 490;
+  engine.highScore = 500;
+  engine.isNewHighScore = false;
+
+  engine.addScore(20);
+
+  assert.equal(engine.highScore, 510);
+  assert.equal(engine.isNewHighScore, true);
+  assert.ok(engine.techniqueRibbons.getActiveRibbons().some((ribbon) => ribbon.title === 'New High Score Record!'));
 });
 
 test('default settings contain valid volume, audio, haptics and accessibility keys', () => {

@@ -9,7 +9,6 @@ import {
   Play,
   Compass,
   Trophy,
-  Sliders,
   Sparkles,
   HelpCircle,
   Vibrate,
@@ -37,7 +36,6 @@ interface SettingsModalProps {
   onSelectSpinMode?: (mode: SpinMode) => void;
   onOpenTierList: () => void;
   onOpenKimarite: () => void;
-  onOpenTuner: () => void;
   onOpenTutorial: () => void;
   onOpenCredits: () => void;
 }
@@ -56,7 +54,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onSelectSpinMode,
   onOpenTierList,
   onOpenKimarite,
-  onOpenTuner,
   onOpenTutorial,
   onOpenCredits,
 }) => {
@@ -71,6 +68,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     >
       <div
         id="settings-modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-modal-title"
         className="relative w-full max-w-lg max-h-[90vh] flex flex-col bg-[#1C1814] border-2 border-[#5A4535] rounded-2xl shadow-2xl overflow-hidden text-[#EDE2D4]"
       >
         {/* Header */}
@@ -80,7 +80,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               ⚙️
             </div>
             <div>
-              <h2 className="text-lg font-black tracking-wide text-white">
+              <h2 id="settings-modal-title" className="text-lg font-black tracking-wide text-white">
                 {isJa ? '設定・メニュー' : 'Game Settings & Menu'}
               </h2>
               <p className="text-xs text-[#A89886]">
@@ -195,7 +195,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 >
                   <div className="flex items-center gap-1.5">
                     <Languages size={16} className="text-[#3498DB]" />
-                    <span>{isJa ? '言語 (Language)' : 'Language'}</span>
+                    <span>{isJa ? 'ヘルプ言語' : 'Help Language'}</span>
                   </div>
                   <span className="text-[10px] text-[#FFD700] font-mono">{isJa ? '日本語' : 'English'}</span>
                 </button>
@@ -221,7 +221,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               >
                 <div className="truncate">{isJa ? '高コントラスト / 色覚補正' : 'High Contrast Mode'}</div>
                 <div className="text-[10px] font-normal text-[#8A7B6D] mt-0.5">
-                  {settings.highContrast ? (isJa ? '有効 (太字枠・記号)' : 'Active (Bold rings)') : (isJa ? '通常' : 'Standard')}
+                  {settings.highContrast ? (isJa ? 'コントラスト強調' : 'Boosted contrast') : (isJa ? '通常' : 'Standard')}
                 </div>
               </button>
 
@@ -240,6 +240,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </button>
             </div>
+            <button
+              id="settings-trajectory-btn"
+              onClick={() => onUpdateSettings({ showTrajectoryGuide: !settings.showTrajectoryGuide })}
+              className={`w-full p-2.5 rounded-lg border text-left text-xs font-bold transition-all cursor-pointer ${
+                settings.showTrajectoryGuide
+                  ? 'bg-[#3498DB]/20 border-[#3498DB] text-white'
+                  : 'bg-[#1C1814] border-[#382B22] text-[#8A7B6D]'
+              }`}
+            >
+              <div>{isJa ? '軌道ガイド' : 'Trajectory Guide'}</div>
+              <div className="text-[10px] font-normal text-[#8A7B6D] mt-0.5">
+                {settings.showTrajectoryGuide ? (isJa ? '表示' : 'Visible') : (isJa ? '非表示' : 'Hidden')}
+              </div>
+            </button>
           </div>
 
           {/* Game Mode Selection */}
@@ -476,27 +490,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
-          {/* Engine Tools & Licenses */}
+          {/* Licenses & Privacy */}
           <div className="bg-[#241E19] border border-[#3D2E24] rounded-xl p-3.5 space-y-2">
             <div className="text-xs font-bold uppercase tracking-wider text-[#A89886]">
-              {isJa ? '開発ツール・ライセンス情報' : 'Tools & Asset Licensing'}
+              {isJa ? 'ライセンス・プライバシー情報' : 'Licenses & Privacy'}
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                id="settings-tuner-btn"
-                onClick={() => {
-                  onClose();
-                  onOpenTuner();
-                }}
-                className="flex items-center gap-2 p-2.5 rounded-xl bg-[#1C1814] hover:bg-[#2F241C] border border-[#4B392C] text-left transition-all cursor-pointer group"
-              >
-                <Sliders size={16} className="text-[#F1C40F] shrink-0" />
-                <div className="min-w-0">
-                  <div className="text-xs font-bold text-white group-hover:text-[#F1C40F] truncate">Tuner</div>
-                  <div className="text-[9px] text-[#A89886]">Physics</div>
-                </div>
-              </button>
-
+            <div>
               <button
                 id="settings-credits-btn"
                 onClick={() => {

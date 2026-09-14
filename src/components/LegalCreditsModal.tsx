@@ -23,6 +23,9 @@ export const LegalCreditsModal: React.FC<LegalCreditsModalProps> = ({
     >
       <div
         id="legal-credits-modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="legal-credits-modal-title"
         className="relative w-full max-w-lg flex flex-col bg-[#1C1814] border-2 border-[#5A4535] rounded-2xl shadow-2xl overflow-hidden text-[#EDE2D4] max-h-[85vh]"
       >
         {/* Header */}
@@ -32,7 +35,7 @@ export const LegalCreditsModal: React.FC<LegalCreditsModalProps> = ({
               <ShieldCheck size={22} />
             </div>
             <div>
-              <h2 className="text-lg font-black tracking-wide text-white">
+              <h2 id="legal-credits-modal-title" className="text-lg font-black tracking-wide text-white">
                 {isJa ? '権利表記・ライセンス確認' : 'Ownership & Asset Licenses'}
               </h2>
               <p className="text-xs text-[#A89886]">
@@ -87,7 +90,7 @@ export const LegalCreditsModal: React.FC<LegalCreditsModalProps> = ({
             <p className="text-xs text-[#C8B8A6] leading-relaxed">
               {isJa
                 ? 'フルーツ力士、勝負俵、砂土俵、締め込みの回し、清め塩の結晶など、すべてのビジュアル要素はオリジナル数学コードにより描画されています。'
-                : 'All fruit rikishi sprites, sacred dohyō clay texturing, straw bales (Tawara), and mawashi physics are mathematically drawn on HTML5 Canvas. MIT licensed original code.'}
+                : 'All fruit rikishi sprites, sacred dohyō clay texturing, straw bales (Tawara), and mawashi physics are original procedural artwork drawn on HTML5 Canvas.'}
             </p>
           </div>
 
@@ -107,7 +110,7 @@ export const LegalCreditsModal: React.FC<LegalCreditsModalProps> = ({
 
         {/* Footer */}
         <div className="px-5 py-3.5 border-t border-[#3D2E24] bg-[#241E19] flex items-center justify-between">
-          <span className="text-xs text-[#8A7B6D]">MIT License • 2026 Sumo Fruits</span>
+          <span className="text-xs text-[#8A7B6D]">© 2026 Sumo Fruits</span>
           <button
             onClick={onClose}
             className="px-4 py-1.5 rounded-xl bg-[#3E3125] hover:bg-[#5A4535] text-white text-xs font-bold transition-all cursor-pointer"

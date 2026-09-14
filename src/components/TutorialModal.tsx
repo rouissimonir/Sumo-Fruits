@@ -175,6 +175,9 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({
     >
       <div
         id="tutorial-modal-card"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tutorial-modal-title"
         className="relative w-full max-w-lg flex flex-col bg-[#1C1814] border-2 border-[#5A4535] rounded-2xl shadow-2xl overflow-hidden text-[#EDE2D4]"
       >
         {/* Header */}
@@ -190,7 +193,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({
               <div className="text-[11px] font-bold uppercase tracking-wider text-[#A89886]">
                 {isJa ? step.badgeJa : step.badgeEn}
               </div>
-              <h2 className="text-lg font-black tracking-wide text-white">
+              <h2 id="tutorial-modal-title" className="text-lg font-black tracking-wide text-white">
                 {isJa ? step.titleJa : step.titleEn}
               </h2>
             </div>

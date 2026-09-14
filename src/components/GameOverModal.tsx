@@ -32,6 +32,9 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
     >
       <div
         id="game-over-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="game-over-modal-title"
         className="relative w-full max-w-md bg-[#1C1814] border-2 border-[#E74C3C] rounded-2xl shadow-2xl p-6 text-center text-[#EDE2D4]"
       >
         {/* New High Score Banner Celebration */}
@@ -46,7 +49,7 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
           <Trophy className="text-[#FFD700]" size={32} />
         </div>
 
-        <h2 className="text-2xl font-black text-white tracking-tight uppercase">
+        <h2 id="game-over-modal-title" className="text-2xl font-black text-white tracking-tight uppercase">
           Match Concluded!
         </h2>
         <p className="text-xs text-[#E74C3C] font-semibold mt-1 mb-5">

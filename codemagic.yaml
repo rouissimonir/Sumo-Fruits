@@ -1,93 +1,63 @@
 workflows:
   capacitor-ios:
-    name: Capacitor iOS Build
+    name: Sumo Fruits iOS Release
     instance_type: mac_mini_m2
     max_build_duration: 60
-    environment:
-      node: 20
-      xcode: latest
-      vars:
-        APP_ID: "com.sumofruits.game"
-        APP_NAME: "Sumo Fruits"
-    scripts:
-      - name: Install dependencies & Build Web App
-        script: |
-          npm ci || npm install
-          npm run build
-      - name: Initialize Capacitor iOS if missing
-        script: |
-          # Install Capacitor CLI and core if not present
-          npm install --no-save @capacitor/cli @capacitor/core @capacitor/ios
-          
-          # Initialize capacitor config if missing
-          if [ ! -f "capacitor.config.json" ] && [ ! -f "capacitor.config.ts" ]; then
-            npx cap init "$APP_NAME" "$APP_ID" --web-dir dist
-          fi
-          
-          # Add iOS platform if directory does not exist
-          if [ ! -d "ios" ]; then
-            npx cap add ios
-          fi
-          
-          # Sync web build to native iOS project
-          npx cap sync ios
-          
-          # Install CocoaPods
-          cd ios/App && pod install && cd ../..
-      - name: Build iOS IPA
-        script: |
-          WORKSPACE="ios/App/App.xcworkspace"
-          if [ -d "$WORKSPACE" ]; then
-            xcode-project build-ipa \
-              --workspace "$WORKSPACE" \
-              --scheme "App"
-          else
-            echo "Packaging Web build output as fallback archive"
-            mkdir -p build
-            zip -r build/dist-web-package.zip dist/
-          fi
-    artifacts:
-      - build/ios/ipa/*.ipa
-      - build/*.zip
-      - /tmp/xcodebuild_logs/*.log
 
-  capacitor-android:
-    name: Capacitor Android Build
-    instance_type: linux_x2
-    max_build_duration: 45
     environment:
-      node: 20
-      java: 17
+      xcode: "26.0"
+      node: "22"
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.mounirrouissi.sumofruits
       vars:
-        APP_ID: "com.sumofruits.game"
-        APP_NAME: "Sumo Fruits"
+        XCODE_PROJECT: ios/App/App.xcodeproj
+        XCODE_SCHEME: App
+
+    cache:
+      cache_paths:
+        - $HOME/Library/Caches/org.swift.swiftpm
+        - $CM_BUILD_DIR/SourcePackages
+
     scripts:
-      - name: Install dependencies & Build Web App
+      - name: Install dependencies
+        script: npm ci
+
+      - name: Verify committed Capacitor iOS project
         script: |
-          npm ci || npm install
+          set -e
+          test -f "$CM_BUILD_DIR/package-lock.json"
+          test -f "$CM_BUILD_DIR/capacitor.config.ts"
+          test -f "$CM_BUILD_DIR/ios/App/App.xcodeproj/project.pbxproj"
+          test -f "$CM_BUILD_DIR/ios/App/CapApp-SPM/Package.swift"
+
+      - name: Validate TypeScript
+        script: npm run lint
+
+      - name: Run gameplay tests
+        script: npm test
+
+      - name: Build web app and sync Capacitor with SPM
+        script: |
           npm run build
-      - name: Initialize Capacitor Android if missing
+          npx cap sync ios
+
+      - name: Apply App Store signing profiles
+        script: xcode-project use-profiles
+
+      - name: Set build number
         script: |
-          npm install --no-save @capacitor/cli @capacitor/core @capacitor/android
-          
-          if [ ! -f "capacitor.config.json" ] && [ ! -f "capacitor.config.ts" ]; then
-            npx cap init "$APP_NAME" "$APP_ID" --web-dir dist
-          fi
-          
-          if [ ! -d "android" ]; then
-            npx cap add android
-          fi
-          
-          npx cap sync android
-      - name: Build Android APK
+          cd "$CM_BUILD_DIR/ios/App"
+          agvtool new-version -all "$BUILD_NUMBER"
+
+      - name: Build signed IPA
         script: |
-          if [ -d "android" ]; then
-            cd android && ./gradlew assembleRelease
-          else
-            mkdir -p build
-            zip -r build/dist-web-package.zip dist/
-          fi
+          xcode-project build-ipa \
+            --project "$CM_BUILD_DIR/$XCODE_PROJECT" \
+            --scheme "$XCODE_SCHEME" \
+            --archive-flags "-clonedSourcePackagesDirPath $CM_BUILD_DIR/SourcePackages"
+
     artifacts:
-      - android/app/build/outputs/**/*.apk
-      - android/app/build/outputs/**/*.aab
-      - build/*.zip
+      - ios/App/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM

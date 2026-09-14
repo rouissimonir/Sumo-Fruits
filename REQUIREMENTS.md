@@ -1,6 +1,6 @@
 # Sumo Fruits: The Bumper Bowl — Comprehensive Requirements & Architecture Specification
 **Document Version:** 2.0.0  
-**Target Runtime:** Web (React 18 + Vite + HTML5 Canvas 2D + Web Audio API) & Godot 4.3 Engine (C# / GDScript Cross-Platform Architecture)  
+**Target Runtime:** iOS 15+ (React 19 + Vite + HTML5 Canvas 2D + Web Audio API inside Capacitor 8)
 **Status:** Canonical Implementation & Systems Architecture Specification
 
 ---
@@ -28,7 +28,7 @@ src/
 │   └── trajectoryPredictor.ts   # Swept-circle prediction matching exact integration step
 ├── game/
 │   ├── GameEngine.ts            # Authoritative session state machine & frame orchestrator
-│   ├── ShotDirector.gd / .ts    # Shot lifecycle, settlement detection, turn boundaries
+│   ├── ShotDirector.ts          # Shot lifecycle, settlement detection, turn boundaries
 │   ├── EventRouter.ts           # Authoritative gameplay event queue (decouples logic from FX)
 │   ├── TechniqueDetector.ts     # Causality-linked Kimarite detection engine
 │   ├── KimariteManager.ts       # Achievement ledger, persistence, progression
@@ -44,7 +44,6 @@ src/
 │   ├── SettingsModal.tsx        # Configuration, volume sliders, arena shape selection
 │   ├── TierListModal.tsx        # 11-Tier wrestler encyclopedia
 │   ├── KimariteModal.tsx        # Technique stamps ledger & replays
-│   ├── GodotExporterModal.tsx   # Project exporter & zip bundle generator
 │   └── ParameterTuner.tsx       # Live physics engine calibration suite
 └── audio/
     └── soundEffects.ts          # Synthesized Web Audio API soundscape & Gyōji vocal engine

@@ -70,6 +70,14 @@ class SoundEngine {
     return this.enabled;
   }
 
+  public suspend() {
+    if (this.ctx?.state === 'running') {
+      void this.ctx.suspend().catch(() => {
+        // The platform may already be suspending audio while backgrounded.
+      });
+    }
+  }
+
   /**
    * Traditional Hyoshigi (sumo wooden clappers) strike
    */

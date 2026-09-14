@@ -8,7 +8,6 @@ import { GameEngine, GameStats } from './game/GameEngine';
 import { GameCanvas } from './components/GameCanvas';
 import { HUD } from './components/HUD';
 import { TierListModal } from './components/TierListModal';
-import { ParameterTuner } from './components/ParameterTuner';
 import { GameOverModal } from './components/GameOverModal';
 import { KimariteModal } from './components/KimariteModal';
 import { SettingsModal } from './components/SettingsModal';
@@ -18,6 +17,7 @@ import { VersusVictoryModal } from './components/VersusVictoryModal';
 import { VersusHandoverModal } from './components/VersusHandoverModal';
 import { sound } from './audio/soundEffects';
 import { haptics } from './audio/haptics';
+import { App as CapacitorApp } from '@capacitor/app';
 import { HelpCircle, Sparkles } from 'lucide-react';
 import { ArenaMode, GameModeType, SpinMode } from './types/game';
 import { DEFAULT_SETTINGS, GameSettings, loadGameSettings, saveGameSettings } from './types/settings';
@@ -98,7 +98,6 @@ export default function App() {
   });
 
   const [isTierListOpen, setIsTierListOpen] = useState(false);
-  const [isTunerOpen, setIsTunerOpen] = useState(false);
   const [isKimariteOpen, setIsKimariteOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCreditsOpen, setIsCreditsOpen] = useState(false);
@@ -113,8 +112,23 @@ export default function App() {
     sound.setVolume(settings.sfxVolume);
     sound.setEnabled(!settings.sfxMuted);
     haptics.setEnabled(settings.hapticsEnabled);
+    engine.reducedMotion = settings.reducedMotion;
+    engine.showTrajectoryGuide = settings.showTrajectoryGuide;
     saveGameSettings(settings);
-  }, [settings]);
+  }, [engine, settings]);
+
+  useEffect(() => {
+    const listener = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+      if (!isActive) {
+        engine.cancelDrag();
+        sound.suspend();
+      }
+    });
+
+    return () => {
+      void listener.then((handle) => handle.remove());
+    };
+  }, [engine]);
 
   const updateSettings = useCallback((partial: Partial<GameSettings>) => {
     setSettings((prev) => {
@@ -201,7 +215,9 @@ export default function App() {
   return (
     <main
       id="sumo-fruits-app"
-      className="relative w-screen h-screen overflow-hidden bg-[#14120E] font-sans select-none"
+      className={`relative w-full h-dvh overflow-hidden bg-[#14120E] font-sans select-none ${
+        settings.highContrast ? 'contrast-125 saturate-125' : ''
+      }`}
     >
       {/* HUD Layer */}
       <HUD
@@ -209,7 +225,6 @@ export default function App() {
         onRestart={handleRestart}
         onTogglePause={handleTogglePause}
         onOpenTierList={() => setIsTierListOpen(true)}
-        onOpenTuner={() => setIsTunerOpen(true)}
         onOpenKimarite={() => setIsKimariteOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onThrowSalt={handleThrowSalt}
@@ -271,14 +286,6 @@ export default function App() {
         highestTierReached={stats.highestTierReached}
       />
 
-      <ParameterTuner
-        isOpen={isTunerOpen}
-        onClose={() => setIsTunerOpen(false)}
-        engine={engine}
-        currentMode={stats.arenaMode}
-        tuning={stats.tuning}
-      />
-
       <KimariteModal
         isOpen={isKimariteOpen}
         onClose={() => setIsKimariteOpen(false)}
@@ -299,7 +306,6 @@ export default function App() {
         onSelectSpinMode={handleSelectSpinMode}
         onOpenTierList={() => setIsTierListOpen(true)}
         onOpenKimarite={() => setIsKimariteOpen(true)}
-        onOpenTuner={() => setIsTunerOpen(true)}
         onOpenTutorial={() => setIsTutorialOpen(true)}
         onOpenCredits={() => setIsCreditsOpen(true)}
       />

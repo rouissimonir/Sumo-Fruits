@@ -24,6 +24,9 @@ export const TierListModal: React.FC<TierListModalProps> = ({
     >
       <div
         id="tier-list-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="tier-list-modal-title"
         className="relative w-full max-w-3xl max-h-[85vh] bg-[#1C1814] border border-[#3E342B] rounded-2xl shadow-2xl flex flex-col overflow-hidden text-[#EDE2D4]"
       >
         {/* Header */}
@@ -31,7 +34,7 @@ export const TierListModal: React.FC<TierListModalProps> = ({
           <div className="flex items-center gap-2.5">
             <Award className="text-[#FFD700]" size={24} />
             <div>
-              <h2 className="text-lg font-black tracking-tight text-[#FFD700]">
+              <h2 id="tier-list-modal-title" className="text-lg font-black tracking-tight text-[#FFD700]">
                 {activeTab === 'ROSTER' ? 'Sumo Fruit Roster (11 Tiers)' : 'Dohyō Hazards & Rivals Guide'}
               </h2>
               <p className="text-xs text-[#A89886]">
@@ -44,6 +47,7 @@ export const TierListModal: React.FC<TierListModalProps> = ({
           <button
             id="tier-modal-close-btn"
             onClick={onClose}
+            aria-label="Close roster and hazard guide"
             className="p-1.5 rounded-lg text-[#A89886] hover:text-white hover:bg-[#3E342B] transition-colors cursor-pointer"
           >
             <X size={20} />

@@ -36,6 +36,6 @@ This document confirms the ownership, commercial licenses, and origin of all med
 ---
 
 ### 4. 📦 Dependencies & Privacy Declaration
-* **Dependencies**: Standard open-source frameworks (React, Vite, Lucide React, Motion).
+* **Dependencies**: Standard open-source frameworks (React, Vite, Tailwind CSS, Lucide React, and Capacitor). Each dependency retains its own license.
 * **Data Transmission**: 100% offline-first arcade simulation.
 * **Privacy & Telemetry**: Zero external tracking, zero ad networks, zero analytics SDKs, and zero telemetry. All player data (scores, daily basho, unlocked kimarite, career ranks, settings) persists strictly inside local client storage.

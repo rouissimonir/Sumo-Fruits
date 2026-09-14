@@ -34,6 +34,9 @@ export const VersusHandoverModal: React.FC<VersusHandoverModalProps> = ({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-fade-in text-[#EDE2D4]">
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="versus-handover-title"
         className={`relative w-full max-w-md ${playerBg} border-2 ${playerBorder} rounded-3xl shadow-2xl overflow-hidden p-6 sm:p-8 text-center space-y-5 transition-all duration-300`}
       >
         {/* Decorative Glow */}
@@ -57,7 +60,7 @@ export const VersusHandoverModal: React.FC<VersusHandoverModalProps> = ({
               {playerEmblem}
             </div>
             <div className="text-left">
-              <h2 className="text-2xl sm:text-3xl font-black text-white tracking-wide leading-tight">
+              <h2 id="versus-handover-title" className="text-2xl sm:text-3xl font-black text-white tracking-wide leading-tight">
                 {playerName}
               </h2>
               <p className="text-[11px] font-bold text-[#A89886] tracking-wider uppercase">

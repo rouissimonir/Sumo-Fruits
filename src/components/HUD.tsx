@@ -9,7 +9,6 @@ import {
   Heart,
   AlertTriangle,
   Flame,
-  Sliders,
   Sparkles,
   Compass,
   Trophy,
@@ -25,7 +24,6 @@ interface HUDProps {
   onRestart: () => void;
   onTogglePause: () => void;
   onOpenTierList: () => void;
-  onOpenTuner: () => void;
   onOpenKimarite: () => void;
   onOpenSettings: () => void;
   onThrowSalt: () => void;
@@ -42,7 +40,6 @@ export const HUD: React.FC<HUDProps> = ({
   onRestart,
   onTogglePause,
   onOpenTierList,
-  onOpenTuner,
   onOpenKimarite,
   onOpenSettings,
   onThrowSalt,

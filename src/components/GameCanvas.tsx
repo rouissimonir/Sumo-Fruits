@@ -23,6 +23,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
 
     let animationId: number;
     let lastTime = performance.now();
+    let accumulator = 0;
+    const fixedStep = 1 / 120;
 
     // Handle high-DPI and responsive sizing
     const updateSize = () => {
@@ -47,11 +49,15 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
 
     // Main game loop
     const renderLoop = (now: number) => {
-      const dt = Math.min(0.05, (now - lastTime) / 1000);
+      const frameTime = Math.min(0.05, (now - lastTime) / 1000);
       lastTime = now;
 
-      // Update simulation
-      engine.update(dt);
+      // Keep physics stable across standard 60 Hz and ProMotion 120 Hz displays.
+      accumulator = Math.min(0.05, accumulator + frameTime);
+      while (accumulator >= fixedStep) {
+        engine.update(fixedStep);
+        accumulator -= fixedStep;
+      }
 
       // Render
       const w = container.clientWidth;
@@ -80,7 +86,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
       drawSaltZones(ctx, engine);
 
       // 3. Trajectory Dots
-      drawTrajectory(ctx, engine);
+      if (engine.showTrajectoryGuide) drawTrajectory(ctx, engine);
 
       // 4. Launcher Pedestal & Slingshot Bands
       drawLauncher(ctx, engine);
@@ -216,6 +222,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
       <canvas
         ref={canvasRef}
         id="game-canvas"
+        role="application"
+        aria-label="Sumo Fruits game arena. Drag the loaded fruit backward and release to launch."
         className="block w-full h-full"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}

@@ -23,7 +23,12 @@ export const VersusVictoryModal: React.FC<VersusVictoryModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-fade-in text-[#EDE2D4]">
-      <div className="relative w-full max-w-lg bg-[#1C1814] border-2 border-[#5A4535] rounded-3xl shadow-2xl overflow-hidden p-6 sm:p-8 text-center space-y-5">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="versus-victory-title"
+        className="relative w-full max-w-lg bg-[#1C1814] border-2 border-[#5A4535] rounded-3xl shadow-2xl overflow-hidden p-6 sm:p-8 text-center space-y-5"
+      >
         {/* Decorative Top Glow */}
         <div
           className="absolute -top-24 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full blur-3xl pointer-events-none opacity-40"
@@ -40,7 +45,7 @@ export const VersusVictoryModal: React.FC<VersusVictoryModalProps> = ({
             天皇賜杯 • EMPEROR'S CUP CHAMPION
           </div>
 
-          <h2 className="text-2xl sm:text-3xl font-black text-white tracking-wide">
+          <h2 id="versus-victory-title" className="text-2xl sm:text-3xl font-black text-white tracking-wide">
             {winnerName} WINS!
           </h2>
           <p className="text-xs text-[#A89886]">

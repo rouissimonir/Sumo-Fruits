@@ -189,6 +189,7 @@ export class GameEngine {
 
   // Settings
   public reducedMotion = false;
+  public showTrajectoryGuide = true;
 
   private nextEntityId = 1;
   private totalShots = 0;
@@ -557,7 +558,7 @@ export class GameEngine {
         // storage fallback
       }
 
-      if (!wasRecord && this.highScore >= 1000) {
+      if (!wasRecord) {
         this.techniqueRibbons.addRibbon(
           'New High Score Record!',
           `Record shattered: ${this.highScore.toLocaleString()} pts!`,
@@ -1167,7 +1168,6 @@ export class GameEngine {
       for (const elimId of eliminatedIds) {
         const fruit = this.fruits.find((f) => f.id === elimId);
         if (fruit && fruit.state === 'IN_RING') {
-          fruit.state = 'RING_OUT';
           this.spawnSparks(fruit.x, fruit.y, '#E74C3C', 18);
           this.commitRingOut(fruit);
           this.techniqueRibbons.addRibbon('Ring Out!', 'Eliminated by closing ring boundary!', '#E74C3C', 2.5, '場外', '⚡');

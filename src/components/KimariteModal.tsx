@@ -27,7 +27,12 @@ export const KimariteModal: React.FC<KimariteModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/75 backdrop-blur-sm animate-fade-in">
-      <div className="relative w-full max-w-2xl max-h-[85vh] flex flex-col bg-[#1C1814] border-2 border-[#5A4535] rounded-2xl shadow-2xl overflow-hidden text-[#EDE2D4]">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="kimarite-modal-title"
+        className="relative w-full max-w-2xl max-h-[85vh] flex flex-col bg-[#1C1814] border-2 border-[#5A4535] rounded-2xl shadow-2xl overflow-hidden text-[#EDE2D4]"
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#3D2E24] bg-[#241E19]">
           <div className="flex items-center gap-3">
@@ -36,7 +41,7 @@ export const KimariteModal: React.FC<KimariteModalProps> = ({
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-lg sm:text-xl font-black tracking-wide text-white">
+                <h2 id="kimarite-modal-title" className="text-lg sm:text-xl font-black tracking-wide text-white">
                   決まり手 Kimarite Techniques
                 </h2>
                 <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-[#3E3125] text-[#FFD700] border border-[#5A4535]">
@@ -50,6 +55,7 @@ export const KimariteModal: React.FC<KimariteModalProps> = ({
           </div>
           <button
             onClick={onClose}
+            aria-label="Close Kimarite techniques"
             className="p-1.5 rounded-lg bg-[#2E241D] hover:bg-[#3D2E24] text-[#A89886] hover:text-white transition-colors cursor-pointer"
           >
             <X size={20} />
