@@ -114,7 +114,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
       }
 
       // 9.5 Technique Ribbons Stack
-      drawTechniqueRibbons(ctx, engine);
+      if (!engine.activeRefereeCall) drawTechniqueRibbons(ctx, engine);
 
       // 10. Overflow Alert Ring
       if (engine.isOverflowing) {
@@ -1684,13 +1684,15 @@ function drawRefereeCallout(
   const subtitle = call.subText ?? call.subtext ?? '';
 
   ctx.save();
-  ctx.translate(canvasWidth / 2, 85);
+  const isMobile = canvasWidth < 640;
+  const bannerY = isMobile ? 158 : 85;
+  ctx.translate(canvasWidth / 2, bannerY);
   ctx.scale(scale, scale);
   ctx.globalAlpha = alpha;
 
   // Banner background
-  const bannerW = 340;
-  const bannerH = 68;
+  const bannerW = Math.min(340, canvasWidth - 24);
+  const bannerH = isMobile ? 54 : 68;
   ctx.fillStyle = 'rgba(18, 14, 10, 0.94)';
   ctx.strokeStyle = call.color;
   ctx.lineWidth = 2.5;
@@ -1709,21 +1711,21 @@ function drawRefereeCallout(
 
   // Kanji header
   ctx.fillStyle = call.color;
-  ctx.font = '900 24px "Noto Serif JP", serif';
+  ctx.font = `900 ${isMobile ? 17 : 24}px "Noto Serif JP", serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
-  ctx.fillText(call.textJp, 0, -8);
+  ctx.fillText(call.textJp, 0, isMobile ? -7 : -8);
 
   // Romaji title
   ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 13px sans-serif';
-  ctx.fillText(call.textRomaji, 0, 10);
+  ctx.font = `bold ${isMobile ? 12 : 13}px sans-serif`;
+  ctx.fillText(call.textRomaji, 0, isMobile ? 9 : 10);
 
   // Subtitle
   if (subtitle) {
     ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
-    ctx.font = '10px sans-serif';
-    ctx.fillText(subtitle, 0, 24);
+    ctx.font = `${isMobile ? 9 : 10}px sans-serif`;
+    ctx.fillText(subtitle, 0, isMobile ? 21 : 24);
   }
 
   ctx.restore();
@@ -1734,15 +1736,17 @@ function drawTechniqueRibbons(ctx: CanvasRenderingContext2D, engine: GameEngine)
   if (!ribbons || ribbons.length === 0) return;
 
   ctx.save();
-  let startY = 120;
-  for (let i = 0; i < ribbons.length; i++) {
-    const r = ribbons[i];
+  const isMobile = ctx.canvas.clientWidth < 640;
+  const visibleRibbons = isMobile ? ribbons.slice(0, 1) : ribbons;
+  let startY = isMobile ? 150 : 120;
+  for (let i = 0; i < visibleRibbons.length; i++) {
+    const r = visibleRibbons[i];
     const alpha = Math.min(1, r.duration / 0.4);
     ctx.save();
     ctx.globalAlpha = alpha;
     ctx.translate(18, startY);
 
-    const ribbonW = 230;
+    const ribbonW = Math.min(230, ctx.canvas.clientWidth - 36);
     const ribbonH = 40;
 
     // Dark Japanese lacquered parchment background with subtle gradient

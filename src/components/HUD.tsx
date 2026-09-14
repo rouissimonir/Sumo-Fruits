@@ -58,26 +58,26 @@ export const HUD: React.FC<HUDProps> = ({
   const isVersus = stats.gameMode === 'VERSUS';
 
   return (
-    <header className="absolute inset-x-0 top-0 pointer-events-none pt-[max(env(safe-area-inset-top,0px),44px)] sm:pt-4 px-2 sm:px-4 flex flex-col gap-1.5 sm:gap-2 z-20">
+    <header className="absolute inset-x-0 top-0 min-w-0 pointer-events-none pt-[max(env(safe-area-inset-top,0px),44px)] sm:pt-4 px-1.5 sm:px-4 flex flex-col gap-1.5 sm:gap-2 z-20">
       {/* Top Bar: Primary Stats, Hype / Fever, and Combat Salt + Settings */}
-      <div className="flex items-center justify-between gap-1.5 sm:gap-3 w-full">
+      <div className="flex min-w-0 items-center gap-1.5 sm:gap-3 w-full">
         {!isVersus ? (
           /* Score, High Score & Lives Box */
-          <div className="flex items-center gap-2 sm:gap-3 bg-[#1C1814]/90 backdrop-blur-md border border-[#3E342B] px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl shadow-lg pointer-events-auto shrink-0">
-            <div>
+          <div className="flex min-w-0 flex-1 sm:flex-none items-center justify-between gap-1.5 sm:gap-3 bg-[#1C1814]/90 backdrop-blur-md border border-[#3E342B] px-2 py-1.5 sm:px-3.5 sm:py-2 rounded-xl shadow-lg pointer-events-auto">
+            <div className="min-w-0">
               <div className="flex items-center gap-1">
-                <span className="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider text-[#A89886]">
+                <span className="text-[8px] sm:text-[10px] uppercase font-bold tracking-wide sm:tracking-wider text-[#A89886]">
                   Score
                 </span>
                 {stats.highScore > 0 && (
-                  <span className="text-[8px] sm:text-[9px] font-mono text-[#D4AF37] opacity-80 flex items-center gap-0.5">
+                  <span className="text-[8px] sm:text-[9px] font-mono text-[#D4AF37] opacity-80 flex items-center gap-0.5 truncate">
                     <Trophy size={9} className="text-[#FFD700]" />
                     {stats.highScore.toLocaleString()}
                   </span>
                 )}
               </div>
-              <div className="text-base sm:text-2xl font-black tracking-tight text-[#FFD700] flex items-center gap-1.5">
-                <span>{stats.score.toLocaleString()}</span>
+              <div className="text-lg sm:text-2xl font-black leading-none tracking-tight text-[#FFD700] flex items-center gap-1">
+                <span className="truncate">{stats.score.toLocaleString()}</span>
                 {stats.isNewHighScore && stats.score > 0 && (
                   <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider bg-[#FFD700] text-black px-1 py-0.2 rounded font-mono shadow-sm animate-pulse">
                     NEW
@@ -86,20 +86,20 @@ export const HUD: React.FC<HUDProps> = ({
               </div>
             </div>
 
-            <div className="h-6 sm:h-7 w-px bg-[#3E342B]" />
+            <div className="h-6 sm:h-7 w-px bg-[#3E342B] shrink-0" />
 
             {/* Lives (3 Wrestlers) */}
-            <div>
-              <div className="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider text-[#A89886]">
+            <div className="shrink-0">
+              <div className="hidden sm:block text-[10px] uppercase font-bold tracking-wider text-[#A89886]">
                 Rikishi
               </div>
-              <div className="flex items-center gap-0.5 sm:gap-1 mt-0.5">
+              <div className="flex items-center gap-0 sm:gap-1 sm:mt-0.5" aria-label={`${stats.lives} rikishi remaining`}>
                 {[0, 1, 2].map((idx) => {
                   const active = idx < stats.lives;
                   return (
                     <Heart
                       key={idx}
-                      size={14}
+                      size={12}
                       className={`transition-all duration-300 sm:w-4 sm:h-4 ${
                         active
                           ? 'text-[#E74C3C] fill-[#E74C3C] drop-shadow-[0_0_6px_rgba(231,76,60,0.6)]'
@@ -125,13 +125,13 @@ export const HUD: React.FC<HUDProps> = ({
 
         {/* Center: Crowd Hype & Fever Meter (Solo Mode only) */}
         {!isVersus ? (
-          <div className="flex items-center gap-1.5 sm:gap-2 bg-[#1C1814]/90 backdrop-blur-md border border-[#3E342B] px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-xl shadow-lg pointer-events-auto shrink-0">
+          <div className="flex h-10 w-[76px] sm:h-auto sm:w-auto items-center justify-center overflow-hidden bg-[#1C1814]/90 backdrop-blur-md border border-[#3E342B] px-2 py-1.5 sm:px-4 sm:py-2 rounded-xl shadow-lg pointer-events-auto shrink-0">
             {stats.festivalReadyShots > 0 ? (
-              <div className="flex items-center gap-1.5 sm:gap-2 animate-pulse text-[#FFD700]">
-                <Sparkles size={16} className="text-[#FFD700] animate-spin sm:w-[18px] sm:h-[18px]" />
+              <div className="flex items-center gap-1 sm:gap-2 animate-pulse text-[#FFD700]">
+                <Sparkles size={13} className="text-[#FFD700] animate-spin sm:w-[18px] sm:h-[18px]" />
                 <div className="flex flex-col">
                   <span className="text-[9px] sm:text-[10px] uppercase font-black tracking-widest text-[#FFD700]">
-                    ⚡ FESTIVAL 2X ⚡
+                    <span className="sm:hidden">2X</span><span className="hidden sm:inline">⚡ FESTIVAL 2X ⚡</span>
                   </span>
                   <span className="text-[10px] sm:text-xs font-mono font-bold text-white">
                     {stats.festivalReadyShots} shot{stats.festivalReadyShots > 1 ? 's' : ''}
@@ -139,11 +139,11 @@ export const HUD: React.FC<HUDProps> = ({
                 </div>
               </div>
             ) : isFever ? (
-              <div className="flex items-center gap-1.5 sm:gap-2 animate-pulse text-[#FFD700]">
-                <Flame size={16} className="text-[#E74C3C] animate-bounce sm:w-[18px] sm:h-[18px]" />
+              <div className="flex items-center gap-1 sm:gap-2 animate-pulse text-[#FFD700]">
+                <Flame size={13} className="text-[#E74C3C] animate-bounce sm:w-[18px] sm:h-[18px]" />
                 <div className="flex flex-col">
                   <span className="text-[9px] sm:text-[10px] uppercase font-black tracking-widest text-[#FFD700]">
-                    ⚡ FEVER 2X ⚡
+                    <span className="sm:hidden">2X</span><span className="hidden sm:inline">⚡ FEVER 2X ⚡</span>
                   </span>
                   <span className="text-[10px] sm:text-xs font-mono font-bold text-white">
                     {stats.feverTimer.toFixed(1)}s
@@ -151,12 +151,17 @@ export const HUD: React.FC<HUDProps> = ({
                 </div>
               </div>
             ) : (
-              <div className="flex flex-col gap-1 w-20 sm:w-32">
+              <div className="flex flex-col gap-1 w-full sm:w-32">
                 <div className="flex justify-between items-center text-[9px] sm:text-[10px] font-bold uppercase tracking-wider">
                   <span className="text-[#A89886] flex items-center gap-1">
-                    <Flame size={11} className="text-[#E67E22]" /> Hype
+                    <Flame size={11} className="text-[#E67E22]" />
+                    {stats.comboCount >= 2 ? `${stats.comboCount} Chain` : 'Hype'}
                   </span>
-                  <span className="text-[#F1C40F] font-mono">{Math.round(stats.crowdHype)}%</span>
+                  <span className="text-[#F1C40F] font-mono">
+                    {stats.comboCount >= 2
+                      ? `×${stats.comboMultiplier.toFixed(1)}`
+                      : `${Math.round(stats.crowdHype)}%`}
+                  </span>
                 </div>
                 <div className="w-full h-1.5 sm:h-2 bg-[#2D241C] rounded-full overflow-hidden">
                   <div
@@ -182,14 +187,14 @@ export const HUD: React.FC<HUDProps> = ({
                   ? 'Throw Kiyome-no-Shio Salt [S] (Brakes fruits & purifies hazards)'
                   : `Kiyome-no-Shio Recharging (${stats.saltLaunchCount}/6 shots or ring-out knockout)`
               }
-              className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all active:scale-95 cursor-pointer border ${
+              className={`flex h-10 w-12 sm:h-auto sm:w-auto items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 sm:py-1.5 rounded-xl text-xs font-bold shadow-md transition-all active:scale-95 cursor-pointer border ${
                 stats.saltCharges > 0
                   ? 'bg-[#1F2937] hover:bg-[#374151] text-white border-[#4B5563]'
                   : 'bg-[#181512] text-[#6B7280] border-[#2C241C] cursor-not-allowed opacity-75'
               }`}
             >
               <Sparkles size={14} className={stats.saltCharges > 0 ? 'text-[#60A5FA]' : 'text-gray-500'} />
-              <span className="inline text-[11px] sm:text-xs">Salt</span>
+              <span className="hidden sm:inline text-xs">Salt</span>
               <span className="text-[10px] font-mono font-black bg-[#111827] px-1 py-0.5 rounded text-[#93C5FD]">
                 {stats.saltCharges > 0 ? stats.saltCharges : `${stats.saltLaunchCount}/6`}
               </span>
@@ -300,7 +305,7 @@ export const HUD: React.FC<HUDProps> = ({
             id="hud-settings-btn"
             onClick={onOpenSettings}
             title="Settings & Match Menu"
-            className="p-1.5 sm:p-2 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] hover:text-[#FFD700] border border-[#5A4535] rounded-xl shadow-lg transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0"
+            className="h-10 w-10 sm:h-auto sm:w-auto p-0 sm:p-2 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] hover:text-[#FFD700] border border-[#5A4535] rounded-xl shadow-lg transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0"
           >
             <Settings size={18} className="transition-transform duration-300 hover:rotate-45" />
           </button>
@@ -317,16 +322,16 @@ export const HUD: React.FC<HUDProps> = ({
           onToggleTabletop={onToggleTabletop}
         />
       ) : (
-        <div className="flex items-center justify-between gap-1.5 sm:gap-2 w-full">
+        <div className="flex min-w-0 items-center gap-1.5 sm:gap-2 w-full">
           {/* Upcoming Wrestlers Queue */}
-          <div className="flex items-center gap-1.5 bg-[#1C1814]/90 backdrop-blur-md border border-[#3E342B] px-2.5 sm:px-3 py-1 rounded-xl shadow-lg pointer-events-auto shrink-0">
-            <div className="text-[9px] sm:text-[10px] uppercase font-bold text-[#A89886] tracking-wider">
+          <div className="flex min-w-0 flex-1 items-center gap-1.5 bg-[#1C1814]/90 backdrop-blur-md border border-[#3E342B] px-1.5 sm:px-3 py-1 rounded-xl shadow-lg pointer-events-auto">
+            <div className="hidden min-[360px]:block text-[9px] sm:text-[10px] uppercase font-bold text-[#A89886] tracking-wider shrink-0">
               Next:
             </div>
-            <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2">
               {/* Next 1 */}
               <div
-                className="flex items-center gap-1 sm:gap-1.5 px-2 py-0.5 rounded-lg border border-[#44382E]"
+                className="flex min-w-0 flex-1 items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 rounded-lg border border-[#44382E]"
                 style={{ backgroundColor: `${next1.color}25` }}
               >
                 <div
@@ -335,14 +340,14 @@ export const HUD: React.FC<HUDProps> = ({
                 >
                   {next1.tier}
                 </div>
-                <span className="text-[11px] sm:text-xs font-bold text-[#EDE2D4]">
-                  T{next1.tier} {next1.name}
+                <span className="truncate text-[10px] sm:text-xs font-bold text-[#EDE2D4]">
+                  {next1.name}
                 </span>
               </div>
 
               {/* Next 2 */}
               <div
-                className="flex items-center gap-1 sm:gap-1.5 px-2 py-0.5 rounded-lg border border-[#44382E] opacity-80"
+                className="flex shrink-0 items-center gap-1 sm:gap-1.5 px-1 sm:px-2 py-0.5 rounded-lg border border-[#44382E] opacity-80"
                 style={{ backgroundColor: `${next2.color}20` }}
               >
                 <div
@@ -351,15 +356,15 @@ export const HUD: React.FC<HUDProps> = ({
                 >
                   {next2.tier}
                 </div>
-                <span className="text-[10px] sm:text-[11px] font-medium text-[#D1C3B2]">
-                  T{next2.tier} {next2.name}
+                <span className="hidden sm:inline text-[11px] font-medium text-[#D1C3B2]">
+                  {next2.name}
                 </span>
               </div>
             </div>
           </div>
 
           {/* Right side of Row 2: English Sidespin curve control + Career Bout Tag or Combo Banner */}
-          <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 pointer-events-auto">
             {/* Spin Bias Selector (English Curve: Left, Straight, Right) */}
             {onSelectSpinMode && (
               <div
@@ -371,7 +376,7 @@ export const HUD: React.FC<HUDProps> = ({
                   type="button"
                   onClick={() => onSelectSpinMode(stats.selectedSpinMode === 'LEFT' ? 'STRAIGHT' : 'LEFT')}
                   title="Left English Curve (Counter-Clockwise Magnus Spin). Shortcut: [Q] or drag right"
-                  className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-0.5 ${
+                  className={`h-8 w-8 sm:h-auto sm:w-auto sm:px-2 sm:py-1 rounded-lg text-[11px] sm:text-[10px] font-black transition-all cursor-pointer flex items-center justify-center gap-0.5 ${
                     stats.selectedSpinMode === 'LEFT'
                       ? 'bg-[#E74C3C] text-white shadow-sm ring-1 ring-[#FF7675]'
                       : 'text-[#A89886] hover:text-white hover:bg-[#2D241C]'
@@ -386,7 +391,7 @@ export const HUD: React.FC<HUDProps> = ({
                   type="button"
                   onClick={() => onSelectSpinMode('STRAIGHT')}
                   title="Direct Straight Shot (No side English bias). Shortcut: [W]"
-                  className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-0.5 ${
+                  className={`h-8 w-8 sm:h-auto sm:w-auto sm:px-2 sm:py-1 rounded-lg text-[11px] sm:text-[10px] font-black transition-all cursor-pointer flex items-center justify-center gap-0.5 ${
                     stats.selectedSpinMode === 'STRAIGHT'
                       ? 'bg-[#2ECC71] text-white shadow-sm ring-1 ring-[#58D68D]'
                       : 'text-[#A89886] hover:text-white hover:bg-[#2D241C]'
@@ -401,7 +406,7 @@ export const HUD: React.FC<HUDProps> = ({
                   type="button"
                   onClick={() => onSelectSpinMode(stats.selectedSpinMode === 'RIGHT' ? 'STRAIGHT' : 'RIGHT')}
                   title="Right English Curve (Clockwise Magnus Spin). Shortcut: [E] or drag left"
-                  className={`px-2 py-1 rounded-lg text-[10px] font-black transition-all cursor-pointer flex items-center gap-0.5 ${
+                  className={`h-8 w-8 sm:h-auto sm:w-auto sm:px-2 sm:py-1 rounded-lg text-[11px] sm:text-[10px] font-black transition-all cursor-pointer flex items-center justify-center gap-0.5 ${
                     stats.selectedSpinMode === 'RIGHT'
                       ? 'bg-[#3498DB] text-white shadow-sm ring-1 ring-[#5DADE2]'
                       : 'text-[#A89886] hover:text-white hover:bg-[#2D241C]'
@@ -415,7 +420,7 @@ export const HUD: React.FC<HUDProps> = ({
 
             {/* Daily Basho Badge */}
             {stats.gameMode === 'DAILY' && stats.dailyBasho && (
-              <div className="flex items-center gap-1.5 bg-[#1C1814]/90 backdrop-blur-md border border-[#10B981] px-2.5 py-1 rounded-xl shadow-lg">
+              <div className="hidden sm:flex items-center gap-1.5 bg-[#1C1814]/90 backdrop-blur-md border border-[#10B981] px-2.5 py-1 rounded-xl shadow-lg">
                 <span className="text-xs">📅</span>
                 <span className="text-[10px] font-black text-[#10B981] tracking-wider">
                   Day #{stats.dailyBasho.dayNumber}
@@ -425,7 +430,7 @@ export const HUD: React.FC<HUDProps> = ({
 
             {/* Arena Condition Pill (if condition active) */}
             {stats.arenaCondition && stats.arenaCondition.type !== 'NONE' && (
-              <div className="flex items-center gap-1.5 bg-[#1C1814]/90 backdrop-blur-md border border-[#E67E22] px-2.5 py-1 rounded-xl shadow-lg">
+              <div className="hidden sm:flex items-center gap-1.5 bg-[#1C1814]/90 backdrop-blur-md border border-[#E67E22] px-2.5 py-1 rounded-xl shadow-lg">
                 <span className="text-xs">{CONDITION_METADATA[stats.arenaCondition.type].icon}</span>
                 <span className="text-[10px] font-black text-[#FFD700] tracking-wider">
                   {CONDITION_METADATA[stats.arenaCondition.type].nameJp}
@@ -435,7 +440,7 @@ export const HUD: React.FC<HUDProps> = ({
 
             {/* Career Stage & Rival Banner (if Career Mode) */}
             {stats.gameMode === 'CAREER' && stats.currentRivalProfile && (
-              <div className="flex items-center gap-1.5 sm:gap-2 bg-[#1C1814]/90 backdrop-blur-md border border-[#E67E22] px-2.5 py-1 rounded-xl shadow-lg">
+              <div className="hidden sm:flex items-center gap-1.5 sm:gap-2 bg-[#1C1814]/90 backdrop-blur-md border border-[#E67E22] px-2.5 py-1 rounded-xl shadow-lg">
                 <div
                   className="w-2.5 h-2.5 rounded-full border border-black/40 shadow-sm shrink-0"
                   style={{ backgroundColor: stats.currentRivalProfile.color }}
@@ -446,15 +451,6 @@ export const HUD: React.FC<HUDProps> = ({
               </div>
             )}
 
-            {/* Combo Streak Multiplier */}
-            {stats.comboCount >= 2 && (
-              <div className="flex items-center gap-1.5 bg-[#E67E22] text-white px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full font-black text-[11px] sm:text-xs shadow-lg animate-bounce border border-white/40">
-                <Flame size={13} className="text-[#FFD700]" />
-                <span>
-                  {stats.comboCount}x COMBO! ({stats.comboMultiplier.toFixed(1)}x)
-                </span>
-              </div>
-            )}
           </div>
         </div>
       )}

@@ -1944,20 +1944,9 @@ export class GameEngine {
       this.kimariteManager.reportAction('gyaku_kaiten');
     }
 
-    if (this.comboCount >= 2) {
-      this.techniqueRibbons.addRibbon(
-        `${this.comboCount}x Fusion Chain!`,
-        `Chain multiplier ${finalMult.toFixed(1)}x`,
-        '#F39C12',
-        2.5,
-        '連鎖',
-        '🔥',
-        'COMBO'
-      );
-      if (this.comboCount >= 3) {
-        this.kimariteManager.reportAction('tsuppari_chain');
-        sound.playCrowdChant();
-      }
+    if (this.comboCount >= 3) {
+      this.kimariteManager.reportAction('tsuppari_chain');
+      sound.playCrowdChant();
     }
 
     // Dynamic Gyōji Callouts on milestones
