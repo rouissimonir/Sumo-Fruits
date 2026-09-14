@@ -12,7 +12,6 @@ import {
   Sliders,
   Sparkles,
   Compass,
-  FolderArchive,
   Trophy,
   Settings,
 } from 'lucide-react';
@@ -26,7 +25,6 @@ interface HUDProps {
   onRestart: () => void;
   onTogglePause: () => void;
   onOpenTierList: () => void;
-  onOpenGodotFiles: () => void;
   onOpenTuner: () => void;
   onOpenKimarite: () => void;
   onOpenSettings: () => void;
@@ -44,7 +42,6 @@ export const HUD: React.FC<HUDProps> = ({
   onRestart,
   onTogglePause,
   onOpenTierList,
-  onOpenGodotFiles,
   onOpenTuner,
   onOpenKimarite,
   onOpenSettings,
@@ -245,17 +242,6 @@ export const HUD: React.FC<HUDProps> = ({
               <span className="text-[10px] uppercase font-bold text-white">
                 {stats.arenaMode}
               </span>
-            </button>
-
-            {/* Godot Project Export */}
-            <button
-              id="hud-godot-btn"
-              onClick={onOpenGodotFiles}
-              title="Download Godot 4.3 Engine Project .ZIP Archive"
-              className="flex items-center gap-1 bg-[#27AE60] hover:bg-[#2ECC71] text-white px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all active:scale-95 cursor-pointer border border-[#2ECC71]"
-            >
-              <FolderArchive size={14} />
-              <span>Godot .ZIP</span>
             </button>
 
             {/* Kimarite Techniques Collection Button */}

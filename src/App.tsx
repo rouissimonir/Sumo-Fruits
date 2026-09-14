@@ -8,7 +8,6 @@ import { GameEngine, GameStats } from './game/GameEngine';
 import { GameCanvas } from './components/GameCanvas';
 import { HUD } from './components/HUD';
 import { TierListModal } from './components/TierListModal';
-import { GodotExporterModal } from './components/GodotExporterModal';
 import { ParameterTuner } from './components/ParameterTuner';
 import { GameOverModal } from './components/GameOverModal';
 import { KimariteModal } from './components/KimariteModal';
@@ -99,7 +98,6 @@ export default function App() {
   });
 
   const [isTierListOpen, setIsTierListOpen] = useState(false);
-  const [isGodotModalOpen, setIsGodotModalOpen] = useState(false);
   const [isTunerOpen, setIsTunerOpen] = useState(false);
   const [isKimariteOpen, setIsKimariteOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -211,7 +209,6 @@ export default function App() {
         onRestart={handleRestart}
         onTogglePause={handleTogglePause}
         onOpenTierList={() => setIsTierListOpen(true)}
-        onOpenGodotFiles={() => setIsGodotModalOpen(true)}
         onOpenTuner={() => setIsTunerOpen(true)}
         onOpenKimarite={() => setIsKimariteOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
@@ -274,11 +271,6 @@ export default function App() {
         highestTierReached={stats.highestTierReached}
       />
 
-      <GodotExporterModal
-        isOpen={isGodotModalOpen}
-        onClose={() => setIsGodotModalOpen(false)}
-      />
-
       <ParameterTuner
         isOpen={isTunerOpen}
         onClose={() => setIsTunerOpen(false)}
@@ -308,7 +300,6 @@ export default function App() {
         onOpenTierList={() => setIsTierListOpen(true)}
         onOpenKimarite={() => setIsKimariteOpen(true)}
         onOpenTuner={() => setIsTunerOpen(true)}
-        onOpenGodotFiles={() => setIsGodotModalOpen(true)}
         onOpenTutorial={() => setIsTutorialOpen(true)}
         onOpenCredits={() => setIsCreditsOpen(true)}
       />

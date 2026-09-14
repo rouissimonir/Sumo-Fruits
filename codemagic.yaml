@@ -1,51 +1,61 @@
 workflows:
-  godot-ios:
-    name: Godot iOS Build
-
+  capacitor-ios:
+    name: Capacitor iOS Build
     instance_type: mac_mini_m2
     max_build_duration: 60
-
     environment:
+      node: 20
       xcode: latest
       vars:
-        GODOT_VERSION: "4.3"
-        EXPORT_PRESET: "iOS"
-
+        XCODE_WORKSPACE: "ios/App/App.xcworkspace"
+        XCODE_SCHEME: "App"
     scripts:
-      - name: Download Godot
+      - name: Install dependencies & Build Web App
         script: |
-          curl -L \
-            "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_macos.universal.zip" \
-            -o godot.zip
-
-          unzip -q godot.zip
-
-      - name: Download Godot export templates
+          npm ci || npm install
+          npm run build
+      - name: Capacitor Sync
         script: |
-          curl -L \
-            "https://github.com/godotengine/godot-builds/releases/download/${GODOT_VERSION}-stable/Godot_v${GODOT_VERSION}-stable_export_templates.tpz" \
-            -o templates.tpz
-
-          unzip -q templates.tpz
-
-          TEMPLATE_DIR="$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION}.stable"
-
-          mkdir -p "$TEMPLATE_DIR"
-          cp -R templates/* "$TEMPLATE_DIR/"
-
-      - name: Select Xcode
+          npx cap sync ios || echo "Capacitor iOS sync skipped if ios/ is not generated yet"
+      - name: Build iOS Archive / IPA
         script: |
-          sudo xcode-select -switch /Applications/Xcode.app
-
-      - name: Export Godot project for iOS
-        script: |
-          mkdir -p build
-
-          ./Godot.app/Contents/MacOS/Godot \
-            --headless \
-            --path godot \
-            --export-release "$EXPORT_PRESET" \
-            ../build/MyGame.zip
-
+          if [ -d "ios/App" ]; then
+            xcode-project build-ipa \
+              --workspace "$XCODE_WORKSPACE" \
+              --scheme "$XCODE_SCHEME"
+          else
+            mkdir -p build
+            zip -r build/dist-web-package.zip dist/
+          fi
     artifacts:
+      - build/ios/ipa/*.ipa
+      - build/*.zip
+      - /tmp/xcodebuild_logs/*.log
+
+  capacitor-android:
+    name: Capacitor Android Build
+    instance_type: linux_x2
+    max_build_duration: 45
+    environment:
+      node: 20
+      java: 17
+    scripts:
+      - name: Install dependencies & Build Web App
+        script: |
+          npm ci || npm install
+          npm run build
+      - name: Capacitor Sync
+        script: |
+          npx cap sync android || echo "Capacitor Android sync skipped if android/ is not generated yet"
+      - name: Build Android APK
+        script: |
+          if [ -d "android" ]; then
+            cd android && ./gradlew assembleRelease
+          else
+            mkdir -p build
+            zip -r build/dist-web-package.zip dist/
+          fi
+    artifacts:
+      - android/app/build/outputs/**/*.apk
+      - android/app/build/outputs/**/*.aab
       - build/*.zip

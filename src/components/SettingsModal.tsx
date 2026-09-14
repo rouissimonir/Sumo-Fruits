@@ -10,7 +10,6 @@ import {
   Compass,
   Trophy,
   Sliders,
-  FolderArchive,
   Sparkles,
   HelpCircle,
   Vibrate,
@@ -39,7 +38,6 @@ interface SettingsModalProps {
   onOpenTierList: () => void;
   onOpenKimarite: () => void;
   onOpenTuner: () => void;
-  onOpenGodotFiles: () => void;
   onOpenTutorial: () => void;
   onOpenCredits: () => void;
 }
@@ -59,7 +57,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onOpenTierList,
   onOpenKimarite,
   onOpenTuner,
-  onOpenGodotFiles,
   onOpenTutorial,
   onOpenCredits,
 }) => {
@@ -484,7 +481,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="text-xs font-bold uppercase tracking-wider text-[#A89886]">
               {isJa ? '開発ツール・ライセンス情報' : 'Tools & Asset Licensing'}
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <button
                 id="settings-tuner-btn"
                 onClick={() => {
@@ -497,21 +494,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <div className="min-w-0">
                   <div className="text-xs font-bold text-white group-hover:text-[#F1C40F] truncate">Tuner</div>
                   <div className="text-[9px] text-[#A89886]">Physics</div>
-                </div>
-              </button>
-
-              <button
-                id="settings-godot-btn"
-                onClick={() => {
-                  onClose();
-                  onOpenGodotFiles();
-                }}
-                className="flex items-center gap-2 p-2.5 rounded-xl bg-[#1C1814] hover:bg-[#2F241C] border border-[#4B392C] text-left transition-all cursor-pointer group"
-              >
-                <FolderArchive size={16} className="text-[#2ECC71] shrink-0" />
-                <div className="min-w-0">
-                  <div className="text-xs font-bold text-white group-hover:text-[#2ECC71] truncate">Godot</div>
-                  <div className="text-[9px] text-[#A89886]">Export ZIP</div>
                 </div>
               </button>
 
