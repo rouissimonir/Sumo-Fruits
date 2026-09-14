@@ -352,27 +352,6 @@ export function getSquashScale(amplitude: number, elapsed: number): number {
   return 1.0 + amplitude * damp * osc;
 }
 
-/** Advances intentional English while preserving speed. Shared by live play and prediction. */
-export function advanceEnglishSpin(
-  vx: number,
-  vy: number,
-  spin: number,
-  dt: number
-): { vx: number; vy: number; spin: number } {
-  const speed = Math.hypot(vx, vy);
-  if (speed < 10 || Math.abs(spin) < 0.05) {
-    return { vx, vy, spin: Math.abs(spin) < 0.05 ? 0 : spin };
-  }
-  const angle = spin * 0.06 * dt;
-  const cosA = Math.cos(angle);
-  const sinA = Math.sin(angle);
-  return {
-    vx: vx * cosA - vy * sinA,
-    vy: vx * sinA + vy * cosA,
-    spin: spin * Math.exp(-1.35 * dt),
-  };
-}
-
 function segmentCircleHit(
   x0: number,
   y0: number,
@@ -403,7 +382,6 @@ export function predictTrajectory(
   arena: ArenaConfig = DEFAULT_ARENA,
   horizonSeconds: number = 1.2,
   sampleSteps: number = 40,
-  spin: number = 0,
   extraDamping: number = 0,
   windAx: number = 0,
   windAy: number = 0
@@ -415,8 +393,6 @@ export function predictTrajectory(
   let y = startY;
   let vx = launchVx;
   let vy = launchVy;
-  let currentSpin = spin;
-
   points.push({ x, y });
 
   for (let i = 0; i < sampleSteps; i++) {
@@ -424,11 +400,6 @@ export function predictTrajectory(
     const previousY = y;
     // Current bowl acceleration
     const { ax, ay } = getBowlAcceleration(x, y, arena);
-
-    const spun = advanceEnglishSpin(vx, vy, currentSpin, dt);
-    vx = spun.vx;
-    vy = spun.vy;
-    currentSpin = spun.spin;
 
     // Explicit Euler step
     x += vx * dt;

@@ -15,7 +15,7 @@ import {
   Settings,
 } from 'lucide-react';
 import { GameStats } from '../game/GameEngine';
-import { FRUIT_CATALOG, GameModeType, SpinMode } from '../types/game';
+import { FRUIT_CATALOG, GameModeType } from '../types/game';
 import { VersusHUD } from './VersusHUD';
 import { CONDITION_METADATA } from '../game/ArenaConditionManager';
 
@@ -29,7 +29,6 @@ interface HUDProps {
   onThrowSalt: () => void;
   onCycleArenaMode: () => void;
   onSelectGameMode?: (mode: GameModeType, challengeId?: string) => void;
-  onSelectSpinMode?: (mode: SpinMode) => void;
   onToggleTabletop?: () => void;
   soundEnabled: boolean;
   onToggleSound: () => void;
@@ -45,7 +44,6 @@ export const HUD: React.FC<HUDProps> = ({
   onThrowSalt,
   onCycleArenaMode,
   onSelectGameMode,
-  onSelectSpinMode,
   onToggleTabletop,
   soundEnabled,
   onToggleSound,
@@ -312,13 +310,11 @@ export const HUD: React.FC<HUDProps> = ({
         </div>
       </div>
 
-      {/* Row 2: Either 2P Versus HUD OR Solo Next Fruit Queue & Sidespin */}
+      {/* Row 2: compact versus status or the solo upcoming-fruit queue. */}
       {isVersus ? (
         <VersusHUD
           stats={stats}
-          onSelectSpinMode={onSelectSpinMode || (() => {})}
           onThrowSalt={onThrowSalt}
-          onRestartVersus={onRestart}
           onToggleTabletop={onToggleTabletop}
         />
       ) : (
@@ -363,61 +359,8 @@ export const HUD: React.FC<HUDProps> = ({
             </div>
           </div>
 
-          {/* Right side of Row 2: English Sidespin curve control + Career Bout Tag or Combo Banner */}
+          {/* Context badges; advanced controls live in Settings on compact screens. */}
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 pointer-events-auto">
-            {/* Spin Bias Selector (English Curve: Left, Straight, Right) */}
-            {onSelectSpinMode && (
-              <div
-                id="hud-spin-mode-selector"
-                className="flex items-center bg-[#1C1814]/90 backdrop-blur-md border border-[#3E342B] p-0.5 rounded-xl shadow-lg"
-              >
-                <button
-                  id="hud-spin-left-btn"
-                  type="button"
-                  onClick={() => onSelectSpinMode(stats.selectedSpinMode === 'LEFT' ? 'STRAIGHT' : 'LEFT')}
-                  title="Left English Curve (Counter-Clockwise Magnus Spin). Shortcut: [Q] or drag right"
-                  className={`h-8 w-8 sm:h-auto sm:w-auto sm:px-2 sm:py-1 rounded-lg text-[11px] sm:text-[10px] font-black transition-all cursor-pointer flex items-center justify-center gap-0.5 ${
-                    stats.selectedSpinMode === 'LEFT'
-                      ? 'bg-[#E74C3C] text-white shadow-sm ring-1 ring-[#FF7675]'
-                      : 'text-[#A89886] hover:text-white hover:bg-[#2D241C]'
-                  }`}
-                >
-                  <span>↺</span>
-                  <span className="hidden xs:inline">Left</span>
-                </button>
-
-                <button
-                  id="hud-spin-straight-btn"
-                  type="button"
-                  onClick={() => onSelectSpinMode('STRAIGHT')}
-                  title="Direct Straight Shot (No side English bias). Shortcut: [W]"
-                  className={`h-8 w-8 sm:h-auto sm:w-auto sm:px-2 sm:py-1 rounded-lg text-[11px] sm:text-[10px] font-black transition-all cursor-pointer flex items-center justify-center gap-0.5 ${
-                    stats.selectedSpinMode === 'STRAIGHT'
-                      ? 'bg-[#2ECC71] text-white shadow-sm ring-1 ring-[#58D68D]'
-                      : 'text-[#A89886] hover:text-white hover:bg-[#2D241C]'
-                  }`}
-                >
-                  <span>↑</span>
-                  <span className="hidden xs:inline">Direct</span>
-                </button>
-
-                <button
-                  id="hud-spin-right-btn"
-                  type="button"
-                  onClick={() => onSelectSpinMode(stats.selectedSpinMode === 'RIGHT' ? 'STRAIGHT' : 'RIGHT')}
-                  title="Right English Curve (Clockwise Magnus Spin). Shortcut: [E] or drag left"
-                  className={`h-8 w-8 sm:h-auto sm:w-auto sm:px-2 sm:py-1 rounded-lg text-[11px] sm:text-[10px] font-black transition-all cursor-pointer flex items-center justify-center gap-0.5 ${
-                    stats.selectedSpinMode === 'RIGHT'
-                      ? 'bg-[#3498DB] text-white shadow-sm ring-1 ring-[#5DADE2]'
-                      : 'text-[#A89886] hover:text-white hover:bg-[#2D241C]'
-                  }`}
-                >
-                  <span className="hidden xs:inline">Right</span>
-                  <span>↻</span>
-                </button>
-              </div>
-            )}
-
             {/* Daily Basho Badge */}
             {stats.gameMode === 'DAILY' && stats.dailyBasho && (
               <div className="hidden sm:flex items-center gap-1.5 bg-[#1C1814]/90 backdrop-blur-md border border-[#10B981] px-2.5 py-1 rounded-xl shadow-lg">

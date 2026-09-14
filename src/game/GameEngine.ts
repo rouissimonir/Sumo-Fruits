@@ -3,7 +3,6 @@ import { haptics } from '../audio/haptics';
 import { KimariteManager, KimariteTechnique } from './KimariteManager';
 import {
   ArenaConfig,
-  advanceEnglishSpin,
   calculateChiliBoost,
   calculateSaltBraking,
   createMawashiTail,
@@ -38,7 +37,6 @@ import {
   SumoFruitInstance,
   TechniqueRibbon,
   TrajectoryPoint,
-  SpinMode,
   VersusState,
 } from '../types/game';
 import { ArenaConditionManager, CONDITION_METADATA } from './ArenaConditionManager';
@@ -84,8 +82,6 @@ export interface GameStats {
   hasActiveRival: boolean;
   rivalIntent: RivalIntent | null;
   activeChallengeId: string | null;
-  launcherSpin: number; // -1 to +1 (English sidespin bias)
-  selectedSpinMode: SpinMode;
   unlockedKimariteCount: number;
   totalKimariteCount: number;
   versus: VersusState | null;
@@ -123,9 +119,6 @@ export class GameEngine {
   public loadedFruit: SumoFruitInstance | null = null;
   public upcomingTiers: [number, number] = [1, 2];
   public trajectoryPoints: TrajectoryPoint[] = [];
-  public launcherSpin: number = 0; // -1 to +1 (English curve spin)
-  public selectedSpinMode: SpinMode = 'STRAIGHT';
-  private touchSpinModifier: SpinMode | null = null;
 
   // Shot state machine
   public shotState: 'IDLE' | 'AIMING' | 'LAUNCHED' | 'CHAIN_RESOLVING' | 'RIVAL_ACTION' | 'SETTLING' = 'IDLE';
@@ -283,45 +276,6 @@ export class GameEngine {
     }
     sound.playHyoshigi(1.2);
     this.emitStats();
-  }
-
-  public setSpinMode(mode: SpinMode) {
-    this.selectedSpinMode = mode;
-    if (this.gameMode === 'VERSUS') {
-      this.versusManager.setSpinModeForCurrentPlayer(mode);
-    }
-    if (mode === 'LEFT') {
-      this.launcherSpin = -0.75;
-    } else if (mode === 'RIGHT') {
-      this.launcherSpin = 0.75;
-    } else {
-      this.launcherSpin = 0;
-    }
-    sound.playCurveSpin(this.launcherSpin);
-    haptics.trigger('LIGHT');
-    if (this.isDragging) {
-      this.updateTrajectory();
-    }
-    this.emitStats();
-  }
-
-  public setTouchSpinModifier(active: boolean, touchX: number = this.launcherPos.x) {
-    this.touchSpinModifier = active ? (touchX < this.launcherPos.x ? 'LEFT' : 'RIGHT') : null;
-    this.refreshLauncherSpin();
-    if (this.isDragging) this.updateTrajectory();
-    this.emitStats();
-  }
-
-  public updateTouchSpinModifier(touchX: number) {
-    if (!this.touchSpinModifier) return;
-    this.touchSpinModifier = touchX < this.launcherPos.x ? 'LEFT' : 'RIGHT';
-    this.refreshLauncherSpin();
-    if (this.isDragging) this.updateTrajectory();
-  }
-
-  private refreshLauncherSpin() {
-    const mode = this.touchSpinModifier ?? this.selectedSpinMode;
-    this.launcherSpin = mode === 'LEFT' ? -0.75 : mode === 'RIGHT' ? 0.75 : 0;
   }
 
   public updateTuning(newTuning: Partial<PhysicsTuning>) {
@@ -651,8 +605,6 @@ export class GameEngine {
       this.upcomingTiers = this.versusManager.state.playerTurn === 1
         ? this.versusManager.state.p1NextTiers
         : this.versusManager.state.p2NextTiers;
-      this.selectedSpinMode = this.versusManager.getActiveSpinMode();
-      this.launcherSpin = this.selectedSpinMode === 'LEFT' ? -0.75 : this.selectedSpinMode === 'RIGHT' ? 0.75 : 0;
     } else {
       tier = this.upcomingTiers[0];
       this.upcomingTiers = [this.upcomingTiers[1], this.rollSpawnTier()];
@@ -733,9 +685,7 @@ export class GameEngine {
       this.dragPos = { x, y };
     }
 
-    // Pull direction controls aim only. Spin is an explicit dock/second-finger choice.
-    this.refreshLauncherSpin();
-
+    // Pull direction controls the clean, straight launch path.
     this.loadedFruit.x = this.dragPos.x;
     this.loadedFruit.y = this.dragPos.y;
     this.updateTrajectory();
@@ -763,9 +713,8 @@ export class GameEngine {
 
       this.loadedFruit.vx = launchVx;
       this.loadedFruit.vy = launchVy;
-      // Set English spin on the launched fruit (up to 12 rad/s)
-      this.loadedFruit.spin = this.launcherSpin * 12.0;
-      this.loadedFruit.spinActive = Math.abs(this.launcherSpin) > 0.01;
+      this.loadedFruit.spin = 0;
+      this.loadedFruit.spinActive = false;
       this.loadedFruit.rotation = 0;
       this.loadedFruit.state = 'IN_RING';
       this.loadedFruit.entryPending = true;
@@ -780,11 +729,6 @@ export class GameEngine {
 
       // Mobile tactile feel
       haptics.trigger('LIGHT');
-
-      // Sidespin audio cue
-      if (Math.abs(this.launcherSpin) > 0.25) {
-        sound.playCurveSpin(this.launcherSpin);
-      }
 
       // Shot lifecycle setup
       this.shotState = 'LAUNCHED';
@@ -875,8 +819,6 @@ export class GameEngine {
 
       this.loadedFruit = null;
       this.trajectoryPoints = [];
-      this.touchSpinModifier = null;
-      this.refreshLauncherSpin();
 
       if (this.gameMode !== 'VERSUS') {
         // Cooldown before loading next fruit (ensures smooth shot rhythm)
@@ -894,8 +836,6 @@ export class GameEngine {
       this.loadedFruit.y = this.launcherPos.y;
       this.loadedFruit.state = 'IDLE';
       this.trajectoryPoints = [];
-      this.touchSpinModifier = null;
-      this.refreshLauncherSpin();
       return false;
     }
   }
@@ -903,8 +843,6 @@ export class GameEngine {
   public cancelDrag(): void {
     if (!this.isDragging) return;
     this.isDragging = false;
-    this.touchSpinModifier = null;
-    this.refreshLauncherSpin();
     this.trajectoryPoints = [];
     if (this.loadedFruit) {
       this.loadedFruit.x = this.launcherPos.x;
@@ -965,7 +903,6 @@ export class GameEngine {
       this.arena,
       1.2,
       45,
-      this.launcherSpin * 12.0,
       extraDamp,
       windAcc.ax,
       windAcc.ay
@@ -1228,16 +1165,9 @@ export class GameEngine {
         }
       }
 
-      // Intentional English ends on first physical contact.
-      if (fruit.spinActive && fruit.spin) {
-        const spun = advanceEnglishSpin(fruit.vx, fruit.vy, fruit.spin, dt);
-        fruit.vx = spun.vx;
-        fruit.vy = spun.vy;
-        fruit.spin = spun.spin;
-        fruit.rotation = (fruit.rotation || 0) + spun.spin * dt;
-      } else {
-        fruit.rotation = (fruit.rotation || 0) + (fruit.vx * 0.003);
-      }
+      fruit.spin = 0;
+      fruit.spinActive = false;
+      fruit.rotation = (fruit.rotation || 0) + (fruit.vx * 0.003);
 
       fruit.x += fruit.vx * dt;
       fruit.y += fruit.vy * dt;
@@ -1939,7 +1869,7 @@ export class GameEngine {
     }
     this.shotInitialMergeDone = true;
 
-    // Check if the fruit that merged was launched with spin
+    // Reward a forceful precision fusion while the launch system is straight-only.
     if (Math.abs(newFruit.vx) > 30 || Math.abs(newFruit.vy) > 30) {
       this.kimariteManager.reportAction('gyaku_kaiten');
     }
@@ -2597,8 +2527,6 @@ export class GameEngine {
       hasActiveRival: !!rivalFruit,
       rivalIntent: this.rivalController.intent,
       activeChallengeId: this.activeChallengeId,
-      launcherSpin: this.launcherSpin,
-      selectedSpinMode: this.selectedSpinMode,
       unlockedKimariteCount: this.kimariteManager.getUnlockedCount().unlocked,
       totalKimariteCount: this.kimariteManager.getUnlockedCount().total,
       versus: this.gameMode === 'VERSUS' ? { ...this.versusManager.state } : null,

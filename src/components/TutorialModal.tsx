@@ -26,7 +26,7 @@ interface TutorialStep {
 const TUTORIAL_STEPS: TutorialStep[] = [
   {
     id: 'launch',
-    badgeEn: 'Step 1 of 5: Tachiai Launch',
+    badgeEn: 'Step 1 of 4: Tachiai Launch',
     badgeJa: '第1歩：立合い発射',
     kanji: '立合',
     titleEn: 'Tachiai Slingshot Launch',
@@ -47,31 +47,9 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     ]
   },
   {
-    id: 'spin',
-    badgeEn: 'Step 2 of 5: Gyōji Sidespin',
-    badgeJa: '第2歩：変化・英語スピン',
-    kanji: '変化',
-    titleEn: 'English Curve & Sidespin',
-    titleJa: 'カーブ・英語スピン',
-    icon: '🌀',
-    color: '#3498DB',
-    bodyEn: 'Bend your shots around defensive fruit obstacles using English sidespin! Toggle Straight, Curve Left, or Curve Right buttons — or drag with a 2nd finger anywhere on screen.',
-    bodyJa: '障害物を避けるために変化（カーブスピン）を活用！「左変化」「直進」「右変化」ボタン、または画面を2本目の指でスライドして軌道を曲げられます。',
-    keyPointsEn: [
-      '↺ Left Curve bends counter-clockwise around rightward barriers',
-      '↻ Right Curve bends clockwise into tight tactical gaps',
-      'Sidespin clears immediately on your first physical fruit collision'
-    ],
-    keyPointsJa: [
-      '↺ 左変化で時計と逆回りに鋭く旋回',
-      '↻ 右変化で障害物の隙間へ回り込み',
-      '最初の接触時にスピンが自然に解放'
-    ]
-  },
-  {
     id: 'merges',
-    badgeEn: 'Step 3 of 5: Transactional Merges',
-    badgeJa: '第3歩：合体進化・連鎖',
+    badgeEn: 'Step 2 of 4: Transactional Merges',
+    badgeJa: '第2歩：合体進化・連鎖',
     kanji: '合体',
     titleEn: 'Sumo Merging & Combo Hype',
     titleJa: 'ぶつかり合体とコンボ熱狂',
@@ -92,8 +70,8 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'hazards',
-    badgeEn: 'Step 4 of 5: Hazards & Salt',
-    badgeJa: '第4歩：障害物と清め塩',
+    badgeEn: 'Step 3 of 4: Hazards & Salt',
+    badgeJa: '第3歩：障害物と清め塩',
     kanji: '清塩',
     titleEn: 'Hazards & Kiyome Salt',
     titleJa: '土俵ハザードと清めの塩',
@@ -114,8 +92,8 @@ const TUTORIAL_STEPS: TutorialStep[] = [
   },
   {
     id: 'ringout',
-    badgeEn: 'Step 5 of 5: Tawara Rim & Ring-Outs',
-    badgeJa: '第5歩：俵・土俵際・金星',
+    badgeEn: 'Step 4 of 4: Tawara Rim & Ring-Outs',
+    badgeJa: '第4歩：俵・土俵際・金星',
     kanji: '勝星',
     titleEn: 'Straw Bales & Ring-Outs',
     titleJa: '俵・土俵際・押し出し',

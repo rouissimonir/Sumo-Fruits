@@ -18,7 +18,7 @@ import {
   Music,
 } from 'lucide-react';
 import { GameStats } from '../game/GameEngine';
-import { ArenaConditionType, ArenaMode, GameModeType, SpinMode } from '../types/game';
+import { ArenaConditionType, ArenaMode, GameModeType } from '../types/game';
 import { CONDITION_METADATA } from '../game/ArenaConditionManager';
 import { GameSettings } from '../types/settings';
 
@@ -33,7 +33,6 @@ interface SettingsModalProps {
   onSelectGameMode: (mode: GameModeType, challengeId?: string) => void;
   onSelectArenaMode: (mode: ArenaMode) => void;
   onSelectArenaCondition?: (condition: ArenaConditionType) => void;
-  onSelectSpinMode?: (mode: SpinMode) => void;
   onOpenTierList: () => void;
   onOpenKimarite: () => void;
   onOpenTutorial: () => void;
@@ -51,7 +50,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onSelectGameMode,
   onSelectArenaMode,
   onSelectArenaCondition,
-  onSelectSpinMode,
   onOpenTierList,
   onOpenKimarite,
   onOpenTutorial,
@@ -373,58 +371,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </button>
                   );
                 })}
-              </div>
-            </div>
-          )}
-
-          {/* Launcher English Sidespin Presets */}
-          {onSelectSpinMode && (
-            <div className="bg-[#241E19] border border-[#3D2E24] rounded-xl p-3.5 space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#E67E22]">
-                  <span>🌀 {isJa ? '発射時の英語スピン（変化）' : 'Launcher English Sidespin'}</span>
-                </div>
-                <span className="text-[11px] text-[#A89886] font-mono">[Q] / [W] / [E]</span>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  id="settings-spin-left-btn"
-                  onClick={() => onSelectSpinMode('LEFT')}
-                  className={`py-2 px-2.5 rounded-lg border text-xs font-bold transition-all cursor-pointer text-center ${
-                    stats.selectedSpinMode === 'LEFT'
-                      ? 'bg-[#E74C3C]/25 border-[#E74C3C] text-white shadow-sm'
-                      : 'bg-[#1C1814] border-[#382B22] text-[#A89886] hover:text-white'
-                  }`}
-                >
-                  {isJa ? '↺ 左変化' : '↺ Left Curve'}
-                  <div className="text-[10px] font-normal text-[#8A7B6D] mt-0.5">Counter-Clockwise</div>
-                </button>
-
-                <button
-                  id="settings-spin-straight-btn"
-                  onClick={() => onSelectSpinMode('STRAIGHT')}
-                  className={`py-2 px-2.5 rounded-lg border text-xs font-bold transition-all cursor-pointer text-center ${
-                    stats.selectedSpinMode === 'STRAIGHT'
-                      ? 'bg-[#2ECC71]/25 border-[#2ECC71] text-white shadow-sm'
-                      : 'bg-[#1C1814] border-[#382B22] text-[#A89886] hover:text-white'
-                  }`}
-                >
-                  {isJa ? '↑ 直進' : '↑ Direct'}
-                  <div className="text-[10px] font-normal text-[#8A7B6D] mt-0.5">Neutral Magnus</div>
-                </button>
-
-                <button
-                  id="settings-spin-right-btn"
-                  onClick={() => onSelectSpinMode('RIGHT')}
-                  className={`py-2 px-2.5 rounded-lg border text-xs font-bold transition-all cursor-pointer text-center ${
-                    stats.selectedSpinMode === 'RIGHT'
-                      ? 'bg-[#3498DB]/25 border-[#3498DB] text-white shadow-sm'
-                      : 'bg-[#1C1814] border-[#382B22] text-[#A89886] hover:text-white'
-                  }`}
-                >
-                  {isJa ? '↻ 右変化' : '↻ Right Curve'}
-                  <div className="text-[10px] font-normal text-[#8A7B6D] mt-0.5">Clockwise Arc</div>
-                </button>
               </div>
             </div>
           )}

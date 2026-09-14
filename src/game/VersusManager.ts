@@ -1,4 +1,4 @@
-import { SpinMode, SumoFruitInstance, VersusBoutRecord, VersusState, FRUIT_CATALOG } from '../types/game';
+import { SumoFruitInstance, VersusBoutRecord, VersusState, FRUIT_CATALOG } from '../types/game';
 
 export class VersusManager {
   private pairedTierStream: number[] = [1, 2];
@@ -16,8 +16,6 @@ export class VersusManager {
     p2SaltCharges: 1,
     p1SaltLaunchCount: 0,
     p2SaltLaunchCount: 0,
-    p1SpinMode: 'STRAIGHT',
-    p2SpinMode: 'STRAIGHT',
     p1NextTiers: [1, 2],
     p2NextTiers: [1, 2],
     tugOfWarMassP1: 0,
@@ -46,8 +44,6 @@ export class VersusManager {
       p2SaltCharges: 1,
       p1SaltLaunchCount: 0,
       p2SaltLaunchCount: 0,
-      p1SpinMode: 'STRAIGHT',
-      p2SpinMode: 'STRAIGHT',
       p1NextTiers: [this.pairedTierStream[0], this.pairedTierStream[1]],
       p2NextTiers: [this.pairedTierStream[0], this.pairedTierStream[1]],
       tugOfWarMassP1: 0,
@@ -66,18 +62,6 @@ export class VersusManager {
     if (r < 0.55) return 1;
     if (r < 0.85) return 2;
     return 3;
-  }
-
-  public getActiveSpinMode(): SpinMode {
-    return this.state.playerTurn === 1 ? this.state.p1SpinMode : this.state.p2SpinMode;
-  }
-
-  public setSpinModeForCurrentPlayer(mode: SpinMode) {
-    if (this.state.playerTurn === 1) {
-      this.state.p1SpinMode = mode;
-    } else {
-      this.state.p2SpinMode = mode;
-    }
   }
 
   public consumeCurrentLoadedTier(): { tier: number; nextTiers: [number, number] } {

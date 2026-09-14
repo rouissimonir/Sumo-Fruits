@@ -20,7 +20,7 @@ export const KimariteModal: React.FC<KimariteModalProps> = ({
 
   const categoryLabels: Record<KimariteTechnique['category'], { label: string; color: string }> = {
     FUSION: { label: 'Fusion & Combos', color: '#F39C12' },
-    TRICK_SHOT: { label: 'Trick Shots & Spin', color: '#3498DB' },
+    TRICK_SHOT: { label: 'Trick Shots & Rebounds', color: '#3498DB' },
     DEFENSE: { label: 'Dohyō Defense', color: '#2ECC71' },
     MASTERY: { label: 'Yokozuna Mastery', color: '#9B59B6' },
   };
@@ -49,7 +49,7 @@ export const KimariteModal: React.FC<KimariteModalProps> = ({
                 </span>
               </div>
               <p className="text-xs text-[#A89886]">
-                Sumo winning throws, rebounds, sidespins, and sacred defense achievements
+                Sumo winning throws, precise rebounds, and sacred defense achievements
               </p>
             </div>
           </div>

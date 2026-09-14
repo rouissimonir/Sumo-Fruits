@@ -3,7 +3,7 @@ import test from 'node:test';
 import { ArenaConditionManager } from '../src/game/ArenaConditionManager';
 import { GameEngine } from '../src/game/GameEngine';
 import { VersusManager } from '../src/game/VersusManager';
-import { advanceEnglishSpin, createMawashiTail, DEFAULT_ARENA, predictTrajectory } from '../src/physics/bowlMotion';
+import { createMawashiTail, DEFAULT_ARENA, predictTrajectory } from '../src/physics/bowlMotion';
 import { MergeClashManager } from '../src/physics/mergeClashManager';
 import { FRUIT_CATALOG, SumoFruitInstance } from '../src/types/game';
 import { DEFAULT_SETTINGS, loadGameSettings } from '../src/types/settings';
@@ -32,14 +32,11 @@ function fruit(id: number, team: SumoFruitInstance['team']): SumoFruitInstance {
   };
 }
 
-test('straight spin integration is neutral and curve integration preserves speed', () => {
-  const straight = advanceEnglishSpin(240, -80, 0, 1 / 60);
-  assert.equal(straight.vx, 240);
-  assert.equal(straight.vy, -80);
-
-  const curved = advanceEnglishSpin(240, -80, 9, 1 / 60);
-  assert.ok(Math.abs(Math.hypot(curved.vx, curved.vy) - Math.hypot(240, -80)) < 1e-9);
-  assert.ok(curved.spin < 9);
+test('trajectory prediction keeps a straight launch on its aim line', () => {
+  const arena = { ...DEFAULT_ARENA, centerX: 0, centerY: 0, radius: 2000, radiusX: 2000, radiusY: 2000, slopeK: 0 };
+  const points = predictTrajectory(0, 0, 240, 0, FRUIT_CATALOG[0], [], arena, 0.5, 10);
+  assert.ok(points.length > 2);
+  assert.ok(points.every((point) => point.y === 0));
 });
 
 test('trajectory sweep catches a small obstacle between simulation endpoints', () => {

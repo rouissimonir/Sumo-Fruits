@@ -19,7 +19,7 @@ import { sound } from './audio/soundEffects';
 import { haptics } from './audio/haptics';
 import { App as CapacitorApp } from '@capacitor/app';
 import { HelpCircle, Sparkles } from 'lucide-react';
-import { ArenaMode, GameModeType, SpinMode } from './types/game';
+import { ArenaMode, GameModeType } from './types/game';
 import { DEFAULT_SETTINGS, GameSettings, loadGameSettings, saveGameSettings } from './types/settings';
 
 export default function App() {
@@ -72,8 +72,6 @@ export default function App() {
     hasActiveRival: false,
     rivalIntent: null,
     activeChallengeId: null,
-    launcherSpin: 0,
-    selectedSpinMode: 'STRAIGHT',
     unlockedKimariteCount: 0,
     totalKimariteCount: 8,
     versus: null,
@@ -182,11 +180,7 @@ export default function App() {
     engine.setGameMode(mode, challengeId);
   }, [engine]);
 
-  const handleSelectSpinMode = useCallback((mode: SpinMode) => {
-    engine.setSpinMode(mode);
-  }, [engine]);
-
-  // Keyboard controls for rapid gameplay (S = Salt throw, Space = Pause, Q/W/E = Curve Spin)
+  // Keyboard controls for rapid desktop testing.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
@@ -199,12 +193,6 @@ export default function App() {
       } else if (e.key === 'r' || e.key === 'R') {
         if (e.ctrlKey || e.metaKey) return;
         engine.restart();
-      } else if (e.key === 'q' || e.key === 'Q') {
-        engine.setSpinMode(engine.selectedSpinMode === 'LEFT' ? 'STRAIGHT' : 'LEFT');
-      } else if (e.key === 'w' || e.key === 'W') {
-        engine.setSpinMode('STRAIGHT');
-      } else if (e.key === 'e' || e.key === 'E') {
-        engine.setSpinMode(engine.selectedSpinMode === 'RIGHT' ? 'STRAIGHT' : 'RIGHT');
       }
     };
 
@@ -230,7 +218,6 @@ export default function App() {
         onThrowSalt={handleThrowSalt}
         onCycleArenaMode={handleCycleArenaMode}
         onSelectGameMode={handleSelectGameMode}
-        onSelectSpinMode={handleSelectSpinMode}
         onToggleTabletop={() => engine.toggleVersusTabletopInversion()}
         soundEnabled={!settings.sfxMuted}
         onToggleSound={handleToggleSound}
@@ -303,7 +290,6 @@ export default function App() {
         onSelectGameMode={handleSelectGameMode}
         onSelectArenaMode={(mode) => engine.setArenaMode(mode)}
         onSelectArenaCondition={(cond) => engine.setArenaCondition(cond)}
-        onSelectSpinMode={handleSelectSpinMode}
         onOpenTierList={() => setIsTierListOpen(true)}
         onOpenKimarite={() => setIsKimariteOpen(true)}
         onOpenTutorial={() => setIsTutorialOpen(true)}

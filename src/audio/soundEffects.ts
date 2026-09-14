@@ -717,34 +717,6 @@ class SoundEngine {
   }
 
   /**
-   * Curve Shot Sidespin whoosh (frequency glide)
-   */
-  public playCurveSpin(spin: number) {
-    if (!this.enabled) return;
-    this.init();
-    if (!this.ctx || !this.masterGain) return;
-
-    const t = this.ctx.currentTime;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
-
-    osc.type = 'sine';
-    const startFreq = spin > 0 ? 300 : 480;
-    const endFreq = spin > 0 ? 560 : 260;
-
-    osc.frequency.setValueAtTime(startFreq, t);
-    osc.frequency.exponentialRampToValueAtTime(endFreq, t + 0.22);
-
-    gain.gain.setValueAtTime(0.18, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.24);
-
-    osc.connect(gain);
-    gain.connect(this.masterGain);
-    osc.start(t);
-    osc.stop(t + 0.25);
-  }
-
-  /**
    * Ginko Magnet resonance chime
    */
   public playGinkoMagnet() {

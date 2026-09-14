@@ -357,8 +357,6 @@ export interface VersusState {
   p2SaltCharges: number;
   p1SaltLaunchCount: number;
   p2SaltLaunchCount: number;
-  p1SpinMode: SpinMode;
-  p2SpinMode: SpinMode;
   p1NextTiers: [number, number];
   p2NextTiers: [number, number];
   tugOfWarMassP1: number;
@@ -489,8 +487,6 @@ export interface TrajectoryPoint {
   impact?: boolean;
   boosted?: boolean;
 }
-
-export type SpinMode = 'LEFT' | 'STRAIGHT' | 'RIGHT';
 
 export type MissionType =
   | 'MERGES'

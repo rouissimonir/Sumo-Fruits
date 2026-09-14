@@ -11,7 +11,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const primaryPointerId = useRef<number | null>(null);
-  const modifierPointerId = useRef<number | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -134,8 +133,6 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
     // Cancel active drags on backgrounding or window blur
     const handleBackgroundCancel = () => {
       primaryPointerId.current = null;
-      modifierPointerId.current = null;
-      engine.setTouchSpinModifier(false);
       engine.cancelDrag();
     };
 
@@ -180,18 +177,12 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
     const { x, y } = getCanvasCoords(e);
     if (primaryPointerId.current === null) {
       if (engine.handlePointerDown(x, y)) primaryPointerId.current = e.pointerId;
-      return;
-    }
-    if (modifierPointerId.current === null && e.pointerId !== primaryPointerId.current) {
-      modifierPointerId.current = e.pointerId;
-      engine.setTouchSpinModifier(true, x);
     }
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const { x, y } = getCanvasCoords(e);
     if (e.pointerId === primaryPointerId.current) engine.handlePointerMove(x, y);
-    if (e.pointerId === modifierPointerId.current) engine.updateTouchSpinModifier(x);
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -200,15 +191,8 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
     } catch {
       // Ignored if not captured
     }
-    if (e.pointerId === modifierPointerId.current) {
-      modifierPointerId.current = null;
-      engine.setTouchSpinModifier(false);
-      return;
-    }
     if (e.pointerId === primaryPointerId.current) {
       primaryPointerId.current = null;
-      modifierPointerId.current = null;
-      engine.setTouchSpinModifier(false);
       engine.handlePointerUp();
     }
   };
@@ -602,51 +586,6 @@ function drawLauncher(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   ctx.lineTo(fruitX + 10, fruitY);
   ctx.stroke();
 
-  // Versus Turn Tag floating under launcher
-  if (isVersus) {
-    ctx.save();
-    const isP1 = playerTurn === 1;
-    ctx.fillStyle = isP1 ? 'rgba(231, 76, 60, 0.92)' : 'rgba(52, 152, 219, 0.92)';
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = 1.5;
-    ctx.beginPath();
-    ctx.roundRect(x - 65, y + 36, 130, 20, 10);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 10px system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(isP1 ? '東 P1 TURN (EAST)' : '西 P2 TURN (WEST)', x, y + 46);
-    ctx.restore();
-  }
-
-  // English Spin Mode Visual Badge / Indicator near launcher
-  const spin = engine.launcherSpin;
-  if (Math.abs(spin) > 0.15 || engine.selectedSpinMode !== 'STRAIGHT') {
-    const isLeft = spin < 0 || engine.selectedSpinMode === 'LEFT';
-    ctx.save();
-    ctx.font = 'bold 11px system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = isLeft ? '#E74C3C' : '#3498DB';
-    ctx.strokeStyle = '#FFFFFF';
-    ctx.lineWidth = 1.5;
-    const badgeX = isLeft ? x - 46 : x + 46;
-    const badgeY = y + 23;
-
-    // Small arrow circle
-    ctx.beginPath();
-    ctx.arc(badgeX, badgeY, 10, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillText(isLeft ? '↺' : '↻', badgeX, badgeY);
-    ctx.restore();
-  }
-
   ctx.restore();
 }
 
@@ -654,24 +593,6 @@ function drawTrajectory(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   if (engine.trajectoryPoints.length < 2) return;
 
   ctx.save();
-
-  // If curve spin is active, draw a colored curved trail overlay
-  const spin = engine.launcherSpin;
-  const spinMode = engine.selectedSpinMode;
-
-  if (Math.abs(spin) > 0.15 || spinMode !== 'STRAIGHT') {
-    // Red/Orange for left curve, Blue/Cyan for right curve
-    ctx.strokeStyle = spin > 0 ? 'rgba(52, 152, 219, 0.55)' : 'rgba(231, 76, 60, 0.55)';
-    ctx.lineWidth = 6;
-    ctx.setLineDash([8, 6]);
-    ctx.beginPath();
-    ctx.moveTo(engine.trajectoryPoints[0].x, engine.trajectoryPoints[0].y);
-    for (let i = 1; i < engine.trajectoryPoints.length; i++) {
-      ctx.lineTo(engine.trajectoryPoints[i].x, engine.trajectoryPoints[i].y);
-    }
-    ctx.stroke();
-    ctx.setLineDash([]);
-  }
 
   for (let i = 0; i < engine.trajectoryPoints.length; i++) {
     const pt = engine.trajectoryPoints[i];
@@ -693,16 +614,9 @@ function drawTrajectory(ctx: CanvasRenderingContext2D, engine: GameEngine) {
       ctx.arc(pt.x, pt.y, 14, 0, Math.PI * 2);
       ctx.stroke();
     } else {
-      // Small prediction dot (glows cyan for right spin or orange/red for left spin)
-      const dotColor =
-        Math.abs(spin) > 0.15
-          ? spin > 0
-            ? `rgba(100, 210, 255, ${alpha})`
-            : `rgba(255, 120, 90, ${alpha})`
-          : `rgba(255, 235, 160, ${alpha})`;
-      ctx.fillStyle = dotColor;
+      ctx.fillStyle = `rgba(255, 235, 160, ${alpha})`;
       ctx.beginPath();
-      ctx.arc(pt.x, pt.y, Math.abs(spin) > 0.15 ? 4.0 : 3.5, 0, Math.PI * 2);
+      ctx.arc(pt.x, pt.y, 3.5, 0, Math.PI * 2);
       ctx.fill();
     }
   }
