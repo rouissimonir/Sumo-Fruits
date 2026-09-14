@@ -3,6 +3,7 @@ import { haptics } from '../audio/haptics';
 import { KimariteManager, KimariteTechnique } from './KimariteManager';
 import {
   ArenaConfig,
+  advanceEnglishSpin,
   calculateChiliBoost,
   calculateSaltBraking,
   createMawashiTail,
@@ -109,6 +110,7 @@ export class GameEngine {
   public trajectoryPoints: TrajectoryPoint[] = [];
   public launcherSpin: number = 0; // -1 to +1 (English curve spin)
   public selectedSpinMode: SpinMode = 'STRAIGHT';
+  private touchSpinModifier: SpinMode | null = null;
 
   // Shot state machine
   public shotState: 'IDLE' | 'AIMING' | 'LAUNCHED' | 'CHAIN_RESOLVING' | 'RIVAL_ACTION' | 'SETTLING' = 'IDLE';
@@ -272,6 +274,25 @@ export class GameEngine {
       this.updateTrajectory();
     }
     this.emitStats();
+  }
+
+  public setTouchSpinModifier(active: boolean, touchX: number = this.launcherPos.x) {
+    this.touchSpinModifier = active ? (touchX < this.launcherPos.x ? 'LEFT' : 'RIGHT') : null;
+    this.refreshLauncherSpin();
+    if (this.isDragging) this.updateTrajectory();
+    this.emitStats();
+  }
+
+  public updateTouchSpinModifier(touchX: number) {
+    if (!this.touchSpinModifier) return;
+    this.touchSpinModifier = touchX < this.launcherPos.x ? 'LEFT' : 'RIGHT';
+    this.refreshLauncherSpin();
+    if (this.isDragging) this.updateTrajectory();
+  }
+
+  private refreshLauncherSpin() {
+    const mode = this.touchSpinModifier ?? this.selectedSpinMode;
+    this.launcherSpin = mode === 'LEFT' ? -0.75 : mode === 'RIGHT' ? 0.75 : 0;
   }
 
   public updateTuning(newTuning: Partial<PhysicsTuning>) {
@@ -594,16 +615,8 @@ export class GameEngine {
       this.dragPos = { x, y };
     }
 
-    // Calculate English sidespin bias (-1 to +1) combining selected preset spin mode with drag offset
-    const lateralOffset = (this.dragPos.x - this.launcherPos.x) / 80;
-    const presetBias = this.selectedSpinMode === 'LEFT' ? -0.7 : this.selectedSpinMode === 'RIGHT' ? 0.7 : 0;
-    const combinedSpin = Math.max(-1.0, Math.min(1.0, presetBias + lateralOffset));
-    const prevSpin = this.launcherSpin;
-    this.launcherSpin = combinedSpin;
-
-    if (Math.abs(this.launcherSpin - prevSpin) > 0.35) {
-      haptics.trigger('TICK');
-    }
+    // Pull direction controls aim only. Spin is an explicit dock/second-finger choice.
+    this.refreshLauncherSpin();
 
     this.loadedFruit.x = this.dragPos.x;
     this.loadedFruit.y = this.dragPos.y;
@@ -634,6 +647,7 @@ export class GameEngine {
       this.loadedFruit.vy = launchVy;
       // Set English spin on the launched fruit (up to 12 rad/s)
       this.loadedFruit.spin = this.launcherSpin * 12.0;
+      this.loadedFruit.spinActive = Math.abs(this.launcherSpin) > 0.01;
       this.loadedFruit.rotation = 0;
       this.loadedFruit.state = 'IN_RING';
       this.loadedFruit.entryPending = true;
@@ -709,7 +723,8 @@ export class GameEngine {
 
       this.loadedFruit = null;
       this.trajectoryPoints = [];
-      this.launcherSpin = this.selectedSpinMode === 'LEFT' ? -0.7 : this.selectedSpinMode === 'RIGHT' ? 0.7 : 0;
+      this.touchSpinModifier = null;
+      this.refreshLauncherSpin();
 
       // Cooldown before loading next fruit (ensures smooth shot rhythm)
       setTimeout(() => {
@@ -1002,20 +1017,13 @@ export class GameEngine {
         }
       }
 
-      // English gyro curve acceleration
-      let spinAx = 0;
-      let spinAy = 0;
-      if (fruit.spin && Math.abs(fruit.spin) > 0.05) {
-        const speed = Math.hypot(fruit.vx, fruit.vy);
-        if (speed > 10) {
-          const perpX = -fruit.vy / speed;
-          const perpY = fruit.vx / speed;
-          const curveForce = fruit.spin * speed * 0.35;
-          spinAx = perpX * curveForce;
-          spinAy = perpY * curveForce;
-        }
-        fruit.spin *= Math.max(0, 1 - 0.8 * dt);
-        fruit.rotation = (fruit.rotation || 0) + fruit.spin * dt;
+      // Intentional English ends on first physical contact.
+      if (fruit.spinActive && fruit.spin) {
+        const spun = advanceEnglishSpin(fruit.vx, fruit.vy, fruit.spin, dt);
+        fruit.vx = spun.vx;
+        fruit.vy = spun.vy;
+        fruit.spin = spun.spin;
+        fruit.rotation = (fruit.rotation || 0) + spun.spin * dt;
       } else {
         fruit.rotation = (fruit.rotation || 0) + (fruit.vx * 0.003);
       }
@@ -1024,8 +1032,8 @@ export class GameEngine {
       fruit.y += fruit.vy * dt;
 
       const damping = Math.max(0, 1 - cat.damp * dt);
-      fruit.vx = (fruit.vx + (ax + spinAx) * dt) * damping;
-      fruit.vy = (fruit.vy + (ay + spinAy) * dt) * damping;
+      fruit.vx = (fruit.vx + ax * dt) * damping;
+      fruit.vy = (fruit.vy + ay * dt) * damping;
 
       // Sacred Salt Braking Formula: a_salt = -gamma_salt * v - k_brake * max(0, v . n_out) * n_out
       if (inSaltZone) {
@@ -1380,6 +1388,10 @@ export class GameEngine {
         const dist = Math.hypot(dx, dy);
 
         if (dist < minDist && dist > 0.0001) {
+          fA.spin = 0;
+          fB.spin = 0;
+          fA.spinActive = false;
+          fB.spinActive = false;
           const nx = dx / dist;
           const ny = dy / dist;
 
@@ -1470,6 +1482,8 @@ export class GameEngine {
         const dist = Math.hypot(dx, dy);
 
         if (dist < minDist && dist > 0.0001) {
+          fruit.spin = 0;
+          fruit.spinActive = false;
           const nx = dx / dist;
           const ny = dy / dist;
           const overlap = minDist - dist;

@@ -206,6 +206,7 @@ export interface SumoFruitInstance {
   vx: number;
   vy: number;
   spin?: number; // English gyro spin in rad/s (-15 to +15)
+  spinActive?: boolean; // Cleared permanently on the first physical contact
   rotation?: number;
   state: FruitState;
   entryPending: boolean;

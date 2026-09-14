@@ -352,6 +352,44 @@ export function getSquashScale(amplitude: number, elapsed: number): number {
   return 1.0 + amplitude * damp * osc;
 }
 
+/** Advances intentional English while preserving speed. Shared by live play and prediction. */
+export function advanceEnglishSpin(
+  vx: number,
+  vy: number,
+  spin: number,
+  dt: number
+): { vx: number; vy: number; spin: number } {
+  const speed = Math.hypot(vx, vy);
+  if (speed < 10 || Math.abs(spin) < 0.05) {
+    return { vx, vy, spin: Math.abs(spin) < 0.05 ? 0 : spin };
+  }
+  const angle = spin * 0.06 * dt;
+  const cosA = Math.cos(angle);
+  const sinA = Math.sin(angle);
+  return {
+    vx: vx * cosA - vy * sinA,
+    vy: vx * sinA + vy * cosA,
+    spin: spin * Math.exp(-1.35 * dt),
+  };
+}
+
+function segmentCircleHit(
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  cx: number,
+  cy: number,
+  radius: number
+): boolean {
+  const sx = x1 - x0;
+  const sy = y1 - y0;
+  const lengthSquared = sx * sx + sy * sy;
+  if (lengthSquared <= 0.000001) return Math.hypot(x0 - cx, y0 - cy) <= radius;
+  const t = Math.max(0, Math.min(1, ((cx - x0) * sx + (cy - y0) * sy) / lengthSquared));
+  return Math.hypot(x0 + sx * t - cx, y0 + sy * t - cy) <= radius;
+}
+
 /**
  * Forward Euler trajectory prediction
  */
@@ -379,38 +417,28 @@ export function predictTrajectory(
   points.push({ x, y });
 
   for (let i = 0; i < sampleSteps; i++) {
+    const previousX = x;
+    const previousY = y;
     // Current bowl acceleration
     const { ax, ay } = getBowlAcceleration(x, y, arena);
 
-    // English Gyro Magnus/Friction effect perpendicular to velocity vector
-    let spinAx = 0;
-    let spinAy = 0;
-    if (Math.abs(currentSpin) > 0.05) {
-      const speed = Math.hypot(vx, vy);
-      if (speed > 10) {
-        // Perpendicular vector (-vy/speed, vx/speed)
-        const perpX = -vy / speed;
-        const perpY = vx / speed;
-        const curveForce = currentSpin * speed * 0.35;
-        spinAx = perpX * curveForce;
-        spinAy = perpY * curveForce;
-      }
-      currentSpin *= Math.max(0, 1 - 0.7 * dt);
-    }
+    const spun = advanceEnglishSpin(vx, vy, currentSpin, dt);
+    vx = spun.vx;
+    vy = spun.vy;
+    currentSpin = spun.spin;
 
     // Explicit Euler step
     x += vx * dt;
     y += vy * dt;
 
     const dampFactor = Math.max(0, 1 - tierData.damp * dt);
-    vx = (vx + (ax + spinAx) * dt) * dampFactor;
-    vy = (vy + (ay + spinAy) * dt) * dampFactor;
+    vx = (vx + ax * dt) * dampFactor;
+    vy = (vy + ay * dt) * dampFactor;
 
     // Check collision with obstacles
     let hit = false;
     for (const obs of obstacles) {
-      const dist = Math.hypot(x - obs.x, y - obs.y);
-      if (dist < tierData.radius + obs.radius) {
+      if (segmentCircleHit(previousX, previousY, x, y, obs.x, obs.y, tierData.radius + obs.radius)) {
         points.push({ x, y, impact: true });
         hit = true;
         break;

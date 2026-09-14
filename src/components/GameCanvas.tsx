@@ -10,6 +10,8 @@ interface GameCanvasProps {
 export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const primaryPointerId = useRef<number | null>(null);
+  const modifierPointerId = useRef<number | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -130,12 +132,20 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
     const { x, y } = getCanvasCoords(e);
-    engine.handlePointerDown(x, y);
+    if (primaryPointerId.current === null) {
+      if (engine.handlePointerDown(x, y)) primaryPointerId.current = e.pointerId;
+      return;
+    }
+    if (modifierPointerId.current === null && e.pointerId !== primaryPointerId.current) {
+      modifierPointerId.current = e.pointerId;
+      engine.setTouchSpinModifier(true, x);
+    }
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const { x, y } = getCanvasCoords(e);
-    engine.handlePointerMove(x, y);
+    if (e.pointerId === primaryPointerId.current) engine.handlePointerMove(x, y);
+    if (e.pointerId === modifierPointerId.current) engine.updateTouchSpinModifier(x);
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -144,7 +154,17 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
     } catch {
       // Ignored if not captured
     }
-    engine.handlePointerUp();
+    if (e.pointerId === modifierPointerId.current) {
+      modifierPointerId.current = null;
+      engine.setTouchSpinModifier(false);
+      return;
+    }
+    if (e.pointerId === primaryPointerId.current) {
+      primaryPointerId.current = null;
+      modifierPointerId.current = null;
+      engine.setTouchSpinModifier(false);
+      engine.handlePointerUp();
+    }
   };
 
   return (
