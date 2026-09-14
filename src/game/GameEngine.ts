@@ -899,6 +899,21 @@ export class GameEngine {
     }
   }
 
+  public cancelDrag(): void {
+    if (!this.isDragging) return;
+    this.isDragging = false;
+    this.touchSpinModifier = null;
+    this.refreshLauncherSpin();
+    this.trajectoryPoints = [];
+    if (this.loadedFruit) {
+      this.loadedFruit.x = this.launcherPos.x;
+      this.loadedFruit.y = this.launcherPos.y;
+      this.loadedFruit.vx = 0;
+      this.loadedFruit.vy = 0;
+      this.loadedFruit.state = 'IDLE';
+    }
+  }
+
   private updateTrajectory() {
     if (!this.loadedFruit || !this.isDragging) {
       this.trajectoryPoints = [];
@@ -1644,17 +1659,19 @@ export class GameEngine {
             }
           }
 
-          // Elastic collision response
+          // Elastic collision response & Anti-wedge separation
           const overlap = minDist - dist;
           const totalMass = catA.mass + catB.mass;
+          const relSpeed = Math.hypot(fB.vx - fA.vx, fB.vy - fA.vy);
+          const separationFactor = (overlap > 3.0 && relSpeed < 10) ? 1.15 : 1.0;
 
           if (fA.state === 'IN_RING') {
-            fA.x -= nx * overlap * (catB.mass / totalMass);
-            fA.y -= ny * overlap * (catB.mass / totalMass);
+            fA.x -= nx * overlap * (catB.mass / totalMass) * separationFactor;
+            fA.y -= ny * overlap * (catB.mass / totalMass) * separationFactor;
           }
           if (fB.state === 'IN_RING') {
-            fB.x += nx * overlap * (catA.mass / totalMass);
-            fB.y += ny * overlap * (catA.mass / totalMass);
+            fB.x += nx * overlap * (catA.mass / totalMass) * separationFactor;
+            fB.y += ny * overlap * (catA.mass / totalMass) * separationFactor;
           }
 
           const relVx = fB.vx - fA.vx;
@@ -2021,6 +2038,12 @@ export class GameEngine {
   }
 
   private commitRingOut(fruit: SumoFruitInstance) {
+    // Guard: Ring-out detection strictly triggers only after a fruit transitions from inside to outside.
+    // Staging, spawning, or launching through exterior areas must never count.
+    if (fruit.entryPending || !fruit.hasEnteredRing || fruit.state === 'RING_OUT') {
+      return;
+    }
+
     fruit.state = 'RING_OUT';
 
     // If fruit was a rival, it is a Kinboshi victory!

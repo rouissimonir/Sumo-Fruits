@@ -13,14 +13,21 @@ import { ParameterTuner } from './components/ParameterTuner';
 import { GameOverModal } from './components/GameOverModal';
 import { KimariteModal } from './components/KimariteModal';
 import { SettingsModal } from './components/SettingsModal';
+import { TutorialModal } from './components/TutorialModal';
+import { LegalCreditsModal } from './components/LegalCreditsModal';
 import { VersusVictoryModal } from './components/VersusVictoryModal';
 import { VersusHandoverModal } from './components/VersusHandoverModal';
 import { sound } from './audio/soundEffects';
+import { haptics } from './audio/haptics';
 import { HelpCircle, Sparkles } from 'lucide-react';
 import { ArenaMode, GameModeType, SpinMode } from './types/game';
+import { DEFAULT_SETTINGS, GameSettings, loadGameSettings, saveGameSettings } from './types/settings';
 
 export default function App() {
   const engine = useMemo(() => new GameEngine(), []);
+
+  // Persistent Settings
+  const [settings, setSettings] = useState<GameSettings>(() => loadGameSettings());
 
   const [stats, setStats] = useState<GameStats>({
     score: 0,
@@ -96,8 +103,35 @@ export default function App() {
   const [isTunerOpen, setIsTunerOpen] = useState(false);
   const [isKimariteOpen, setIsKimariteOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [soundEnabled, setSoundEnabled] = useState(true);
-  const [showTutorial, setShowTutorial] = useState(true);
+  const [isCreditsOpen, setIsCreditsOpen] = useState(false);
+  const [isTutorialOpen, setIsTutorialOpen] = useState(() => {
+    if (typeof window === 'undefined' || !window.localStorage) return false;
+    return !localStorage.getItem('sumo_tutorial_completed_v1');
+  });
+  const [showBottomTip, setShowBottomTip] = useState(true);
+
+  // Sync settings with audio and haptics managers
+  useEffect(() => {
+    sound.setVolume(settings.sfxVolume);
+    sound.setEnabled(!settings.sfxMuted);
+    haptics.setEnabled(settings.hapticsEnabled);
+    saveGameSettings(settings);
+  }, [settings]);
+
+  const updateSettings = useCallback((partial: Partial<GameSettings>) => {
+    setSettings((prev) => {
+      const next = { ...prev, ...partial };
+      saveGameSettings(next);
+      return next;
+    });
+  }, []);
+
+  const handleTutorialComplete = useCallback(() => {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.setItem('sumo_tutorial_completed_v1', 'true');
+    }
+    setIsTutorialOpen(false);
+  }, []);
 
   useEffect(() => {
     engine.onStatsChange = (newStats) => {
@@ -118,9 +152,8 @@ export default function App() {
   }, [engine]);
 
   const handleToggleSound = useCallback(() => {
-    const enabled = sound.toggleMute();
-    setSoundEnabled(enabled);
-  }, []);
+    updateSettings({ sfxMuted: !settings.sfxMuted });
+  }, [settings.sfxMuted, updateSettings]);
 
   const handleThrowSalt = useCallback(() => {
     engine.throwSalt();
@@ -187,7 +220,7 @@ export default function App() {
         onSelectGameMode={handleSelectGameMode}
         onSelectSpinMode={handleSelectSpinMode}
         onToggleTabletop={() => engine.toggleVersusTabletopInversion()}
-        soundEnabled={soundEnabled}
+        soundEnabled={!settings.sfxMuted}
         onToggleSound={handleToggleSound}
       />
 
@@ -195,23 +228,44 @@ export default function App() {
       <GameCanvas engine={engine} />
 
       {/* Floating Opening Instruction Banner */}
-      {showTutorial && (
+      {showBottomTip && (
         <aside
           id="tutorial-tip"
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-[#1C1814]/95 text-[#EDE2D4] border border-[#3E342B] px-4 py-2 rounded-full shadow-2xl text-xs max-w-[92vw] sm:max-w-lg pointer-events-auto"
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 bg-[#1C1814]/95 text-[#EDE2D4] border border-[#3E342B] px-4 py-2 rounded-full shadow-2xl text-xs max-w-[92vw] sm:max-w-lg pointer-events-auto pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]"
         >
           <Sparkles size={16} className="text-[#FFD700] shrink-0" />
           <span className="truncate">
-            Pull & slingshot fruits. Match weights to fuse! Press <b>[S]</b> for Kiyome-no-Shio salt.
+            Pull & slingshot fruits. Match weights to fuse! Tap <b>[S]</b> for Kiyome-no-Shio salt.
           </span>
           <button
-            onClick={() => setShowTutorial(false)}
+            onClick={() => setIsTutorialOpen(true)}
+            className="text-[10px] uppercase font-bold text-[#FFD700] hover:underline ml-1 shrink-0 cursor-pointer"
+          >
+            Guide
+          </button>
+          <button
+            onClick={() => setShowBottomTip(false)}
             className="text-[10px] uppercase font-bold text-[#A89886] hover:text-white ml-2 shrink-0 cursor-pointer"
           >
-            Got it
+            ✕
           </button>
         </aside>
       )}
+
+      {/* First-Run Interactive Tutorial Modal */}
+      <TutorialModal
+        isOpen={isTutorialOpen}
+        onClose={() => setIsTutorialOpen(false)}
+        onComplete={handleTutorialComplete}
+        language={settings.language}
+      />
+
+      {/* Ownership & Commercial Legal Credits Modal */}
+      <LegalCreditsModal
+        isOpen={isCreditsOpen}
+        onClose={() => setIsCreditsOpen(false)}
+        language={settings.language}
+      />
 
       {/* Modals */}
       <TierListModal
@@ -243,8 +297,8 @@ export default function App() {
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         stats={stats}
-        soundEnabled={soundEnabled}
-        onToggleSound={handleToggleSound}
+        settings={settings}
+        onUpdateSettings={updateSettings}
         onTogglePause={handleTogglePause}
         onRestart={handleRestart}
         onSelectGameMode={handleSelectGameMode}
@@ -255,6 +309,8 @@ export default function App() {
         onOpenKimarite={() => setIsKimariteOpen(true)}
         onOpenTuner={() => setIsTunerOpen(true)}
         onOpenGodotFiles={() => setIsGodotModalOpen(true)}
+        onOpenTutorial={() => setIsTutorialOpen(true)}
+        onOpenCredits={() => setIsCreditsOpen(true)}
       />
 
       <GameOverModal

@@ -125,9 +125,27 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
 
     animationId = requestAnimationFrame(renderLoop);
 
+    // Cancel active drags on backgrounding or window blur
+    const handleBackgroundCancel = () => {
+      primaryPointerId.current = null;
+      modifierPointerId.current = null;
+      engine.setTouchSpinModifier(false);
+      engine.cancelDrag();
+    };
+
+    window.addEventListener('blur', handleBackgroundCancel);
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        handleBackgroundCancel();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       cancelAnimationFrame(animationId);
       resizeObserver.disconnect();
+      window.removeEventListener('blur', handleBackgroundCancel);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [engine]);
 

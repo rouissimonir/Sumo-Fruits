@@ -54,12 +54,19 @@ class SoundEngine {
   public setVolume(vol: number) {
     this.volume = Math.max(0, Math.min(1, vol));
     if (this.masterGain && this.ctx) {
-      this.masterGain.gain.setValueAtTime(this.volume, this.ctx.currentTime);
+      this.masterGain.gain.setValueAtTime(this.enabled ? this.volume : 0, this.ctx.currentTime);
+    }
+  }
+
+  public setEnabled(enabled: boolean) {
+    this.enabled = enabled;
+    if (this.masterGain && this.ctx) {
+      this.masterGain.gain.setValueAtTime(this.enabled ? this.volume : 0, this.ctx.currentTime);
     }
   }
 
   public toggleMute(): boolean {
-    this.enabled = !this.enabled;
+    this.setEnabled(!this.enabled);
     return this.enabled;
   }
 

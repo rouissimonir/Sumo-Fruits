@@ -13,18 +13,23 @@ import {
   FolderArchive,
   Sparkles,
   HelpCircle,
-  ExternalLink,
+  Vibrate,
+  Languages,
+  Eye,
+  ShieldCheck,
+  Music,
 } from 'lucide-react';
 import { GameStats } from '../game/GameEngine';
 import { ArenaConditionType, ArenaMode, GameModeType, SpinMode } from '../types/game';
 import { CONDITION_METADATA } from '../game/ArenaConditionManager';
+import { GameSettings } from '../types/settings';
 
 interface SettingsModalProps {
   isOpen: boolean;
   onClose: () => void;
   stats: GameStats;
-  soundEnabled: boolean;
-  onToggleSound: () => void;
+  settings: GameSettings;
+  onUpdateSettings: (newSettings: Partial<GameSettings>) => void;
   onTogglePause: () => void;
   onRestart: () => void;
   onSelectGameMode: (mode: GameModeType, challengeId?: string) => void;
@@ -35,14 +40,16 @@ interface SettingsModalProps {
   onOpenKimarite: () => void;
   onOpenTuner: () => void;
   onOpenGodotFiles: () => void;
+  onOpenTutorial: () => void;
+  onOpenCredits: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   onClose,
   stats,
-  soundEnabled,
-  onToggleSound,
+  settings,
+  onUpdateSettings,
   onTogglePause,
   onRestart,
   onSelectGameMode,
@@ -53,12 +60,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onOpenKimarite,
   onOpenTuner,
   onOpenGodotFiles,
+  onOpenTutorial,
+  onOpenCredits,
 }) => {
   if (!isOpen) return null;
 
+  const isJa = settings.language === 'JA';
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/80 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-lg max-h-[90vh] flex flex-col bg-[#1C1814] border-2 border-[#5A4535] rounded-2xl shadow-2xl overflow-hidden text-[#EDE2D4]">
+    <div
+      id="settings-modal-backdrop"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-fade-in"
+    >
+      <div
+        id="settings-modal-card"
+        className="relative w-full max-w-lg max-h-[90vh] flex flex-col bg-[#1C1814] border-2 border-[#5A4535] rounded-2xl shadow-2xl overflow-hidden text-[#EDE2D4]"
+      >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#3D2E24] bg-[#241E19]">
           <div className="flex items-center gap-3">
@@ -67,10 +84,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-black tracking-wide text-white">
-                Game Settings & Menu
+                {isJa ? '設定・メニュー' : 'Game Settings & Menu'}
               </h2>
               <p className="text-xs text-[#A89886]">
-                Configure modes, dohyō arena, encyclopedias & match controls
+                {isJa
+                  ? 'サウンド・操作・土俵・モード・アクセシビリティ'
+                  : 'Configure audio, modes, arena, tutorial & accessibility'}
               </p>
             </div>
           </div>
@@ -78,6 +97,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             id="settings-close-btn"
             onClick={onClose}
             className="p-2 rounded-xl bg-[#2E241D] hover:bg-[#3D2E24] text-[#A89886] hover:text-white transition-colors cursor-pointer"
+            aria-label="Close settings"
           >
             <X size={20} />
           </button>
@@ -89,9 +109,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <div className="grid grid-cols-3 gap-2">
             <button
               id="settings-pause-btn"
-              onClick={() => {
-                onTogglePause();
-              }}
+              onClick={onTogglePause}
               className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                 stats.isPaused
                   ? 'bg-[#F39C12]/20 border-[#F39C12] text-[#FFD700]'
@@ -99,20 +117,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               }`}
             >
               {stats.isPaused ? <Play size={18} className="text-[#FFD700]" /> : <Pause size={18} />}
-              <span>{stats.isPaused ? 'Resume' : 'Pause'}</span>
+              <span>{stats.isPaused ? (isJa ? '再開' : 'Resume') : (isJa ? '一時停止' : 'Pause')}</span>
             </button>
 
             <button
               id="settings-sound-btn"
-              onClick={onToggleSound}
+              onClick={() => onUpdateSettings({ sfxMuted: !settings.sfxMuted })}
               className={`flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
-                soundEnabled
+                !settings.sfxMuted
                   ? 'bg-[#2ECC71]/15 border-[#2ECC71]/60 text-[#2ECC71]'
                   : 'bg-[#E74C3C]/15 border-[#E74C3C]/60 text-[#E74C3C]'
               }`}
             >
-              {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
-              <span>{soundEnabled ? 'Audio On' : 'Muted'}</span>
+              {!settings.sfxMuted ? <Volume2 size={18} /> : <VolumeX size={18} />}
+              <span>{!settings.sfxMuted ? (isJa ? '効果音: ON' : 'SFX: On') : (isJa ? '効果音: 消音' : 'SFX: Muted')}</span>
             </button>
 
             <button
@@ -124,15 +142,114 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               className="flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl bg-[#261F19] hover:bg-[#3D2E24] border border-[#44362B] text-[#E0D4C5] hover:text-white text-xs font-bold transition-all cursor-pointer"
             >
               <RotateCcw size={18} className="text-[#E67E22]" />
-              <span>Restart</span>
+              <span>{isJa ? 'やり直す' : 'Restart'}</span>
             </button>
+          </div>
+
+          {/* Audio & Haptic Controls */}
+          <div className="bg-[#241E19] border border-[#3D2E24] rounded-xl p-3.5 space-y-3">
+            <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider text-[#FFD700]">
+              <div className="flex items-center gap-1.5">
+                <Music size={14} />
+                <span>{isJa ? '音声・触覚バイブ設定' : 'Audio & Haptic Feedback'}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2.5">
+              {/* SFX Volume Slider */}
+              <div className="space-y-1">
+                <div className="flex items-center justify-between text-xs text-[#C8B8A6]">
+                  <span>{isJa ? '効果音・行司音声 音量' : 'SFX & Voice Volume'}</span>
+                  <span className="font-mono">{Math.round(settings.sfxVolume * 100)}%</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="1"
+                  step="0.05"
+                  value={settings.sfxVolume}
+                  onChange={(e) => onUpdateSettings({ sfxVolume: parseFloat(e.target.value) })}
+                  className="w-full accent-[#E67E22] cursor-pointer"
+                />
+              </div>
+
+              {/* Haptic Vibration & Language Toggles */}
+              <div className="grid grid-cols-2 gap-2 pt-1">
+                <button
+                  id="settings-vibration-btn"
+                  onClick={() => onUpdateSettings({ hapticsEnabled: !settings.hapticsEnabled })}
+                  className={`flex items-center justify-between p-2.5 rounded-lg border text-xs font-bold transition-all cursor-pointer ${
+                    settings.hapticsEnabled
+                      ? 'bg-[#E67E22]/20 border-[#E67E22] text-white'
+                      : 'bg-[#1C1814] border-[#382B22] text-[#8A7B6D]'
+                  }`}
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Vibrate size={16} />
+                    <span>{isJa ? '振動 (Haptics)' : 'Vibration'}</span>
+                  </div>
+                  <span className="text-[10px] uppercase font-mono">{settings.hapticsEnabled ? 'ON' : 'OFF'}</span>
+                </button>
+
+                <button
+                  id="settings-lang-btn"
+                  onClick={() => onUpdateSettings({ language: isJa ? 'EN' : 'JA' })}
+                  className="flex items-center justify-between p-2.5 rounded-lg border border-[#382B22] bg-[#1C1814] hover:bg-[#2F241C] text-xs font-bold text-white transition-all cursor-pointer"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Languages size={16} className="text-[#3498DB]" />
+                    <span>{isJa ? '言語 (Language)' : 'Language'}</span>
+                  </div>
+                  <span className="text-[10px] text-[#FFD700] font-mono">{isJa ? '日本語' : 'English'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Accessibility & Visual Comfort */}
+          <div className="bg-[#241E19] border border-[#3D2E24] rounded-xl p-3.5 space-y-2.5">
+            <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#3498DB]">
+              <Eye size={14} />
+              <span>{isJa ? 'アクセシビリティ設定' : 'Accessibility & Visuals'}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                id="settings-contrast-btn"
+                onClick={() => onUpdateSettings({ highContrast: !settings.highContrast })}
+                className={`p-2.5 rounded-lg border text-left text-xs font-bold transition-all cursor-pointer ${
+                  settings.highContrast
+                    ? 'bg-[#3498DB]/20 border-[#3498DB] text-white'
+                    : 'bg-[#1C1814] border-[#382B22] text-[#8A7B6D]'
+                }`}
+              >
+                <div className="truncate">{isJa ? '高コントラスト / 色覚補正' : 'High Contrast Mode'}</div>
+                <div className="text-[10px] font-normal text-[#8A7B6D] mt-0.5">
+                  {settings.highContrast ? (isJa ? '有効 (太字枠・記号)' : 'Active (Bold rings)') : (isJa ? '通常' : 'Standard')}
+                </div>
+              </button>
+
+              <button
+                id="settings-motion-btn"
+                onClick={() => onUpdateSettings({ reducedMotion: !settings.reducedMotion })}
+                className={`p-2.5 rounded-lg border text-left text-xs font-bold transition-all cursor-pointer ${
+                  settings.reducedMotion
+                    ? 'bg-[#3498DB]/20 border-[#3498DB] text-white'
+                    : 'bg-[#1C1814] border-[#382B22] text-[#8A7B6D]'
+                }`}
+              >
+                <div className="truncate">{isJa ? '視覚効果の軽減' : 'Reduced Motion'}</div>
+                <div className="text-[10px] font-normal text-[#8A7B6D] mt-0.5">
+                  {settings.reducedMotion ? (isJa ? '揺れ無効' : 'Shake Disabled') : (isJa ? '通常' : 'Standard')}
+                </div>
+              </button>
+            </div>
           </div>
 
           {/* Game Mode Selection */}
           <div className="bg-[#241E19] border border-[#3D2E24] rounded-xl p-3.5 space-y-2">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#FFD700]">
               <Trophy size={14} />
-              <span>Game Mode</span>
+              <span>{isJa ? 'ゲームモード' : 'Game Mode'}</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
               <button
@@ -144,7 +261,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     : 'bg-[#1C1814] border-[#382B22] text-[#A89886] hover:text-white'
                 }`}
               >
-                Classic
+                {isJa ? 'クラシック' : 'Classic'}
                 <div className="text-[10px] font-normal text-[#8A7B6D] mt-0.5">Endless Bowl</div>
               </button>
 
@@ -157,7 +274,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     : 'bg-[#1C1814] border-[#382B22] text-[#A89886] hover:text-white'
                 }`}
               >
-                📅 Daily
+                📅 {isJa ? 'デイリー場所' : 'Daily'}
                 <div className="text-[10px] font-normal text-[#8A7B6D] mt-0.5">
                   {stats.dailyBasho ? `Day #${stats.dailyBasho.dayNumber}` : 'Daily Basho'}
                 </div>
@@ -172,7 +289,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     : 'bg-[#1C1814] border-[#382B22] text-[#A89886] hover:text-white'
                 }`}
               >
-                2P Versus
+                {isJa ? '2P 対戦' : '2P Versus'}
                 <div className="text-[10px] font-normal text-[#8A7B6D] mt-0.5">Local 1v1</div>
               </button>
 
@@ -185,7 +302,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     : 'bg-[#1C1814] border-[#382B22] text-[#A89886] hover:text-white'
                 }`}
               >
-                Career
+                {isJa ? '番付巡業' : 'Career'}
                 <div className="text-[10px] font-normal text-[#8A7B6D] mt-0.5">
                   Banzuke {stats.careerStageIndex + 1}/5
                 </div>
@@ -200,7 +317,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     : 'bg-[#1C1814] border-[#382B22] text-[#A89886] hover:text-white'
                 }`}
               >
-                Challenge
+                {isJa ? '課題' : 'Challenge'}
                 <div className="text-[10px] font-normal text-[#8A7B6D] mt-0.5">Broken Rim</div>
               </button>
             </div>
@@ -211,7 +328,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="bg-[#241E19] border border-[#3D2E24] rounded-xl p-3.5 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#E67E22]">
-                  <span>🌪️ Arena Condition Modifiers</span>
+                  <span>🌪️ {isJa ? '土俵環境コンディション' : 'Arena Condition Modifiers'}</span>
                 </div>
                 {stats.arenaCondition && (
                   <span className="text-[10px] font-mono text-[#FFD700]">
@@ -237,7 +354,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     >
                       <div className="flex items-center gap-1 text-xs font-bold">
                         <span>{meta.icon}</span>
-                        <span className="truncate">{meta.nameRomaji}</span>
+                        <span className="truncate">{isJa ? meta.nameJp : meta.nameRomaji}</span>
                       </div>
                       <div className="text-[9px] text-[#8A7B6D] line-clamp-2 mt-0.5">
                         {meta.description}
@@ -249,60 +366,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           )}
 
-          {/* Arena Dohyō Shape */}
-          <div className="bg-[#241E19] border border-[#3D2E24] rounded-xl p-3.5 space-y-2">
-            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#3498DB]">
-              <Compass size={14} />
-              <span>Dohyō Arena Shape</span>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                id="arena-circle-btn"
-                onClick={() => onSelectArenaMode('CIRCULAR')}
-                className={`py-2 px-2.5 rounded-lg border text-xs font-bold transition-all cursor-pointer text-center ${
-                  stats.arenaMode === 'CIRCULAR'
-                    ? 'bg-[#3498DB]/20 border-[#3498DB] text-white'
-                    : 'bg-[#1C1814] border-[#382B22] text-[#A89886] hover:text-white'
-                }`}
-              >
-                Circular
-                <div className="text-[10px] font-normal text-[#8A7B6D] mt-0.5">Standard Ring</div>
-              </button>
-
-              <button
-                id="arena-oval-btn"
-                onClick={() => onSelectArenaMode('ELLIPTICAL')}
-                className={`py-2 px-2.5 rounded-lg border text-xs font-bold transition-all cursor-pointer text-center ${
-                  stats.arenaMode === 'ELLIPTICAL'
-                    ? 'bg-[#3498DB]/20 border-[#3498DB] text-white'
-                    : 'bg-[#1C1814] border-[#382B22] text-[#A89886] hover:text-white'
-                }`}
-              >
-                Elliptical
-                <div className="text-[10px] font-normal text-[#8A7B6D] mt-0.5">Wide Oval</div>
-              </button>
-
-              <button
-                id="arena-wobble-btn"
-                onClick={() => onSelectArenaMode('WOBBLE')}
-                className={`py-2 px-2.5 rounded-lg border text-xs font-bold transition-all cursor-pointer text-center ${
-                  stats.arenaMode === 'WOBBLE'
-                    ? 'bg-[#3498DB]/20 border-[#3498DB] text-white'
-                    : 'bg-[#1C1814] border-[#382B22] text-[#A89886] hover:text-white'
-                }`}
-              >
-                Wobble
-                <div className="text-[10px] font-normal text-[#8A7B6D] mt-0.5">Shifting Tides</div>
-              </button>
-            </div>
-          </div>
-
           {/* Launcher English Sidespin Presets */}
           {onSelectSpinMode && (
             <div className="bg-[#241E19] border border-[#3D2E24] rounded-xl p-3.5 space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#E67E22]">
-                  <span>🌀 Launcher English Sidespin</span>
+                  <span>🌀 {isJa ? '発射時の英語スピン（変化）' : 'Launcher English Sidespin'}</span>
                 </div>
                 <span className="text-[11px] text-[#A89886] font-mono">[Q] / [W] / [E]</span>
               </div>
@@ -316,7 +385,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       : 'bg-[#1C1814] border-[#382B22] text-[#A89886] hover:text-white'
                   }`}
                 >
-                  ↺ Left Curve
+                  {isJa ? '↺ 左変化' : '↺ Left Curve'}
                   <div className="text-[10px] font-normal text-[#8A7B6D] mt-0.5">Counter-Clockwise</div>
                 </button>
 
@@ -329,7 +398,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       : 'bg-[#1C1814] border-[#382B22] text-[#A89886] hover:text-white'
                   }`}
                 >
-                  ↑ Direct
+                  {isJa ? '↑ 直進' : '↑ Direct'}
                   <div className="text-[10px] font-normal text-[#8A7B6D] mt-0.5">Neutral Magnus</div>
                 </button>
 
@@ -342,19 +411,36 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       : 'bg-[#1C1814] border-[#382B22] text-[#A89886] hover:text-white'
                   }`}
                 >
-                  ↻ Right Curve
+                  {isJa ? '↻ 右変化' : '↻ Right Curve'}
                   <div className="text-[10px] font-normal text-[#8A7B6D] mt-0.5">Clockwise Arc</div>
                 </button>
               </div>
             </div>
           )}
 
-          {/* Sumo Encyclopedias & Techniques */}
+          {/* Sumo Encyclopedias & Tutorials */}
           <div className="bg-[#241E19] border border-[#3D2E24] rounded-xl p-3.5 space-y-2">
             <div className="text-xs font-bold uppercase tracking-wider text-[#A89886]">
-              Knowledge & Achievements
+              {isJa ? '相撲図鑑・チュートリアル' : 'Tutorial & Knowledge'}
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              <button
+                id="settings-tutorial-btn"
+                onClick={() => {
+                  onClose();
+                  onOpenTutorial();
+                }}
+                className="flex items-center gap-2.5 p-3 rounded-xl bg-[#1C1814] hover:bg-[#2F241C] border border-[#4B392C] text-left transition-all cursor-pointer group"
+              >
+                <HelpCircle size={20} className="text-[#E67E22] shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-white group-hover:text-[#E67E22] truncate">
+                    {isJa ? '稽古案内' : 'Tutorial'}
+                  </div>
+                  <div className="text-[10px] text-[#A89886]">{isJa ? '操作・決まり手' : 'Interactive Guide'}</div>
+                </div>
+              </button>
+
               <button
                 id="settings-kimarite-btn"
                 onClick={() => {
@@ -363,10 +449,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 }}
                 className="flex items-center gap-2.5 p-3 rounded-xl bg-[#1C1814] hover:bg-[#2F241C] border border-[#4B392C] text-left transition-all cursor-pointer group"
               >
-                <div className="text-2xl">🥋</div>
+                <div className="text-xl">🥋</div>
                 <div className="min-w-0">
                   <div className="text-xs font-bold text-white group-hover:text-[#FFD700] truncate">
-                    Kimarite Techniques
+                    {isJa ? '決まり手図鑑' : 'Kimarite'}
                   </div>
                   <div className="text-[10px] text-[#A89886]">
                     {stats.unlockedKimariteCount ?? 0}/{stats.totalKimariteCount ?? 8} Mastered
@@ -385,7 +471,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <BookOpen size={20} className="text-[#3498DB] shrink-0" />
                 <div className="min-w-0">
                   <div className="text-xs font-bold text-white group-hover:text-[#3498DB] truncate">
-                    Fruit Roster
+                    {isJa ? 'フルーツ番付' : 'Fruit Roster'}
                   </div>
                   <div className="text-[10px] text-[#A89886]">11 Wrestler Tiers</div>
                 </div>
@@ -393,26 +479,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
-          {/* Developer & Engine Tools */}
+          {/* Engine Tools & Licenses */}
           <div className="bg-[#241E19] border border-[#3D2E24] rounded-xl p-3.5 space-y-2">
             <div className="text-xs font-bold uppercase tracking-wider text-[#A89886]">
-              Godot Engine & Tuning Tools
+              {isJa ? '開発ツール・ライセンス情報' : 'Tools & Asset Licensing'}
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <button
                 id="settings-tuner-btn"
                 onClick={() => {
                   onClose();
                   onOpenTuner();
                 }}
-                className="flex items-center gap-2.5 p-3 rounded-xl bg-[#1C1814] hover:bg-[#2F241C] border border-[#4B392C] text-left transition-all cursor-pointer group"
+                className="flex items-center gap-2 p-2.5 rounded-xl bg-[#1C1814] hover:bg-[#2F241C] border border-[#4B392C] text-left transition-all cursor-pointer group"
               >
-                <Sliders size={18} className="text-[#F1C40F] shrink-0" />
+                <Sliders size={16} className="text-[#F1C40F] shrink-0" />
                 <div className="min-w-0">
-                  <div className="text-xs font-bold text-white group-hover:text-[#F1C40F] truncate">
-                    Physics Tuner
-                  </div>
-                  <div className="text-[10px] text-[#A89886]">Slope, damp, restitution</div>
+                  <div className="text-xs font-bold text-white group-hover:text-[#F1C40F] truncate">Tuner</div>
+                  <div className="text-[9px] text-[#A89886]">Physics</div>
                 </div>
               </button>
 
@@ -422,14 +506,29 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   onClose();
                   onOpenGodotFiles();
                 }}
-                className="flex items-center gap-2.5 p-3 rounded-xl bg-[#1C1814] hover:bg-[#2F241C] border border-[#4B392C] text-left transition-all cursor-pointer group"
+                className="flex items-center gap-2 p-2.5 rounded-xl bg-[#1C1814] hover:bg-[#2F241C] border border-[#4B392C] text-left transition-all cursor-pointer group"
               >
-                <FolderArchive size={18} className="text-[#2ECC71] shrink-0" />
+                <FolderArchive size={16} className="text-[#2ECC71] shrink-0" />
                 <div className="min-w-0">
-                  <div className="text-xs font-bold text-white group-hover:text-[#2ECC71] truncate">
-                    Godot 4.3 .ZIP
+                  <div className="text-xs font-bold text-white group-hover:text-[#2ECC71] truncate">Godot</div>
+                  <div className="text-[9px] text-[#A89886]">Export ZIP</div>
+                </div>
+              </button>
+
+              <button
+                id="settings-credits-btn"
+                onClick={() => {
+                  onClose();
+                  onOpenCredits();
+                }}
+                className="flex items-center gap-2 p-2.5 rounded-xl bg-[#1C1814] hover:bg-[#2F241C] border border-[#4B392C] text-left transition-all cursor-pointer group"
+              >
+                <ShieldCheck size={16} className="text-[#3498DB] shrink-0" />
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-white group-hover:text-[#3498DB] truncate">
+                    {isJa ? '権利表記' : 'Licenses'}
                   </div>
-                  <div className="text-[10px] text-[#A89886]">Export Engine Project</div>
+                  <div className="text-[9px] text-[#A89886]">Clearance</div>
                 </div>
               </button>
             </div>
@@ -443,7 +542,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             onClick={onClose}
             className="px-4 py-1.5 rounded-lg bg-[#3E3125] hover:bg-[#5A4535] text-white font-bold transition-all cursor-pointer"
           >
-            Resume Play
+            {isJa ? 'ゲームに戻る' : 'Resume Play'}
           </button>
         </div>
       </div>

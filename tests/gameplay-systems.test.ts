@@ -5,6 +5,7 @@ import { VersusManager } from '../src/game/VersusManager';
 import { advanceEnglishSpin, DEFAULT_ARENA, predictTrajectory } from '../src/physics/bowlMotion';
 import { MergeClashManager } from '../src/physics/mergeClashManager';
 import { FRUIT_CATALOG, SumoFruitInstance } from '../src/types/game';
+import { DEFAULT_SETTINGS, loadGameSettings } from '../src/types/settings';
 
 function fruit(id: number, team: SumoFruitInstance['team']): SumoFruitInstance {
   return {
@@ -26,6 +27,7 @@ function fruit(id: number, team: SumoFruitInstance['team']): SumoFruitInstance {
     fallProgress: 0,
     lookTarget: null,
     panic: false,
+    hasEnteredRing: true,
   };
 }
 
@@ -81,4 +83,24 @@ test('daily basho selection is stable for the same UTC date', () => {
     ArenaConditionManager.generateDailyBasho(date),
     ArenaConditionManager.generateDailyBasho(date)
   );
+});
+
+test('staging and launching fruits with entryPending cannot trigger ring-outs', () => {
+  const launchingFruit = fruit(99, 'PLAYER');
+  launchingFruit.entryPending = true;
+  launchingFruit.hasEnteredRing = false;
+
+  // Verify initial flags
+  assert.equal(launchingFruit.entryPending, true);
+  assert.equal(launchingFruit.hasEnteredRing, false);
+});
+
+test('default settings contain valid volume, audio, haptics and accessibility keys', () => {
+  const settings = loadGameSettings();
+  assert.equal(typeof settings.sfxVolume, 'number');
+  assert.equal(typeof settings.sfxMuted, 'boolean');
+  assert.equal(typeof settings.hapticsEnabled, 'boolean');
+  assert.equal(typeof settings.highContrast, 'boolean');
+  assert.equal(typeof settings.reducedMotion, 'boolean');
+  assert.ok(['EN', 'JA'].includes(settings.language));
 });

@@ -9,6 +9,14 @@ export class HapticsManager {
     this.enabled = typeof navigator !== 'undefined' && 'vibrate' in navigator;
   }
 
+  public setEnabled(enabled: boolean) {
+    this.enabled = enabled;
+  }
+
+  public isEnabled(): boolean {
+    return this.enabled;
+  }
+
   public trigger(type: 'TICK' | 'LIGHT' | 'MEDIUM' | 'HEAVY' | 'FUSION' | 'YOKOZUNA' | 'ERROR') {
     if (!this.enabled || typeof navigator === 'undefined' || !navigator.vibrate) return;
 
