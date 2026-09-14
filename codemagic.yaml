@@ -25,7 +25,9 @@ workflows:
 
     scripts:
       - name: Install dependencies
-        script: npm ci
+        script: |
+          npm ci --include=optional
+          node -e "require.resolve('@rollup/rollup-darwin-arm64')"
 
       - name: Verify committed Capacitor iOS project
         script: |
@@ -43,7 +45,9 @@ workflows:
 
       - name: Build web app and sync Capacitor with SPM
         script: |
+          set -e
           npm run build
+          test -f "$CM_BUILD_DIR/dist/index.html"
           npx cap sync ios
 
       - name: Fetch and apply App Store signing
