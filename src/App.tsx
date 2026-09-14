@@ -15,7 +15,7 @@ import { KimariteModal } from './components/KimariteModal';
 import { SettingsModal } from './components/SettingsModal';
 import { sound } from './audio/soundEffects';
 import { HelpCircle, Sparkles } from 'lucide-react';
-import { ArenaMode, GameModeType } from './types/game';
+import { ArenaMode, GameModeType, SpinMode } from './types/game';
 
 export default function App() {
   const engine = useMemo(() => new GameEngine(), []);
@@ -62,6 +62,7 @@ export default function App() {
     rivalIntent: null,
     activeChallengeId: null,
     launcherSpin: 0,
+    selectedSpinMode: 'STRAIGHT',
     unlockedKimariteCount: 0,
     totalKimariteCount: 8,
   });
@@ -112,7 +113,11 @@ export default function App() {
     engine.setGameMode(mode, challengeId);
   }, [engine]);
 
-  // Keyboard controls for rapid gameplay (S = Salt throw, Space = Pause)
+  const handleSelectSpinMode = useCallback((mode: SpinMode) => {
+    engine.setSpinMode(mode);
+  }, [engine]);
+
+  // Keyboard controls for rapid gameplay (S = Salt throw, Space = Pause, Q/W/E = Curve Spin)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
@@ -125,6 +130,12 @@ export default function App() {
       } else if (e.key === 'r' || e.key === 'R') {
         if (e.ctrlKey || e.metaKey) return;
         engine.restart();
+      } else if (e.key === 'q' || e.key === 'Q') {
+        engine.setSpinMode(engine.selectedSpinMode === 'LEFT' ? 'STRAIGHT' : 'LEFT');
+      } else if (e.key === 'w' || e.key === 'W') {
+        engine.setSpinMode('STRAIGHT');
+      } else if (e.key === 'e' || e.key === 'E') {
+        engine.setSpinMode(engine.selectedSpinMode === 'RIGHT' ? 'STRAIGHT' : 'RIGHT');
       }
     };
 
@@ -150,6 +161,7 @@ export default function App() {
         onThrowSalt={handleThrowSalt}
         onCycleArenaMode={handleCycleArenaMode}
         onSelectGameMode={handleSelectGameMode}
+        onSelectSpinMode={handleSelectSpinMode}
         soundEnabled={soundEnabled}
         onToggleSound={handleToggleSound}
       />
@@ -212,6 +224,7 @@ export default function App() {
         onRestart={handleRestart}
         onSelectGameMode={handleSelectGameMode}
         onSelectArenaMode={(mode) => engine.setArenaMode(mode)}
+        onSelectSpinMode={handleSelectSpinMode}
         onOpenTierList={() => setIsTierListOpen(true)}
         onOpenKimarite={() => setIsKimariteOpen(true)}
         onOpenTuner={() => setIsTunerOpen(true)}

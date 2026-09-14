@@ -410,6 +410,8 @@ export interface TrajectoryPoint {
   boosted?: boolean;
 }
 
+export type SpinMode = 'LEFT' | 'STRAIGHT' | 'RIGHT';
+
 export type MissionType =
   | 'MERGES'
   | 'COMBO_CHAIN'

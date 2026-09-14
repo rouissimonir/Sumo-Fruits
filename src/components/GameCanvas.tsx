@@ -430,6 +430,31 @@ function drawLauncher(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   ctx.lineTo(fruitX + 10, fruitY);
   ctx.stroke();
 
+  // English Spin Mode Visual Badge / Indicator near launcher
+  const spin = engine.launcherSpin;
+  if (Math.abs(spin) > 0.15 || engine.selectedSpinMode !== 'STRAIGHT') {
+    const isLeft = spin < 0 || engine.selectedSpinMode === 'LEFT';
+    ctx.save();
+    ctx.font = 'bold 11px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = isLeft ? '#E74C3C' : '#3498DB';
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 1.5;
+    const badgeX = isLeft ? x - 46 : x + 46;
+    const badgeY = y + 23;
+
+    // Small arrow circle
+    ctx.beginPath();
+    ctx.arc(badgeX, badgeY, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(isLeft ? '↺' : '↻', badgeX, badgeY);
+    ctx.restore();
+  }
+
   ctx.restore();
 }
 
@@ -440,8 +465,11 @@ function drawTrajectory(ctx: CanvasRenderingContext2D, engine: GameEngine) {
 
   // If curve spin is active, draw a colored curved trail overlay
   const spin = engine.launcherSpin;
-  if (Math.abs(spin) > 0.15) {
-    ctx.strokeStyle = spin > 0 ? 'rgba(52, 152, 219, 0.45)' : 'rgba(231, 76, 60, 0.45)';
+  const spinMode = engine.selectedSpinMode;
+
+  if (Math.abs(spin) > 0.15 || spinMode !== 'STRAIGHT') {
+    // Red/Orange for left curve, Blue/Cyan for right curve
+    ctx.strokeStyle = spin > 0 ? 'rgba(52, 152, 219, 0.55)' : 'rgba(231, 76, 60, 0.55)';
     ctx.lineWidth = 6;
     ctx.setLineDash([8, 6]);
     ctx.beginPath();
@@ -473,16 +501,16 @@ function drawTrajectory(ctx: CanvasRenderingContext2D, engine: GameEngine) {
       ctx.arc(pt.x, pt.y, 14, 0, Math.PI * 2);
       ctx.stroke();
     } else {
-      // Small prediction dot (glows cyan or orange when spinning)
+      // Small prediction dot (glows cyan for right spin or orange/red for left spin)
       const dotColor =
-        Math.abs(spin) > 0.2
+        Math.abs(spin) > 0.15
           ? spin > 0
             ? `rgba(100, 210, 255, ${alpha})`
-            : `rgba(255, 140, 100, ${alpha})`
+            : `rgba(255, 120, 90, ${alpha})`
           : `rgba(255, 235, 160, ${alpha})`;
       ctx.fillStyle = dotColor;
       ctx.beginPath();
-      ctx.arc(pt.x, pt.y, 3.5, 0, Math.PI * 2);
+      ctx.arc(pt.x, pt.y, Math.abs(spin) > 0.15 ? 4.0 : 3.5, 0, Math.PI * 2);
       ctx.fill();
     }
   }

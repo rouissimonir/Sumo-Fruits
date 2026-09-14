@@ -33,6 +33,7 @@ import {
   SumoFruitInstance,
   TechniqueRibbon,
   TrajectoryPoint,
+  SpinMode,
 } from '../types/game';
 import { CareerManager } from './CareerManager';
 import { RefereeDirector } from './RefereeDirector';
@@ -76,6 +77,7 @@ export interface GameStats {
   rivalIntent: RivalIntent | null;
   activeChallengeId: string | null;
   launcherSpin: number; // -1 to +1 (English sidespin bias)
+  selectedSpinMode: SpinMode;
   unlockedKimariteCount: number;
   totalKimariteCount: number;
 }
@@ -106,6 +108,7 @@ export class GameEngine {
   public upcomingTiers: [number, number] = [1, 2];
   public trajectoryPoints: TrajectoryPoint[] = [];
   public launcherSpin: number = 0; // -1 to +1 (English curve spin)
+  public selectedSpinMode: SpinMode = 'STRAIGHT';
 
   // Shot state machine
   public shotState: 'IDLE' | 'AIMING' | 'LAUNCHED' | 'CHAIN_RESOLVING' | 'RIVAL_ACTION' | 'SETTLING' = 'IDLE';
@@ -251,6 +254,23 @@ export class GameEngine {
       this.arena.wobbleY = 0;
     }
     sound.playHyoshigi(1.2);
+    this.emitStats();
+  }
+
+  public setSpinMode(mode: SpinMode) {
+    this.selectedSpinMode = mode;
+    if (mode === 'LEFT') {
+      this.launcherSpin = -0.75;
+    } else if (mode === 'RIGHT') {
+      this.launcherSpin = 0.75;
+    } else {
+      this.launcherSpin = 0;
+    }
+    sound.playCurveSpin(this.launcherSpin);
+    haptics.trigger('LIGHT');
+    if (this.isDragging) {
+      this.updateTrajectory();
+    }
     this.emitStats();
   }
 
@@ -574,11 +594,12 @@ export class GameEngine {
       this.dragPos = { x, y };
     }
 
-    // Calculate English sidespin bias (-1 to +1) based on horizontal offset dx normalized by pull
-    // When pulling back downwards (dy > 0), dragging left/right imparts lateral spin
+    // Calculate English sidespin bias (-1 to +1) combining selected preset spin mode with drag offset
     const lateralOffset = (this.dragPos.x - this.launcherPos.x) / 80;
+    const presetBias = this.selectedSpinMode === 'LEFT' ? -0.7 : this.selectedSpinMode === 'RIGHT' ? 0.7 : 0;
+    const combinedSpin = Math.max(-1.0, Math.min(1.0, presetBias + lateralOffset));
     const prevSpin = this.launcherSpin;
-    this.launcherSpin = Math.max(-1.0, Math.min(1.0, lateralOffset));
+    this.launcherSpin = combinedSpin;
 
     if (Math.abs(this.launcherSpin - prevSpin) > 0.35) {
       haptics.trigger('TICK');
@@ -688,7 +709,7 @@ export class GameEngine {
 
       this.loadedFruit = null;
       this.trajectoryPoints = [];
-      this.launcherSpin = 0;
+      this.launcherSpin = this.selectedSpinMode === 'LEFT' ? -0.7 : this.selectedSpinMode === 'RIGHT' ? 0.7 : 0;
 
       // Cooldown before loading next fruit (ensures smooth shot rhythm)
       setTimeout(() => {
@@ -704,7 +725,7 @@ export class GameEngine {
       this.loadedFruit.y = this.launcherPos.y;
       this.loadedFruit.state = 'IDLE';
       this.trajectoryPoints = [];
-      this.launcherSpin = 0;
+      this.launcherSpin = this.selectedSpinMode === 'LEFT' ? -0.7 : this.selectedSpinMode === 'RIGHT' ? 0.7 : 0;
       return false;
     }
   }
@@ -2157,6 +2178,7 @@ export class GameEngine {
       rivalIntent: this.rivalController.intent,
       activeChallengeId: this.activeChallengeId,
       launcherSpin: this.launcherSpin,
+      selectedSpinMode: this.selectedSpinMode,
       unlockedKimariteCount: this.kimariteManager.getUnlockedCount().unlocked,
       totalKimariteCount: this.kimariteManager.getUnlockedCount().total,
     });
