@@ -365,7 +365,10 @@ export function predictTrajectory(
   arena: ArenaConfig = DEFAULT_ARENA,
   horizonSeconds: number = 1.2,
   sampleSteps: number = 40,
-  spin: number = 0
+  spin: number = 0,
+  extraDamping: number = 0,
+  windAx: number = 0,
+  windAy: number = 0
 ): TrajectoryPoint[] {
   const points: TrajectoryPoint[] = [];
   const dt = horizonSeconds / sampleSteps;
@@ -402,9 +405,10 @@ export function predictTrajectory(
     x += vx * dt;
     y += vy * dt;
 
-    const dampFactor = Math.max(0, 1 - tierData.damp * dt);
-    vx = (vx + (ax + spinAx) * dt) * dampFactor;
-    vy = (vy + (ay + spinAy) * dt) * dampFactor;
+    const totalDamp = tierData.damp + extraDamping;
+    const dampFactor = Math.max(0, 1 - totalDamp * dt);
+    vx = (vx + (ax + spinAx + windAx) * dt) * dampFactor;
+    vy = (vy + (ay + spinAy + windAy) * dt) * dampFactor;
 
     // Check collision with obstacles
     let hit = false;

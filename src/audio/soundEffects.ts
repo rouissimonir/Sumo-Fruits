@@ -6,6 +6,8 @@
 class SoundEngine {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
+  private voiceGain: GainNode | null = null;
+  private activeVoiceOscillators: OscillatorNode[] = [];
   public enabled: boolean = true;
   public volume: number = 0.7;
 
@@ -17,9 +19,36 @@ class SoundEngine {
       this.masterGain = this.ctx.createGain();
       this.masterGain.gain.setValueAtTime(this.volume, this.ctx.currentTime);
       this.masterGain.connect(this.ctx.destination);
+
+      this.voiceGain = this.ctx.createGain();
+      this.voiceGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
+      this.voiceGain.connect(this.masterGain);
     } catch {
       // Audio context might fail if restricted
     }
+  }
+
+  public stopRefereeVoice() {
+    if (this.ctx && this.voiceGain) {
+      try {
+        const t = this.ctx.currentTime;
+        this.voiceGain.gain.cancelScheduledValues(t);
+        this.voiceGain.gain.setValueAtTime(0, t);
+        // Reset gain slightly in the future for next call
+        this.voiceGain.gain.setValueAtTime(1.0, t + 0.05);
+      } catch {
+        // Safe fallback
+      }
+    }
+    for (const osc of this.activeVoiceOscillators) {
+      try {
+        osc.stop();
+        osc.disconnect();
+      } catch {
+        // Already stopped
+      }
+    }
+    this.activeVoiceOscillators = [];
   }
 
   public setVolume(vol: number) {
@@ -351,62 +380,85 @@ class SoundEngine {
   }
 
   /**
-   * Authentic Gyōji (Sumo Referee) synthesized vocal chant
+   * Authentic Gyōji (Sumo Referee) synthesized vocal chant with priority vocal formants
    */
-  public playRefereeCall(type: 'hakkeyoi' | 'nokotta' | 'shobu' | 'fever' | 'kinboshi' | 'kiyome') {
+  public playRefereeCall(
+    type:
+      | 'hakkeyoi'
+      | 'nokotta'
+      | 'shobu'
+      | 'yokozuna'
+      | 'kinboshi'
+      | 'personal_best'
+      | 'kimarite'
+      | 'fever'
+      | 'kiyome'
+  ) {
     if (!this.enabled) return;
     this.init();
     if (!this.ctx || !this.masterGain) return;
     if (this.ctx.state === 'suspended') this.ctx.resume();
 
     const t = this.ctx.currentTime;
+    const voiceDest = this.voiceGain || this.masterGain;
 
     if (type === 'hakkeyoi') {
-      // Rapid double hyoshigi clap + rising referee cry
+      // Crisp Tachiai launch shout + rapid double Hyoshigi clappers
       this.playHyoshigi(1.0);
-      setTimeout(() => this.playHyoshigi(1.15), 110);
+      setTimeout(() => this.playHyoshigi(1.15), 100);
 
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(210, t);
-      osc.frequency.exponentialRampToValueAtTime(340, t + 0.28);
-      gain.gain.setValueAtTime(0.14, t);
+      osc.frequency.setValueAtTime(220, t);
+      osc.frequency.exponentialRampToValueAtTime(360, t + 0.26);
+      gain.gain.setValueAtTime(0.18, t);
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.32);
+
       osc.connect(gain);
-      gain.connect(this.masterGain);
+      gain.connect(voiceDest);
+      this.activeVoiceOscillators.push(osc);
       osc.start(t);
       osc.stop(t + 0.35);
     } else if (type === 'nokotta') {
-      // Steady rhythmic referee chant
+      // Steady rhythmic referee chant on edge danger / struggle
       this.playHyoshigi(0.9);
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(260, t);
-      osc.frequency.linearRampToValueAtTime(230, t + 0.2);
-      gain.gain.setValueAtTime(0.18, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+      osc.frequency.linearRampToValueAtTime(230, t + 0.22);
+      gain.gain.setValueAtTime(0.2, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+
       osc.connect(gain);
-      gain.connect(this.masterGain);
+      gain.connect(voiceDest);
+      this.activeVoiceOscillators.push(osc);
       osc.start(t);
-      osc.stop(t + 0.26);
+      osc.stop(t + 0.3);
     } else if (type === 'shobu') {
-      // Deep decisive match conclusion call
-      this.playTaiko(1.4);
+      // Match Result conclusion call - Shōbu Ari! (勝負あり)
+      this.playTaiko(1.6);
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(240, t);
-      osc.frequency.exponentialRampToValueAtTime(110, t + 0.45);
-      gain.gain.setValueAtTime(0.2, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+      osc.frequency.setValueAtTime(260, t);
+      osc.frequency.exponentialRampToValueAtTime(95, t + 0.55);
+      gain.gain.setValueAtTime(0.25, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.6);
+
       osc.connect(gain);
-      gain.connect(this.masterGain);
+      gain.connect(voiceDest);
+      this.activeVoiceOscillators.push(osc);
       osc.start(t);
-      osc.stop(t + 0.52);
+      osc.stop(t + 0.65);
+    } else if (type === 'yokozuna') {
+      // Tier 11 Pineapple Coronation - Yokozuna Shinjin! (横綱昇進)
+      this.playYokozuna();
     } else if (type === 'kinboshi') {
-      // Victorious Golden Star chime & taiko
+      // Victorious Golden Star Kinboshi - Hyōshigi double strike + brass cry
+      this.playHyoshigi(0.85);
+      setTimeout(() => this.playHyoshigi(1.2), 120);
       this.playTaiko(1.5);
       [523.25, 659.25, 783.99, 1046.5].forEach((f, idx) => {
         const osc = this.ctx!.createOscillator();
@@ -416,10 +468,42 @@ class SoundEngine {
         gain.gain.setValueAtTime(0.22, t + idx * 0.07);
         gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.07 + 0.4);
         osc.connect(gain);
-        gain.connect(this.masterGain!);
+        gain.connect(voiceDest);
+        this.activeVoiceOscillators.push(osc);
         osc.start(t + idx * 0.07);
         osc.stop(t + idx * 0.07 + 0.45);
       });
+    } else if (type === 'personal_best') {
+      // High score shattered - Saikō Tokuten! (最高得点)
+      this.playTaikoFlourish();
+      [440, 554.37, 659.25, 880].forEach((f, idx) => {
+        const osc = this.ctx!.createOscillator();
+        const gain = this.ctx!.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(f, t + idx * 0.06);
+        gain.gain.setValueAtTime(0.2, t + idx * 0.06);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.06 + 0.35);
+        osc.connect(gain);
+        gain.connect(voiceDest);
+        this.activeVoiceOscillators.push(osc);
+        osc.start(t + idx * 0.06);
+        osc.stop(t + idx * 0.06 + 0.4);
+      });
+    } else if (type === 'kimarite') {
+      // Validated sumo technique awarded
+      this.playHyoshigi(1.1);
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(330, t);
+      osc.frequency.linearRampToValueAtTime(440, t + 0.18);
+      gain.gain.setValueAtTime(0.18, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+      osc.connect(gain);
+      gain.connect(voiceDest);
+      this.activeVoiceOscillators.push(osc);
+      osc.start(t);
+      osc.stop(t + 0.28);
     } else if (type === 'fever') {
       // Rolling Taiko drum flurry
       this.playTaiko(1.6);

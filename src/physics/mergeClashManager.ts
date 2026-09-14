@@ -7,6 +7,7 @@ export interface FusionResult {
   spawnVx: number;
   spawnVy: number;
   consumedIds: [number, number];
+  owner: 'PLAYER' | 'RIVAL' | 'PLAYER_1' | 'PLAYER_2';
   score: number;
   shockwave: {
     x: number;
@@ -45,8 +46,9 @@ export class MergeClashManager {
     fruitA: SumoFruitInstance,
     fruitB: SumoFruitInstance
   ): { type: 'CLASH' | 'MERGE'; relativeSpeed: number } | null {
-    // Merge eligibility explicitly requires two player fruits
-    if (fruitA.team !== 'PLAYER' || fruitB.team !== 'PLAYER') return null;
+    // Merge eligibility explicitly requires matching teams/owners, and no rival participation
+    if (fruitA.team === 'RIVAL' || fruitB.team === 'RIVAL') return null;
+    if (fruitA.team !== fruitB.team) return null;
     if (fruitA.tier !== fruitB.tier) return null;
     if (fruitA.tier >= 11) return null; // Tier 11 has no higher tier
     if (fruitA.state !== 'IN_RING' || fruitB.state !== 'IN_RING') return null;
@@ -245,6 +247,7 @@ export class MergeClashManager {
       spawnVx,
       spawnVy,
       consumedIds: [fruitA.id, fruitB.id],
+      owner: fruitA.team,
       score,
       shockwave: {
         x: spawnX,
