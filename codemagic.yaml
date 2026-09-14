@@ -26,8 +26,9 @@ workflows:
     scripts:
       - name: Install dependencies
         script: |
+          set -e
           npm ci --include=optional
-          node -e "require.resolve('@rollup/rollup-darwin-arm64')"
+          node -e "for (const packageName of ['@rollup/rollup-darwin-arm64', 'lightningcss-darwin-arm64', '@tailwindcss/oxide-darwin-arm64', '@esbuild/darwin-arm64']) require.resolve(packageName)"
 
       - name: Verify committed Capacitor iOS project
         script: |
