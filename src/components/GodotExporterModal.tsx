@@ -12,9 +12,7 @@ export const GodotExporterModal: React.FC<GodotExporterModalProps> = ({
   isOpen,
   onClose,
 }) => {
-  const [selectedFile, setSelectedFile] = useState<GodotFile>(
-    GODOT_PROJECT_FILES.find((file) => file.path === 'scripts/actors/SumoFruit.gd') ?? GODOT_PROJECT_FILES[0],
-  );
+  const [selectedFile, setSelectedFile] = useState<GodotFile>(GODOT_PROJECT_FILES[2]); // SumoFruit.gd by default
   const [copied, setCopied] = useState(false);
   const [isZipping, setIsZipping] = useState(false);
   const [zipComplete, setZipComplete] = useState(false);
@@ -76,7 +74,7 @@ export const GodotExporterModal: React.FC<GodotExporterModalProps> = ({
                 </span>
               </h2>
               <p className="text-xs text-[#A89886]">
-                Ready-to-import Godot 4.7 project archive with gameplay, physics, scenes, and tests.
+                Ready-to-import Godot 4.3 project archive with physics, scenes, and shaders.
               </p>
             </div>
           </div>
@@ -188,7 +186,7 @@ export const GodotExporterModal: React.FC<GodotExporterModalProps> = ({
         <div className="px-6 py-3 border-t border-[#3E342B] bg-[#1F1914] text-xs text-[#A89886] flex flex-col sm:flex-row justify-between items-center gap-1">
           <span className="flex items-center gap-1.5">
             <Sparkles size={14} className="text-[#F1C40F]" />
-            Target Engine: Godot 4.7.2 Stable (Extract ZIP & Import project.godot)
+            Target Engine: Godot 4.3+ Stable (Extract ZIP & Import project.godot)
           </span>
           <span className="text-[#3498DB] font-bold">120 Hz Physics Substepping Ready</span>
         </div>

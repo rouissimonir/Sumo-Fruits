@@ -101,6 +101,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
         drawOverflowVignette(ctx, engine);
       }
 
+      // 11. Screen Visual Cues (Ring-Out & Kinboshi Flashes)
+      drawScreenFlashes(ctx, w, h, engine);
+
       ctx.restore();
 
       animationId = requestAnimationFrame(renderLoop);
@@ -434,6 +437,22 @@ function drawTrajectory(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   if (engine.trajectoryPoints.length < 2) return;
 
   ctx.save();
+
+  // If curve spin is active, draw a colored curved trail overlay
+  const spin = engine.launcherSpin;
+  if (Math.abs(spin) > 0.15) {
+    ctx.strokeStyle = spin > 0 ? 'rgba(52, 152, 219, 0.45)' : 'rgba(231, 76, 60, 0.45)';
+    ctx.lineWidth = 6;
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath();
+    ctx.moveTo(engine.trajectoryPoints[0].x, engine.trajectoryPoints[0].y);
+    for (let i = 1; i < engine.trajectoryPoints.length; i++) {
+      ctx.lineTo(engine.trajectoryPoints[i].x, engine.trajectoryPoints[i].y);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
   for (let i = 0; i < engine.trajectoryPoints.length; i++) {
     const pt = engine.trajectoryPoints[i];
     const alpha = 1 - (i / engine.trajectoryPoints.length) * 0.65;
@@ -454,8 +473,14 @@ function drawTrajectory(ctx: CanvasRenderingContext2D, engine: GameEngine) {
       ctx.arc(pt.x, pt.y, 14, 0, Math.PI * 2);
       ctx.stroke();
     } else {
-      // Small prediction dot
-      ctx.fillStyle = `rgba(255, 235, 160, ${alpha})`;
+      // Small prediction dot (glows cyan or orange when spinning)
+      const dotColor =
+        Math.abs(spin) > 0.2
+          ? spin > 0
+            ? `rgba(100, 210, 255, ${alpha})`
+            : `rgba(255, 140, 100, ${alpha})`
+          : `rgba(255, 235, 160, ${alpha})`;
+      ctx.fillStyle = dotColor;
       ctx.beginPath();
       ctx.arc(pt.x, pt.y, 3.5, 0, Math.PI * 2);
       ctx.fill();
@@ -586,11 +611,14 @@ function drawFruit(
   }
 
   // 3. Sumo Topknot (Chonmage hairstyle)
-  drawTopknot(ctx, radius, cat.color);
+  drawTopknot(ctx, radius, fruit.tier, cat.color);
+
+  // 3.5 Botanical Fruit Features (Twin Stems, Seeds, Calyx, Stripes)
+  drawFruitBotanicals(ctx, fruit.tier, radius);
 
   // 4. Mawashi (Thick Sumo Belt)
   const beltY = radius * 0.35;
-  const beltH = cat.faceDetails.mawashiWidth;
+  const beltH = Math.max(5, cat.faceDetails.mawashiWidth);
   ctx.fillStyle = cat.mawashiColor;
   ctx.strokeStyle = '#1E1E1E';
   ctx.lineWidth = 2;
@@ -600,15 +628,226 @@ function drawFruit(
   ctx.fill();
   ctx.stroke();
 
-  // Front knot
-  ctx.fillStyle = '#D68910';
-  ctx.beginPath();
-  ctx.roundRect(-beltH * 0.7, beltY - beltH * 0.6, beltH * 1.4, beltH * 1.3, 3);
-  ctx.fill();
-  ctx.stroke();
+  // Front knot & Tier Number Buckle (e.g. 1, 2, 3... 11)
+  drawMawashiBuckle(ctx, beltY, beltH, fruit.tier, cat.mawashiColor);
 
   // 5. Animated Eyes & Expression
   drawFace(ctx, fruit, cat);
+
+  ctx.restore();
+}
+
+function drawFruitBotanicals(
+  ctx: CanvasRenderingContext2D,
+  tier: number,
+  radius: number
+) {
+  ctx.save();
+
+  if (tier === 2) {
+    // === TIER 2: CHERRY ===
+    // Twin arching green stems with paired leaves
+    ctx.strokeStyle = '#16A34A';
+    ctx.lineWidth = Math.max(2, radius * 0.1);
+    ctx.lineCap = 'round';
+
+    ctx.beginPath();
+    ctx.moveTo(0, -radius * 0.7);
+    ctx.quadraticCurveTo(-radius * 0.4, -radius * 1.3, -radius * 0.3, -radius * 1.55);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(0, -radius * 0.7);
+    ctx.quadraticCurveTo(radius * 0.35, -radius * 1.35, radius * 0.25, -radius * 1.6);
+    ctx.stroke();
+
+    // Twin leaves at stem junction
+    ctx.fillStyle = '#22C55E';
+    ctx.strokeStyle = '#15803D';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.ellipse(-radius * 0.1, -radius * 1.45, radius * 0.22, radius * 0.1, -0.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Glossy jewel specular shine
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.42)';
+    ctx.beginPath();
+    ctx.ellipse(-radius * 0.4, -radius * 0.4, radius * 0.24, radius * 0.12, -0.6, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (tier === 4) {
+    // === TIER 4: STRAWBERRY ===
+    // 1. 5-point leafy green star calyx collar around topknot
+    ctx.fillStyle = '#16A34A';
+    ctx.strokeStyle = '#14532D';
+    ctx.lineWidth = 1.2;
+    const points = 5;
+    for (let i = 0; i < points; i++) {
+      const angle = -Math.PI / 2 + (i * Math.PI * 2) / points;
+      const leafLen = radius * 0.48;
+      const lx = Math.cos(angle) * leafLen;
+      const ly = -radius * 0.75 + Math.sin(angle) * (leafLen * 0.6);
+      ctx.beginPath();
+      ctx.ellipse(lx, ly, radius * 0.14, radius * 0.08, angle + Math.PI / 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+
+    // 2. Golden Strawberry Seeds across cheeks and belly
+    ctx.fillStyle = '#FDE047';
+    ctx.strokeStyle = '#CA8A04';
+    ctx.lineWidth = 0.8;
+    const seedCoords = [
+      { x: -radius * 0.55, y: -radius * 0.1 },
+      { x: radius * 0.55, y: -radius * 0.1 },
+      { x: -radius * 0.35, y: radius * 0.12 },
+      { x: radius * 0.35, y: radius * 0.12 },
+      { x: -radius * 0.6, y: radius * 0.25 },
+      { x: radius * 0.6, y: radius * 0.25 },
+      { x: -radius * 0.25, y: -radius * 0.35 },
+      { x: radius * 0.25, y: -radius * 0.35 },
+      { x: 0, y: -radius * 0.38 },
+      { x: -radius * 0.15, y: radius * 0.55 },
+      { x: radius * 0.15, y: radius * 0.55 },
+    ];
+    for (const seed of seedCoords) {
+      ctx.beginPath();
+      ctx.ellipse(seed.x, seed.y, radius * 0.045, radius * 0.07, 0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+  } else if (tier === 5) {
+    // === TIER 5: PEACH ===
+    // Rosy peach blush on cheeks
+    ctx.fillStyle = 'rgba(244, 63, 94, 0.32)';
+    ctx.beginPath();
+    ctx.arc(-radius * 0.45, 0, radius * 0.22, 0, Math.PI * 2);
+    ctx.arc(radius * 0.45, 0, radius * 0.22, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Peach cleft indent curve down top center
+    ctx.strokeStyle = 'rgba(180, 83, 9, 0.4)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, -radius * 0.95);
+    ctx.quadraticCurveTo(0, -radius * 0.4, 0, -radius * 0.15);
+    ctx.stroke();
+  } else if (tier === 6) {
+    // === TIER 6: ORANGE ===
+    // Citrus peel pore dots
+    ctx.fillStyle = 'rgba(194, 65, 12, 0.3)';
+    for (let a = 0; a < Math.PI * 2; a += 0.75) {
+      const px = Math.cos(a) * (radius * 0.65);
+      const py = Math.sin(a) * (radius * 0.65);
+      ctx.beginPath();
+      ctx.arc(px, py, radius * 0.035, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // Citrus leaf
+    ctx.fillStyle = '#16A34A';
+    ctx.beginPath();
+    ctx.ellipse(radius * 0.25, -radius - 2, radius * 0.2, radius * 0.08, 0.4, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (tier === 7) {
+    // === TIER 7: APPLE ===
+    // 1. Woody brown stalk stem
+    ctx.strokeStyle = '#78350F';
+    ctx.lineWidth = Math.max(3, radius * 0.08);
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(0, -radius * 0.85);
+    ctx.quadraticCurveTo(radius * 0.15, -radius * 1.3, radius * 0.12, -radius * 1.45);
+    ctx.stroke();
+
+    // 2. Crisp bright green pointed apple leaf
+    ctx.fillStyle = '#84CC16';
+    ctx.strokeStyle = '#4D7C0F';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.ellipse(radius * 0.35, -radius * 1.3, radius * 0.25, radius * 0.12, 0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // 3. Subtle vertical apple streaks
+    ctx.strokeStyle = 'rgba(254, 202, 202, 0.22)';
+    ctx.lineWidth = 1.5;
+    for (let xOff = -radius * 0.6; xOff <= radius * 0.6; xOff += radius * 0.3) {
+      ctx.beginPath();
+      ctx.moveTo(xOff, -radius * 0.6);
+      ctx.quadraticCurveTo(xOff * 1.15, 0, xOff, radius * 0.7);
+      ctx.stroke();
+    }
+  } else if (tier === 10) {
+    // === TIER 10: WATERMELON ===
+    // Signature wavy dark green rind stripes
+    ctx.strokeStyle = '#14532D';
+    ctx.lineWidth = Math.max(4, radius * 0.11);
+    ctx.lineCap = 'round';
+    for (const mult of [-0.65, -0.3, 0.3, 0.65]) {
+      ctx.beginPath();
+      const sx = radius * mult;
+      ctx.moveTo(sx * 0.8, -radius * 0.8);
+      ctx.bezierCurveTo(
+        sx * 1.25, -radius * 0.25,
+        sx * 0.75, radius * 0.25,
+        sx * 0.9, radius * 0.85
+      );
+      ctx.stroke();
+    }
+  } else if (tier === 11) {
+    // === TIER 11: YOKOZUNA PINEAPPLE ===
+    // Pineapple diamond scale grid
+    ctx.strokeStyle = 'rgba(180, 83, 9, 0.35)';
+    ctx.lineWidth = 2;
+    for (let i = -3; i <= 3; i++) {
+      ctx.beginPath();
+      ctx.moveTo(-radius * 0.7, i * 20);
+      ctx.lineTo(radius * 0.7, (i + 2) * 20);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(radius * 0.7, i * 20);
+      ctx.lineTo(-radius * 0.7, (i + 2) * 20);
+      ctx.stroke();
+    }
+    // Crown spiky leaves
+    ctx.fillStyle = '#16A34A';
+    for (let a = -1.2; a <= 1.2; a += 0.6) {
+      ctx.beginPath();
+      ctx.ellipse(Math.sin(a) * (radius * 0.3), -radius - 12, radius * 0.12, radius * 0.28, a, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  ctx.restore();
+}
+
+function drawMawashiBuckle(
+  ctx: CanvasRenderingContext2D,
+  beltY: number,
+  beltH: number,
+  tier: number,
+  mawashiColor: string
+) {
+  const buckleW = Math.max(16, beltH * 1.55);
+  const buckleH = Math.max(12, beltH * 1.35);
+
+  ctx.save();
+  // Buckle Base Plate
+  ctx.fillStyle = '#181512';
+  ctx.strokeStyle = '#F59E0B'; // Amber Gold sumo belt buckle
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(-buckleW * 0.5, beltY - buckleH * 0.5, buckleW, buckleH, 3);
+  ctx.fill();
+  ctx.stroke();
+
+  // Tier Number inside belt buckle
+  ctx.fillStyle = '#FFD700';
+  const fontSize = Math.max(8, Math.min(13, buckleH * 0.78));
+  ctx.font = `900 ${fontSize}px system-ui, -apple-system, sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`${tier}`, 0, beltY + 0.5);
 
   ctx.restore();
 }
@@ -642,6 +881,7 @@ function drawClothTail(
 function drawTopknot(
   ctx: CanvasRenderingContext2D,
   radius: number,
+  tier: number,
   fruitColor: string
 ) {
   ctx.save();
@@ -861,6 +1101,44 @@ function drawHazards(ctx: CanvasRenderingContext2D, hazards: HazardInstance[]) {
       ctx.beginPath();
       ctx.arc(0, 0, h.radius * 1.3, 0, Math.PI * 2);
       ctx.stroke();
+    } else if (h.kind === 'GINKO_MAGNET') {
+      // Sacred Ginko Nut (Magnetic Attraction Zone)
+      const pulse = 0.85 + 0.15 * Math.sin(performance.now() * 0.008);
+      // Magnetic flux pulse circles
+      ctx.strokeStyle = 'rgba(241, 196, 15, 0.45)';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, h.radius * 1.6 * pulse, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Golden Ginko Nut Shell
+      ctx.fillStyle = '#F39C12';
+      ctx.strokeStyle = '#B7950B';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.ellipse(0, 0, h.radius * 0.9, h.radius * 1.15, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Radial leaf ridges
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(0, -h.radius * 0.8);
+      ctx.lineTo(0, h.radius * 0.8);
+      ctx.moveTo(-h.radius * 0.5, 0);
+      ctx.lineTo(h.radius * 0.5, 0);
+      ctx.stroke();
+
+      // Magnetic North/South polarity dots
+      ctx.fillStyle = '#E74C3C';
+      ctx.beginPath();
+      ctx.arc(0, -h.radius * 0.45, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#3498DB';
+      ctx.beginPath();
+      ctx.arc(0, h.radius * 0.45, 3.5, 0, Math.PI * 2);
+      ctx.fill();
     } else if (h.kind === 'RIVAL') {
       // Rival Tengu Sumo Wrestler
       ctx.fillStyle = '#6C3483';
@@ -1162,7 +1440,7 @@ function drawTechniqueRibbons(ctx: CanvasRenderingContext2D, engine: GameEngine)
   if (!ribbons || ribbons.length === 0) return;
 
   ctx.save();
-  let startY = 125;
+  let startY = 120;
   for (let i = 0; i < ribbons.length; i++) {
     const r = ribbons[i];
     const alpha = Math.min(1, r.duration / 0.4);
@@ -1170,38 +1448,118 @@ function drawTechniqueRibbons(ctx: CanvasRenderingContext2D, engine: GameEngine)
     ctx.globalAlpha = alpha;
     ctx.translate(18, startY);
 
-    const ribbonW = 210;
-    const ribbonH = 36;
+    const ribbonW = 230;
+    const ribbonH = 40;
 
-    // Dark parchment background
-    ctx.fillStyle = 'rgba(28, 24, 20, 0.92)';
+    // Dark Japanese lacquered parchment background with subtle gradient
+    ctx.fillStyle = 'rgba(24, 20, 16, 0.94)';
     ctx.strokeStyle = r.color;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 1.6;
     ctx.beginPath();
-    ctx.roundRect(0, 0, ribbonW, ribbonH, 6);
+    ctx.roundRect(0, 0, ribbonW, ribbonH, 7);
     ctx.fill();
     ctx.stroke();
 
-    // Color accent pill on the left
+    // Color accent bar on the left
     ctx.fillStyle = r.color;
-    ctx.fillRect(0, 0, 4, ribbonH);
+    ctx.beginPath();
+    ctx.roundRect(0, 0, 5, ribbonH, [7, 0, 0, 7]);
+    ctx.fill();
 
-    // Title
+    // Icon or default badge
+    const iconStr = r.icon || '🎌';
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(iconStr, 19, ribbonH / 2);
+
+    // Technique title
     ctx.fillStyle = '#FFFFFF';
     ctx.font = 'bold 11px sans-serif';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    ctx.fillText(r.title, 12, 16);
+    ctx.fillText(r.title, 34, 16);
 
     // Subtitle
-    ctx.fillStyle = 'rgba(237, 226, 212, 0.75)';
+    ctx.fillStyle = 'rgba(237, 226, 212, 0.8)';
     ctx.font = '9.5px sans-serif';
-    ctx.fillText(r.subtitle, 12, 28);
+    ctx.fillText(r.subtitle, 34, 30);
+
+    // Kanji Badge on the right if provided
+    if (r.kanji) {
+      const kanjiBadgeW = 34;
+      const kanjiBadgeH = 20;
+      const kx = ribbonW - kanjiBadgeW - 8;
+      const ky = (ribbonH - kanjiBadgeH) / 2;
+
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
+      ctx.strokeStyle = r.color;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.roundRect(kx, ky, kanjiBadgeW, kanjiBadgeH, 4);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.fillStyle = r.color;
+      ctx.font = 'bold 10px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(r.kanji, kx + kanjiBadgeW / 2, ky + kanjiBadgeH / 2 + 1);
+    }
 
     ctx.restore();
-    startY += 42;
+    startY += 46;
   }
   ctx.restore();
+}
+
+function drawScreenFlashes(ctx: CanvasRenderingContext2D, width: number, height: number, engine: GameEngine) {
+  // Ring-out red hazard vignette flash
+  if (engine.ringOutFlashTimer > 0) {
+    const flashIntensity = Math.min(1, engine.ringOutFlashTimer / 0.45);
+    ctx.save();
+    const grad = ctx.createRadialGradient(
+      width / 2,
+      height / 2,
+      Math.min(width, height) * 0.3,
+      width / 2,
+      height / 2,
+      Math.max(width, height) * 0.75
+    );
+    grad.addColorStop(0, 'rgba(231, 76, 60, 0)');
+    grad.addColorStop(0.7, `rgba(231, 76, 60, ${0.28 * flashIntensity})`);
+    grad.addColorStop(1, `rgba(192, 57, 43, ${0.55 * flashIntensity})`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, width, height);
+
+    // Ring-out warning text indicator
+    ctx.fillStyle = `rgba(255, 230, 230, ${flashIntensity * 0.95})`;
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('RING-OUT! 勇足', width / 2, height * 0.16);
+    ctx.restore();
+  }
+
+  // Kinboshi golden victory shimmer flash
+  if (engine.kinboshiFlashTimer > 0) {
+    const flashIntensity = Math.min(1, engine.kinboshiFlashTimer / 0.35);
+    ctx.save();
+    const grad = ctx.createRadialGradient(
+      width / 2,
+      height / 2,
+      Math.min(width, height) * 0.25,
+      width / 2,
+      height / 2,
+      Math.max(width, height) * 0.75
+    );
+    grad.addColorStop(0, `rgba(255, 215, 0, ${0.15 * flashIntensity})`);
+    grad.addColorStop(0.8, `rgba(243, 156, 18, ${0.32 * flashIntensity})`);
+    grad.addColorStop(1, `rgba(230, 126, 34, ${0.45 * flashIntensity})`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+  }
 }
 
 function drawOverflowVignette(ctx: CanvasRenderingContext2D, engine: GameEngine) {

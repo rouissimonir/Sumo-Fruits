@@ -11,6 +11,8 @@ import { TierListModal } from './components/TierListModal';
 import { GodotExporterModal } from './components/GodotExporterModal';
 import { ParameterTuner } from './components/ParameterTuner';
 import { GameOverModal } from './components/GameOverModal';
+import { KimariteModal } from './components/KimariteModal';
+import { SettingsModal } from './components/SettingsModal';
 import { sound } from './audio/soundEffects';
 import { HelpCircle, Sparkles } from 'lucide-react';
 import { ArenaMode, GameModeType } from './types/game';
@@ -59,11 +61,16 @@ export default function App() {
     hasActiveRival: false,
     rivalIntent: null,
     activeChallengeId: null,
+    launcherSpin: 0,
+    unlockedKimariteCount: 0,
+    totalKimariteCount: 8,
   });
 
   const [isTierListOpen, setIsTierListOpen] = useState(false);
   const [isGodotModalOpen, setIsGodotModalOpen] = useState(false);
   const [isTunerOpen, setIsTunerOpen] = useState(false);
+  const [isKimariteOpen, setIsKimariteOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [showTutorial, setShowTutorial] = useState(true);
 
@@ -138,6 +145,8 @@ export default function App() {
         onOpenTierList={() => setIsTierListOpen(true)}
         onOpenGodotFiles={() => setIsGodotModalOpen(true)}
         onOpenTuner={() => setIsTunerOpen(true)}
+        onOpenKimarite={() => setIsKimariteOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
         onThrowSalt={handleThrowSalt}
         onCycleArenaMode={handleCycleArenaMode}
         onSelectGameMode={handleSelectGameMode}
@@ -187,9 +196,33 @@ export default function App() {
         tuning={stats.tuning}
       />
 
+      <KimariteModal
+        isOpen={isKimariteOpen}
+        onClose={() => setIsKimariteOpen(false)}
+        kimariteManager={engine.kimariteManager}
+      />
+
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        stats={stats}
+        soundEnabled={soundEnabled}
+        onToggleSound={handleToggleSound}
+        onTogglePause={handleTogglePause}
+        onRestart={handleRestart}
+        onSelectGameMode={handleSelectGameMode}
+        onSelectArenaMode={(mode) => engine.setArenaMode(mode)}
+        onOpenTierList={() => setIsTierListOpen(true)}
+        onOpenKimarite={() => setIsKimariteOpen(true)}
+        onOpenTuner={() => setIsTunerOpen(true)}
+        onOpenGodotFiles={() => setIsGodotModalOpen(true)}
+      />
+
       <GameOverModal
         isOpen={stats.isGameOver}
         score={stats.score}
+        highScore={stats.highScore}
+        isNewHighScore={stats.isNewHighScore}
         reason={stats.gameOverReason}
         highestTierReached={stats.highestTierReached}
         onRestart={handleRestart}

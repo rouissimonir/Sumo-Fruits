@@ -1,4 +1,6 @@
 import { sound } from '../audio/soundEffects';
+import { haptics } from '../audio/haptics';
+import { KimariteManager, KimariteTechnique } from './KimariteManager';
 import {
   ArenaConfig,
   calculateChiliBoost,
@@ -39,6 +41,8 @@ import { TechniqueRibbonManager } from './TechniqueRibbonManager';
 
 export interface GameStats {
   score: number;
+  highScore: number;
+  isNewHighScore: boolean;
   lives: number;
   occupancy: number; // 0.0 to > 1.0
   overflowTimer: number; // 0 to 2.0s
@@ -71,6 +75,9 @@ export interface GameStats {
   hasActiveRival: boolean;
   rivalIntent: RivalIntent | null;
   activeChallengeId: string | null;
+  launcherSpin: number; // -1 to +1 (English sidespin bias)
+  unlockedKimariteCount: number;
+  totalKimariteCount: number;
 }
 
 export class GameEngine {
@@ -87,6 +94,7 @@ export class GameEngine {
   public rivalController: RivalSumoController = new RivalSumoController();
   public refereeDirector: RefereeDirector = new RefereeDirector();
   public techniqueRibbons: TechniqueRibbonManager = new TechniqueRibbonManager();
+  public kimariteManager: KimariteManager = new KimariteManager();
   public gameMode: GameModeType = 'CLASSIC';
   public activeChallengeId: string | null = null;
 
@@ -97,6 +105,7 @@ export class GameEngine {
   public loadedFruit: SumoFruitInstance | null = null;
   public upcomingTiers: [number, number] = [1, 2];
   public trajectoryPoints: TrajectoryPoint[] = [];
+  public launcherSpin: number = 0; // -1 to +1 (English curve spin)
 
   // Shot state machine
   public shotState: 'IDLE' | 'AIMING' | 'LAUNCHED' | 'CHAIN_RESOLVING' | 'RIVAL_ACTION' | 'SETTLING' = 'IDLE';
@@ -107,6 +116,8 @@ export class GameEngine {
 
   // Game stats
   public score = 0;
+  public highScore = 0;
+  public isNewHighScore = false;
   public lives = 3;
   public overflowTimer = 0;
   public isOverflowing = false;
@@ -152,6 +163,8 @@ export class GameEngine {
   public cameraTrauma = 0;
   public cameraOffset = { x: 0, y: 0 };
   public hitStopRemaining = 0; // seconds
+  public ringOutFlashTimer = 0; // Dramatic red/amber screen flash on ring-out
+  public kinboshiFlashTimer = 0; // Golden flash on rival ring-out victory
 
   // Settings
   public reducedMotion = false;
@@ -165,9 +178,35 @@ export class GameEngine {
   public onStatsChange: ((stats: GameStats) => void) | null = null;
 
   constructor() {
+    try {
+      const saved = localStorage.getItem('sumo_suika_high_score');
+      if (saved) {
+        this.highScore = parseInt(saved, 10) || 0;
+      }
+    } catch {
+      // localStorage may fail in restricted environments
+    }
+
     this.upcomingTiers = [this.rollSpawnTier(), this.rollSpawnTier()];
     this.strawBales = createStrawBales(16, this.tuning.baleMaxHealth);
     this.loadNextFruit();
+
+    this.kimariteManager.onUnlock = (tech) => {
+      this.techniqueRibbons.addRibbon(
+        `決まり手解禁: ${tech.title}!`,
+        `${tech.nameRomaji} (${tech.nameJp}) technique mastered!`,
+        '#FFD700',
+        4.0,
+        tech.nameJp,
+        '🥋',
+        tech.category
+      );
+      this.refereeDirector.triggerCall('決まり手', tech.nameRomaji.toUpperCase(), tech.title, '#FFD700', 'YOKOZUNA');
+      this.activeRefereeCall = this.refereeDirector.getActiveCall();
+      sound.playTaikoRoll();
+      haptics.trigger('FUSION');
+      this.triggerCameraTrauma(0.25);
+    };
   }
 
   public setArenaSize(width: number, height: number) {
@@ -379,6 +418,35 @@ export class GameEngine {
     return 3;
   }
 
+  public addScore(amount: number) {
+    this.score += amount;
+    if (this.score > this.highScore) {
+      const wasRecord = this.isNewHighScore;
+      this.highScore = this.score;
+      this.isNewHighScore = true;
+      try {
+        localStorage.setItem('sumo_suika_high_score', this.highScore.toString());
+      } catch {
+        // storage fallback
+      }
+
+      if (!wasRecord && this.highScore >= 1000) {
+        this.techniqueRibbons.addRibbon(
+          'New High Score Record!',
+          `Record shattered: ${this.highScore.toLocaleString()} pts!`,
+          '#FFD700',
+          3.5,
+          '最高',
+          '🏆'
+        );
+        this.refereeDirector.triggerCall('最高得点', 'NEW RECORD!', `${this.highScore.toLocaleString()} PTS!`, '#FFD700', 'YOKOZUNA');
+        this.activeRefereeCall = this.refereeDirector.getActiveCall();
+        sound.playTaikoFlourish();
+        this.spawnConfetti(this.arena.centerX, this.arena.centerY - 50, 40);
+      }
+    }
+  }
+
   public restart() {
     this.fruits = [];
     this.hazards = [];
@@ -387,6 +455,7 @@ export class GameEngine {
     this.strawBales = createStrawBales(16, this.tuning.baleMaxHealth);
     this.mergeManager.clear();
     this.score = 0;
+    this.isNewHighScore = false;
     this.lives = 3;
     this.overflowTimer = 0;
     this.isOverflowing = false;
@@ -505,6 +574,16 @@ export class GameEngine {
       this.dragPos = { x, y };
     }
 
+    // Calculate English sidespin bias (-1 to +1) based on horizontal offset dx normalized by pull
+    // When pulling back downwards (dy > 0), dragging left/right imparts lateral spin
+    const lateralOffset = (this.dragPos.x - this.launcherPos.x) / 80;
+    const prevSpin = this.launcherSpin;
+    this.launcherSpin = Math.max(-1.0, Math.min(1.0, lateralOffset));
+
+    if (Math.abs(this.launcherSpin - prevSpin) > 0.35) {
+      haptics.trigger('TICK');
+    }
+
     this.loadedFruit.x = this.dragPos.x;
     this.loadedFruit.y = this.dragPos.y;
     this.updateTrajectory();
@@ -532,6 +611,9 @@ export class GameEngine {
 
       this.loadedFruit.vx = launchVx;
       this.loadedFruit.vy = launchVy;
+      // Set English spin on the launched fruit (up to 12 rad/s)
+      this.loadedFruit.spin = this.launcherSpin * 12.0;
+      this.loadedFruit.rotation = 0;
       this.loadedFruit.state = 'IN_RING';
       this.loadedFruit.entryPending = true;
       this.loadedFruit.hasEnteredRing = false;
@@ -542,6 +624,14 @@ export class GameEngine {
 
       this.fruits.push(this.loadedFruit);
       this.totalShots++;
+
+      // Mobile tactile feel
+      haptics.trigger('LIGHT');
+
+      // Sidespin audio cue
+      if (Math.abs(this.launcherSpin) > 0.25) {
+        sound.playCurveSpin(this.launcherSpin);
+      }
 
       // Shot lifecycle setup
       this.shotState = 'LAUNCHED';
@@ -557,8 +647,17 @@ export class GameEngine {
         if (this.saltLaunchCount >= 6) {
           this.saltCharges = 1;
           this.saltLaunchCount = 0;
-          this.techniqueRibbons.addRibbon('Salt Ready!', 'Kiyome-no-Shio replenished!', '#4B69FD');
+          this.techniqueRibbons.addRibbon(
+            'Salt Ready!',
+            'Kiyome-no-Shio replenished!',
+            '#4B69FD',
+            2.5,
+            '清塩',
+            '🧂',
+            'RECHARGE'
+          );
           sound.playTaikoFlourish();
+          haptics.trigger('MEDIUM');
         }
       }
 
@@ -566,7 +665,16 @@ export class GameEngine {
       if (this.festivalReadyShots > 0) {
         this.festivalReadyShots--;
         sound.playTaikoFlourish();
-        this.techniqueRibbons.addRibbon('Festival Shot!', '2x Merge Score Activated!', '#FFD700');
+        this.techniqueRibbons.addRibbon(
+          'Festival Shot!',
+          '2x Merge Score Activated!',
+          '#FFD700',
+          2.5,
+          '祭',
+          '⚡',
+          'FEVER'
+        );
+        haptics.trigger('MEDIUM');
       }
 
       // Notify Rival Controller (never retargets mid-shot; executes or plans)
@@ -580,6 +688,7 @@ export class GameEngine {
 
       this.loadedFruit = null;
       this.trajectoryPoints = [];
+      this.launcherSpin = 0;
 
       // Cooldown before loading next fruit (ensures smooth shot rhythm)
       setTimeout(() => {
@@ -595,6 +704,7 @@ export class GameEngine {
       this.loadedFruit.y = this.launcherPos.y;
       this.loadedFruit.state = 'IDLE';
       this.trajectoryPoints = [];
+      this.launcherSpin = 0;
       return false;
     }
   }
@@ -640,7 +750,8 @@ export class GameEngine {
       obstacles,
       this.arena,
       1.2,
-      45
+      45,
+      this.launcherSpin * 12.0
     );
   }
 
@@ -742,6 +853,14 @@ export class GameEngine {
       };
     } else {
       this.cameraOffset = { x: 0, y: 0 };
+    }
+
+    // Decay screen flash visual cues
+    if (this.ringOutFlashTimer > 0) {
+      this.ringOutFlashTimer = Math.max(0, this.ringOutFlashTimer - realDt);
+    }
+    if (this.kinboshiFlashTimer > 0) {
+      this.kinboshiFlashTimer = Math.max(0, this.kinboshiFlashTimer - realDt);
     }
 
     // Step 0: Subsystem Directors & Managers
@@ -862,12 +981,30 @@ export class GameEngine {
         }
       }
 
+      // English gyro curve acceleration
+      let spinAx = 0;
+      let spinAy = 0;
+      if (fruit.spin && Math.abs(fruit.spin) > 0.05) {
+        const speed = Math.hypot(fruit.vx, fruit.vy);
+        if (speed > 10) {
+          const perpX = -fruit.vy / speed;
+          const perpY = fruit.vx / speed;
+          const curveForce = fruit.spin * speed * 0.35;
+          spinAx = perpX * curveForce;
+          spinAy = perpY * curveForce;
+        }
+        fruit.spin *= Math.max(0, 1 - 0.8 * dt);
+        fruit.rotation = (fruit.rotation || 0) + fruit.spin * dt;
+      } else {
+        fruit.rotation = (fruit.rotation || 0) + (fruit.vx * 0.003);
+      }
+
       fruit.x += fruit.vx * dt;
       fruit.y += fruit.vy * dt;
 
       const damping = Math.max(0, 1 - cat.damp * dt);
-      fruit.vx = (fruit.vx + ax * dt) * damping;
-      fruit.vy = (fruit.vy + ay * dt) * damping;
+      fruit.vx = (fruit.vx + (ax + spinAx) * dt) * damping;
+      fruit.vy = (fruit.vy + (ay + spinAy) * dt) * damping;
 
       // Sacred Salt Braking Formula: a_salt = -gamma_salt * v - k_brake * max(0, v . n_out) * n_out
       if (inSaltZone) {
@@ -880,6 +1017,9 @@ export class GameEngine {
         );
         fruit.vx += saltAx * dt;
         fruit.vy += saltAy * dt;
+        if (metrics.dSurface < 40) {
+          this.kimariteManager.reportAction('kiyome_defense');
+        }
       }
 
       // Wasabi drag while body overlaps
@@ -976,7 +1116,15 @@ export class GameEngine {
               if (bale.health === 0) {
                 this.refereeDirector.triggerCall('俵割れ', 'TAWARA BREACH!', 'STRAW BALE SHATTERED!', '#E67E22', 'COMBO');
                 this.activeRefereeCall = this.refereeDirector.getActiveCall();
-                this.techniqueRibbons.addRibbon('Tawara Breach!', 'Straw bale shattered open!', '#E67E22');
+                this.techniqueRibbons.addRibbon(
+                  'Tawara Breach!',
+                  'Straw bale shattered open!',
+                  '#E67E22',
+                  2.5,
+                  '俵破',
+                  '💥',
+                  'HAZARD'
+                );
               }
             }
 
@@ -1009,7 +1157,15 @@ export class GameEngine {
           fruit.wasInRimDanger = false;
           fruit.nearRimSaved = true;
           fruit.wipingSweatTimer = 1.4;
-          this.techniqueRibbons.addRibbon('Not Today!', 'Saved from the Tawara brink!', '#2ECC71');
+          this.techniqueRibbons.addRibbon(
+            'Not Today!',
+            'Saved from the Tawara brink!',
+            '#2ECC71',
+            2.5,
+            '残っ',
+            '🛡️',
+            'DEFENSE'
+          );
           sound.playRimSave();
         } else if (metrics.dSurface > 70) {
           fruit.nearRimSaved = false;
@@ -1135,6 +1291,10 @@ export class GameEngine {
         const scoreBonus = Math.round(hazard.scoreValue * finalMult);
         this.score += scoreBonus;
         this.addHype(hazard.kind === 'RIVAL' ? 25 : 8);
+
+        // Kimarite Oshidashi push-out
+        this.kimariteManager.reportAction('oshidashi');
+        haptics.trigger('MEDIUM');
 
         // Natural hazard knockout grants 1 step toward salt charge (max 1/shot)
         if (!this.bonusRechargeGrantedThisShot && this.saltCharges < this.maxSaltCharges) {
@@ -1344,8 +1504,22 @@ export class GameEngine {
             hazard.vx += nx * 280;
             hazard.vy += ny * 280;
             sound.playChiliBoost();
+            haptics.trigger('MEDIUM');
+            this.kimariteManager.reportAction('dohyo_booster');
             this.spawnFlameParticles(fruit.x, fruit.y, 14);
             this.triggerCameraTrauma(0.18);
+            continue;
+          }
+
+          if (hazard.kind === 'GINKO_MAGNET') {
+            // Ginko Nut Sacred Magnet: attracts same or nearby fruits toward each other
+            fruit.vx += nx * 140;
+            fruit.vy += ny * 140;
+            hazard.vx -= nx * 80;
+            hazard.vy -= ny * 80;
+            sound.playGinkoMagnet();
+            haptics.trigger('LIGHT');
+            this.spawnSparks(hazard.x, hazard.y, '#F1C40F', 8);
             continue;
           }
 
@@ -1450,38 +1624,76 @@ export class GameEngine {
 
     const baseScore = fusion.score;
     const finalScore = Math.round(baseScore * finalMult);
-    this.score += finalScore;
+    this.addScore(finalScore);
     this.highestTier = Math.max(this.highestTier, fusion.newTier);
     this.addHype(12);
 
     // Ribbons & Technique Callouts
     if (this.bankShotDetected && !this.shotInitialMergeDone) {
-      this.techniqueRibbons.addRibbon('Bank Shot Fusion!', 'Rebounded off Tawara into pristine fusion!', '#3498DB');
+      this.techniqueRibbons.addRibbon(
+        'Bank Shot Fusion!',
+        'Rebounded off Tawara into pristine fusion!',
+        '#3498DB',
+        2.5,
+        '引落',
+        '🎯',
+        'KIMARITE'
+      );
       sound.playHyoshigi(1.4);
+      this.kimariteManager.reportAction('hikiotoshi');
     }
     this.shotInitialMergeDone = true;
+
+    // Check if the fruit that merged was launched with spin
+    if (Math.abs(newFruit.vx) > 30 || Math.abs(newFruit.vy) > 30) {
+      this.kimariteManager.reportAction('gyaku_kaiten');
+    }
 
     if (this.comboCount >= 2) {
       this.techniqueRibbons.addRibbon(
         `${this.comboCount}x Fusion Chain!`,
         `Chain multiplier ${finalMult.toFixed(1)}x`,
-        '#F39C12'
+        '#F39C12',
+        2.5,
+        '連鎖',
+        '🔥',
+        'COMBO'
       );
+      if (this.comboCount >= 3) {
+        this.kimariteManager.reportAction('tsuppari_chain');
+        sound.playCrowdChant();
+      }
     }
 
     // Dynamic Gyōji Callouts on milestones
     if (fusion.newTier >= 10 || fusion.isYokozuna) {
       this.refereeDirector.triggerCall('横綱昇進', 'YOKOZUNA ASCENSION!', 'SUPREME PINEAPPLE DEITY!', '#FFD700', 'YOKOZUNA');
       this.activeRefereeCall = this.refereeDirector.getActiveCall();
-      this.techniqueRibbons.addRibbon('Yokozuna Divine', 'Grand Champion of the Celestial Bowl', '#FFD700', 3.5);
+      this.techniqueRibbons.addRibbon(
+        'Yokozuna Divine',
+        'Grand Champion of the Celestial Bowl',
+        '#FFD700',
+        3.5,
+        '横綱',
+        '👑',
+        'KIMARITE'
+      );
       this.rivalController.cancelNextAttackYokozuna();
       this.spawnConfetti(fusion.spawnX, fusion.spawnY, 50);
+      this.kimariteManager.reportAction('tenka_muso');
+      haptics.trigger('YOKOZUNA');
+      sound.playTaikoRoll();
     } else if (fusion.newTier >= 7) {
       this.refereeDirector.triggerCall('大関誕生', 'OZEKI PROMOTION!', `${catNext.name} DOMINATES THE RING!`, '#E74C3C', 'COMBO');
       this.activeRefereeCall = this.refereeDirector.getActiveCall();
+      this.kimariteManager.reportAction('ozeki_power');
+      haptics.trigger('HEAVY');
     } else if (this.comboCount >= 3) {
       this.refereeDirector.triggerCall('残った', 'NOKOTTA!', `${this.comboCount}x COMBO STREAK!`, '#3498DB', 'COMBO');
       this.activeRefereeCall = this.refereeDirector.getActiveCall();
+      haptics.trigger('FUSION');
+    } else {
+      haptics.trigger('FUSION');
     }
 
     // Shockwave emission
@@ -1527,32 +1739,52 @@ export class GameEngine {
 
     // If fruit was a rival, it is a Kinboshi victory!
     if (fruit.team === 'RIVAL') {
-      this.score += 800;
+      this.addScore(800);
       this.addHype(25);
+      this.kinboshiFlashTimer = 0.35;
+      this.triggerHitStop(0.08);
       this.refereeDirector.triggerCall('金星', 'KINBOSHI!', 'RIVAL YORIKIRI DEFEAT!', '#FFD700', 'RIVAL_DEFEAT');
       this.activeRefereeCall = this.refereeDirector.getActiveCall();
-      this.techniqueRibbons.addRibbon('Kinboshi Victory!', `${this.rivalController.profile.name} pushed out!`, '#FFD700');
+      this.techniqueRibbons.addRibbon(
+        'Kinboshi Victory!',
+        `${this.rivalController.profile.name} pushed out!`,
+        '#FFD700',
+        3.5,
+        '金星',
+        '⭐',
+        'KIMARITE'
+      );
       sound.playTaikoFlourish();
       this.spawnConfetti(fruit.x, fruit.y, 45);
 
       if (this.gameMode === 'CAREER') {
         const hasMore = this.careerManager.completeCurrentStage();
         if (hasMore) {
-          this.techniqueRibbons.addRibbon('Stage Cleared!', 'Next Banzuke bout unlocked!', '#2ECC71', 3.0);
+          this.techniqueRibbons.addRibbon('Stage Cleared!', 'Next Banzuke bout unlocked!', '#2ECC71', 3.0, '勝星', '🏆');
         } else {
-          this.techniqueRibbons.addRibbon('Yokozuna Beaten!', 'You are the Grand Champion!', '#FFD700', 4.0);
+          this.techniqueRibbons.addRibbon('Yokozuna Beaten!', 'You are the Grand Champion!', '#FFD700', 4.0, '優勝', '👑');
         }
       }
-      this.triggerCameraTrauma(0.35);
+      this.triggerCameraTrauma(0.4);
       this.spawnSplash(fruit.x, fruit.y, this.rivalController.profile.color);
       return;
     }
 
     this.lives = Math.max(0, this.lives - 1);
+    this.ringOutFlashTimer = 0.45;
+    this.triggerHitStop(0.12);
     sound.playRingOut();
-    this.triggerCameraTrauma(0.3);
+    this.triggerCameraTrauma(0.45);
     this.spawnSplash(fruit.x, fruit.y, FRUIT_CATALOG[fruit.tier - 1].color);
-    this.techniqueRibbons.addRibbon('Ring-Out!', `${FRUIT_CATALOG[fruit.tier - 1].name} fell from the Dohyō!`, '#E74C3C');
+    this.techniqueRibbons.addRibbon(
+      'Ring-Out!',
+      `${FRUIT_CATALOG[fruit.tier - 1].name} fell from the Dohyō!`,
+      '#E74C3C',
+      3.0,
+      '勇足',
+      '🚨',
+      'RING_OUT'
+    );
 
     if (this.lives <= 0) {
       this.isGameOver = true;
@@ -1678,7 +1910,7 @@ export class GameEngine {
       damp = 0.7;
       rest = 0.85;
       scoreVal = 120;
-    } else if (roll < 0.76) {
+    } else if (roll < 0.70) {
       kind = 'WASABI';
       name = 'Wasabi Sludge';
       radius = 24;
@@ -1686,7 +1918,7 @@ export class GameEngine {
       damp = 1.1;
       rest = 0.4;
       scoreVal = 180;
-    } else {
+    } else if (roll < 0.86) {
       kind = 'CHILI';
       name = 'Fiery Chili';
       radius = 20;
@@ -1694,6 +1926,14 @@ export class GameEngine {
       damp = 0.4;
       rest = 0.95;
       scoreVal = 220;
+    } else {
+      kind = 'GINKO_MAGNET';
+      name = 'Sacred Ginko Nut';
+      radius = 22;
+      mass = 4.5;
+      damp = 0.5;
+      rest = 0.85;
+      scoreVal = 250;
     }
 
     // Find safe spawn location within bowl
@@ -1737,11 +1977,39 @@ export class GameEngine {
         };
 
         this.hazards.push(hazard);
-        const sparkColor = kind === 'WASABI' ? '#2ECC71' : kind === 'CHILI' ? '#E74C3C' : kind === 'ICE' ? '#3498DB' : '#D35400';
+        const sparkColor =
+          kind === 'WASABI'
+            ? '#2ECC71'
+            : kind === 'CHILI'
+            ? '#E74C3C'
+            : kind === 'ICE'
+            ? '#3498DB'
+            : kind === 'GINKO_MAGNET'
+            ? '#F1C40F'
+            : '#D35400';
         this.spawnSparks(x, y, sparkColor, 12);
 
         if (kind === 'WASABI') {
-          this.techniqueRibbons.addRibbon('Wasabi Appeared!', 'Sticky sludge on Dohyō! Hit 3x, Push Out, or use Salt [S]', '#2ECC71', 3.0);
+          this.techniqueRibbons.addRibbon(
+            'Wasabi Appeared!',
+            'Sticky sludge on Dohyō! Hit 3x, Push Out, or use Salt [S]',
+            '#2ECC71',
+            3.0,
+            '山葵',
+            '🍃',
+            'HAZARD'
+          );
+        } else if (kind === 'GINKO_MAGNET') {
+          this.techniqueRibbons.addRibbon(
+            'Ginko Magnet!',
+            'Sacred magnetic nut pulls nearby fruit into orbit!',
+            '#F1C40F',
+            3.0,
+            '銀杏',
+            '🧲',
+            'HAZARD'
+          );
+          sound.playGinkoMagnet();
         }
         break;
       }
@@ -1854,6 +2122,8 @@ export class GameEngine {
 
     this.onStatsChange({
       score: this.score,
+      highScore: this.highScore,
+      isNewHighScore: this.isNewHighScore,
       lives: this.lives,
       occupancy: Math.min(1.5, occupancy),
       overflowTimer: this.overflowTimer,
@@ -1886,6 +2156,9 @@ export class GameEngine {
       hasActiveRival: !!rivalFruit,
       rivalIntent: this.rivalController.intent,
       activeChallengeId: this.activeChallengeId,
+      launcherSpin: this.launcherSpin,
+      unlockedKimariteCount: this.kimariteManager.getUnlockedCount().unlocked,
+      totalKimariteCount: this.kimariteManager.getUnlockedCount().total,
     });
   }
 }

@@ -228,7 +228,7 @@ class SoundEngine {
   }
 
   /**
-   * Ring Out - dramatic downward slide whistle & splash
+   * Ring Out - dramatic downward slide whistle & heavy taiko rim thud
    */
   public playRingOut() {
     if (!this.enabled) return;
@@ -237,20 +237,36 @@ class SoundEngine {
     if (this.ctx.state === 'suspended') this.ctx.resume();
 
     const t = this.ctx.currentTime;
+    // Downward pitch slide
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
 
     osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(480, t);
-    osc.frequency.exponentialRampToValueAtTime(70, t + 0.35);
+    osc.frequency.setValueAtTime(520, t);
+    osc.frequency.exponentialRampToValueAtTime(55, t + 0.38);
 
-    gain.gain.setValueAtTime(0.28, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+    gain.gain.setValueAtTime(0.32, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.42);
 
     osc.connect(gain);
     gain.connect(this.masterGain);
     osc.start(t);
-    osc.stop(t + 0.4);
+    osc.stop(t + 0.44);
+
+    // Deep taiko thud on landing outside the clay
+    const thudOsc = this.ctx.createOscillator();
+    const thudGain = this.ctx.createGain();
+    thudOsc.type = 'sine';
+    thudOsc.frequency.setValueAtTime(120, t + 0.12);
+    thudOsc.frequency.exponentialRampToValueAtTime(35, t + 0.45);
+
+    thudGain.gain.setValueAtTime(0.4, t + 0.12);
+    thudGain.gain.exponentialRampToValueAtTime(0.001, t + 0.48);
+
+    thudOsc.connect(thudGain);
+    thudGain.connect(this.masterGain);
+    thudOsc.start(t + 0.12);
+    thudOsc.stop(t + 0.5);
   }
 
   /**
@@ -546,6 +562,110 @@ class SoundEngine {
     setTimeout(() => this.playTaiko(1.6), 80);
     setTimeout(() => this.playTaiko(1.8), 160);
     setTimeout(() => this.playHyoshigi(1.2), 240);
+  }
+
+  /**
+   * Authentic Taiko Drum Roll for high-stakes moments / Yokozuna
+   */
+  public playTaikoRoll() {
+    if (!this.enabled) return;
+    const count = 6;
+    for (let i = 0; i < count; i++) {
+      setTimeout(() => {
+        this.playTaiko(0.9 + (i / count) * 0.7);
+      }, i * 65);
+    }
+  }
+
+  /**
+   * Authentic Crowd Chanting: "YOI-SHO!" unison cadence
+   */
+  public playCrowdChant() {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx || !this.masterGain) return;
+
+    const t = this.ctx.currentTime;
+    // Layered formants simulating crowd resonance
+    const formantFreqs = [180, 240, 360, 480];
+    formantFreqs.forEach((freq, idx) => {
+      const osc = this.ctx!.createOscillator();
+      const filter = this.ctx!.createBiquadFilter();
+      const gain = this.ctx!.createGain();
+
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, t);
+      osc.frequency.linearRampToValueAtTime(freq * 0.88, t + 0.35);
+
+      filter.type = 'bandpass';
+      filter.frequency.setValueAtTime(700 + idx * 150, t);
+      filter.Q.value = 3.0;
+
+      gain.gain.setValueAtTime(0.08, t);
+      gain.gain.linearRampToValueAtTime(0.12, t + 0.12);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.45);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.masterGain!);
+
+      osc.start(t);
+      osc.stop(t + 0.5);
+    });
+
+    // Followed by a sharp taiko beat
+    setTimeout(() => this.playTaiko(1.3), 180);
+  }
+
+  /**
+   * Curve Shot Sidespin whoosh (frequency glide)
+   */
+  public playCurveSpin(spin: number) {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx || !this.masterGain) return;
+
+    const t = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = 'sine';
+    const startFreq = spin > 0 ? 300 : 480;
+    const endFreq = spin > 0 ? 560 : 260;
+
+    osc.frequency.setValueAtTime(startFreq, t);
+    osc.frequency.exponentialRampToValueAtTime(endFreq, t + 0.22);
+
+    gain.gain.setValueAtTime(0.18, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.24);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(t);
+    osc.stop(t + 0.25);
+  }
+
+  /**
+   * Ginko Magnet resonance chime
+   */
+  public playGinkoMagnet() {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx || !this.masterGain) return;
+
+    const t = this.ctx.currentTime;
+    [523.25, 659.25, 783.99, 1046.5].forEach((f, idx) => {
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, t + idx * 0.04);
+      gain.gain.setValueAtTime(0.12, t + idx * 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.04 + 0.4);
+      osc.connect(gain);
+      gain.connect(this.masterGain!);
+      osc.start(t + idx * 0.04);
+      osc.stop(t + idx * 0.04 + 0.42);
+    });
   }
 }
 

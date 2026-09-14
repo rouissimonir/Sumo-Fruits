@@ -364,7 +364,8 @@ export function predictTrajectory(
   obstacles: { x: number; y: number; radius: number }[],
   arena: ArenaConfig = DEFAULT_ARENA,
   horizonSeconds: number = 1.2,
-  sampleSteps: number = 40
+  sampleSteps: number = 40,
+  spin: number = 0
 ): TrajectoryPoint[] {
   const points: TrajectoryPoint[] = [];
   const dt = horizonSeconds / sampleSteps;
@@ -373,6 +374,7 @@ export function predictTrajectory(
   let y = startY;
   let vx = launchVx;
   let vy = launchVy;
+  let currentSpin = spin;
 
   points.push({ x, y });
 
@@ -380,13 +382,29 @@ export function predictTrajectory(
     // Current bowl acceleration
     const { ax, ay } = getBowlAcceleration(x, y, arena);
 
+    // English Gyro Magnus/Friction effect perpendicular to velocity vector
+    let spinAx = 0;
+    let spinAy = 0;
+    if (Math.abs(currentSpin) > 0.05) {
+      const speed = Math.hypot(vx, vy);
+      if (speed > 10) {
+        // Perpendicular vector (-vy/speed, vx/speed)
+        const perpX = -vy / speed;
+        const perpY = vx / speed;
+        const curveForce = currentSpin * speed * 0.35;
+        spinAx = perpX * curveForce;
+        spinAy = perpY * curveForce;
+      }
+      currentSpin *= Math.max(0, 1 - 0.7 * dt);
+    }
+
     // Explicit Euler step
     x += vx * dt;
     y += vy * dt;
 
     const dampFactor = Math.max(0, 1 - tierData.damp * dt);
-    vx = (vx + ax * dt) * dampFactor;
-    vy = (vy + ay * dt) * dampFactor;
+    vx = (vx + (ax + spinAx) * dt) * dampFactor;
+    vy = (vy + (ay + spinAy) * dt) * dampFactor;
 
     // Check collision with obstacles
     let hit = false;

@@ -8,7 +8,15 @@ export class TechniqueRibbonManager {
     return this.activeRibbons;
   }
 
-  public addRibbon(title: string, subtitle: string, color: string = '#F1C40F', duration: number = 2.4) {
+  public addRibbon(
+    title: string,
+    subtitle: string,
+    color: string = '#F1C40F',
+    duration: number = 2.6,
+    kanji?: string,
+    icon?: string,
+    kimariteTag?: string
+  ) {
     // Avoid spamming duplicate titles
     if (this.activeRibbons.some((r) => r.title === title)) return;
 
@@ -18,6 +26,9 @@ export class TechniqueRibbonManager {
       subtitle,
       color,
       duration,
+      kanji,
+      icon,
+      kimariteTag,
     });
 
     if (this.activeRibbons.length > 3) {

@@ -5,57 +5,57 @@ static var CATALOG: Array[Dictionary] = [
 	{
 		"tier": 1, "name": "Blueberry", "radius": 16.0, "mass": 1.0,
 		"restitution": 0.85, "resistance": 0.05,
-		"color": Color("#4B69FD"), "mawashi": Color("#FFFFFF")
+		"color": Color("#3B82F6"), "mawashi": Color("#F8FAFC")
 	},
 	{
-		"tier": 2, "name": "Cherry", "radius": 22.0, "mass": 1.8,
+		"tier": 2, "name": "Cherry", "radius": 22.0, "mass": 2.2,
 		"restitution": 0.82, "resistance": 0.10,
-		"color": Color("#E74C3C"), "mawashi": Color("#2C3E50")
+		"color": Color("#991B1B"), "mawashi": Color("#FFFFFF")
 	},
 	{
-		"tier": 3, "name": "Lime", "radius": 28.0, "mass": 3.0,
-		"restitution": 0.80, "resistance": 0.16,
-		"color": Color("#2ECC71"), "mawashi": Color("#8E44AD")
+		"tier": 3, "name": "Lime", "radius": 28.0, "mass": 4.0,
+		"restitution": 0.80, "resistance": 0.18,
+		"color": Color("#65A30D"), "mawashi": Color("#0F172A")
 	},
 	{
-		"tier": 4, "name": "Orange", "radius": 36.0, "mass": 5.2,
-		"restitution": 0.77, "resistance": 0.24,
-		"color": Color("#E67E22"), "mawashi": Color("#16A085")
+		"tier": 4, "name": "Strawberry", "radius": 36.0, "mass": 7.0,
+		"restitution": 0.78, "resistance": 0.28,
+		"color": Color("#E11D48"), "mawashi": Color("#059669")
 	},
 	{
-		"tier": 5, "name": "Apple", "radius": 45.0, "mass": 8.5,
-		"restitution": 0.74, "resistance": 0.34,
-		"color": Color("#C0392B"), "mawashi": Color("#F1C40F")
+		"tier": 5, "name": "Peach", "radius": 46.0, "mass": 11.5,
+		"restitution": 0.75, "resistance": 0.40,
+		"color": Color("#FB923C"), "mawashi": Color("#7C3AED")
 	},
 	{
-		"tier": 6, "name": "Grapefruit", "radius": 55.0, "mass": 13.5,
-		"restitution": 0.70, "resistance": 0.45,
-		"color": Color("#E84393"), "mawashi": Color("#2980B9")
+		"tier": 6, "name": "Orange", "radius": 58.0, "mass": 18.0,
+		"restitution": 0.72, "resistance": 0.55,
+		"color": Color("#F97316"), "mawashi": Color("#0E7490")
 	},
 	{
-		"tier": 7, "name": "Peach", "radius": 68.0, "mass": 21.0,
-		"restitution": 0.66, "resistance": 0.58,
-		"color": Color("#FAB1A0"), "mawashi": Color("#8854D0")
+		"tier": 7, "name": "Apple", "radius": 72.0, "mass": 27.0,
+		"restitution": 0.70, "resistance": 0.70,
+		"color": Color("#DC2626"), "mawashi": Color("#18181B")
 	},
 	{
-		"tier": 8, "name": "Melon", "radius": 82.0, "mass": 32.0,
-		"restitution": 0.62, "resistance": 0.70,
-		"color": Color("#55EFC4"), "mawashi": Color("#D35400")
+		"tier": 8, "name": "Melon", "radius": 88.0, "mass": 40.0,
+		"restitution": 0.68, "resistance": 0.82,
+		"color": Color("#84CC16"), "mawashi": Color("#0284C7")
 	},
 	{
-		"tier": 9, "name": "Coconut", "radius": 98.0, "mass": 48.0,
-		"restitution": 0.58, "resistance": 0.82,
-		"color": Color("#795548"), "mawashi": Color("#F39C12")
+		"tier": 9, "name": "Coconut", "radius": 106.0, "mass": 58.0,
+		"restitution": 0.65, "resistance": 0.92,
+		"color": Color("#78350F"), "mawashi": Color("#F59E0B")
 	},
 	{
-		"tier": 10, "name": "Watermelon", "radius": 120.0, "mass": 75.0,
-		"restitution": 0.54, "resistance": 0.92,
-		"color": Color("#27AE60"), "mawashi": Color("#9B59B6")
+		"tier": 10, "name": "Watermelon", "radius": 130.0, "mass": 85.0,
+		"restitution": 0.60, "resistance": 0.98,
+		"color": Color("#15803D"), "mawashi": Color("#9333EA")
 	},
 	{
-		"tier": 11, "name": "Yokozuna Pineapple", "radius": 148.0, "mass": 120.0,
+		"tier": 11, "name": "Yokozuna Pineapple", "radius": 160.0, "mass": 150.0,
 		"restitution": 0.50, "resistance": 1.00,
-		"color": Color("#F1C40F"), "mawashi": Color("#E74C3C")
+		"color": Color("#EAB308"), "mawashi": Color("#B91C1C")
 	}
 ]
 

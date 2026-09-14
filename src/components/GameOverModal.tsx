@@ -5,6 +5,8 @@ import { FRUIT_CATALOG } from '../types/game';
 interface GameOverModalProps {
   isOpen: boolean;
   score: number;
+  highScore?: number;
+  isNewHighScore?: boolean;
   reason: string;
   highestTierReached: number;
   onRestart: () => void;
@@ -13,6 +15,8 @@ interface GameOverModalProps {
 export const GameOverModal: React.FC<GameOverModalProps> = ({
   isOpen,
   score,
+  highScore = 0,
+  isNewHighScore = false,
   reason,
   highestTierReached,
   onRestart,
@@ -30,6 +34,14 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
         id="game-over-modal"
         className="relative w-full max-w-md bg-[#1C1814] border-2 border-[#E74C3C] rounded-2xl shadow-2xl p-6 text-center text-[#EDE2D4]"
       >
+        {/* New High Score Banner Celebration */}
+        {isNewHighScore && score > 0 && (
+          <div className="mb-3 inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-gradient-to-r from-[#F1C40F] to-[#E67E22] text-black font-black text-xs uppercase tracking-wider shadow-lg animate-bounce">
+            <Trophy size={14} className="text-black" />
+            <span>New Personal Best Record!</span>
+          </div>
+        )}
+
         <div className="w-16 h-16 rounded-full bg-[#E74C3C]/20 border-2 border-[#E74C3C] mx-auto flex items-center justify-center mb-3">
           <Trophy className="text-[#FFD700]" size={32} />
         </div>
@@ -51,6 +63,17 @@ export const GameOverModal: React.FC<GameOverModalProps> = ({
               {score.toLocaleString()}
             </span>
           </div>
+
+          {highScore > 0 && (
+            <div className="flex justify-between items-center border-b border-[#3E342B] pb-2">
+              <span className="text-xs uppercase font-bold text-[#A89886] flex items-center gap-1">
+                <Trophy size={12} className="text-[#FFD700]" /> High Score
+              </span>
+              <span className="text-base font-bold text-[#E0D4C5]">
+                {highScore.toLocaleString()}
+              </span>
+            </div>
+          )}
 
           <div className="flex justify-between items-center">
             <span className="text-xs uppercase font-bold text-[#A89886]">

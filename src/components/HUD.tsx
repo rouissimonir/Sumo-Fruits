@@ -14,6 +14,7 @@ import {
   Compass,
   FolderArchive,
   Trophy,
+  Settings,
 } from 'lucide-react';
 import { GameStats } from '../game/GameEngine';
 import { FRUIT_CATALOG, GameModeType } from '../types/game';
@@ -25,6 +26,8 @@ interface HUDProps {
   onOpenTierList: () => void;
   onOpenGodotFiles: () => void;
   onOpenTuner: () => void;
+  onOpenKimarite: () => void;
+  onOpenSettings: () => void;
   onThrowSalt: () => void;
   onCycleArenaMode: () => void;
   onSelectGameMode?: (mode: GameModeType, challengeId?: string) => void;
@@ -39,6 +42,8 @@ export const HUD: React.FC<HUDProps> = ({
   onOpenTierList,
   onOpenGodotFiles,
   onOpenTuner,
+  onOpenKimarite,
+  onOpenSettings,
   onThrowSalt,
   onCycleArenaMode,
   onSelectGameMode,
@@ -48,40 +53,52 @@ export const HUD: React.FC<HUDProps> = ({
   const next1 = FRUIT_CATALOG[stats.nextTiers[0] - 1];
   const next2 = FRUIT_CATALOG[stats.nextTiers[1] - 1];
 
-  const occupancyPercent = Math.round(stats.occupancy * 100);
   const isOverflowWarning = stats.isOverflowing;
   const isFever = stats.isFever;
 
   return (
-    <header className="absolute inset-x-0 top-0 pointer-events-none p-2 sm:p-4 flex flex-col gap-2 z-20">
-      {/* Top Bar: Stats, Lives, Hype, Controls */}
-      <div className="flex items-center justify-between gap-2 sm:gap-3 w-full">
-        {/* Score & Lives Box */}
-        <div className="flex items-center gap-2.5 sm:gap-3 bg-[#1C1814]/90 backdrop-blur-md border border-[#3E342B] px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl shadow-lg pointer-events-auto shrink-0">
+    <header className="absolute inset-x-0 top-0 pointer-events-none pt-[max(env(safe-area-inset-top,0px),44px)] sm:pt-4 px-2 sm:px-4 flex flex-col gap-1.5 sm:gap-2.5 z-20">
+      {/* Top Bar: Primary Stats, Hype / Fever, and Combat Salt + Settings */}
+      <div className="flex items-center justify-between gap-1.5 sm:gap-3 w-full">
+        {/* Score, High Score & Lives Box */}
+        <div className="flex items-center gap-2 sm:gap-3 bg-[#1C1814]/90 backdrop-blur-md border border-[#3E342B] px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl shadow-lg pointer-events-auto shrink-0">
           <div>
-            <div className="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider text-[#A89886]">
-              Score
+            <div className="flex items-center gap-1">
+              <span className="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider text-[#A89886]">
+                Score
+              </span>
+              {stats.highScore > 0 && (
+                <span className="text-[8px] sm:text-[9px] font-mono text-[#D4AF37] opacity-80 flex items-center gap-0.5">
+                  <Trophy size={9} className="text-[#FFD700]" />
+                  {stats.highScore.toLocaleString()}
+                </span>
+              )}
             </div>
-            <div className="text-lg sm:text-2xl font-black tracking-tight text-[#FFD700]">
-              {stats.score.toLocaleString()}
+            <div className="text-base sm:text-2xl font-black tracking-tight text-[#FFD700] flex items-center gap-1.5">
+              <span>{stats.score.toLocaleString()}</span>
+              {stats.isNewHighScore && stats.score > 0 && (
+                <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider bg-[#FFD700] text-black px-1 py-0.2 rounded font-mono shadow-sm animate-pulse">
+                  NEW
+                </span>
+              )}
             </div>
           </div>
 
-          <div className="h-7 w-px bg-[#3E342B]" />
+          <div className="h-6 sm:h-7 w-px bg-[#3E342B]" />
 
           {/* Lives (3 Wrestlers) */}
           <div>
             <div className="text-[9px] sm:text-[10px] uppercase font-bold tracking-wider text-[#A89886]">
               Rikishi
             </div>
-            <div className="flex items-center gap-1 mt-0.5">
+            <div className="flex items-center gap-0.5 sm:gap-1 mt-0.5">
               {[0, 1, 2].map((idx) => {
                 const active = idx < stats.lives;
                 return (
                   <Heart
                     key={idx}
-                    size={16}
-                    className={`transition-all duration-300 ${
+                    size={14}
+                    className={`transition-all duration-300 sm:w-4 sm:h-4 ${
                       active
                         ? 'text-[#E74C3C] fill-[#E74C3C] drop-shadow-[0_0_6px_rgba(231,76,60,0.6)]'
                         : 'text-[#4A3D31] fill-transparent'
@@ -94,36 +111,36 @@ export const HUD: React.FC<HUDProps> = ({
         </div>
 
         {/* Center: Crowd Hype & Fever Meter & Festival Ready */}
-        <div className="flex items-center gap-2 bg-[#1C1814]/90 backdrop-blur-md border border-[#3E342B] px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl shadow-lg pointer-events-auto">
+        <div className="flex items-center gap-1.5 sm:gap-2 bg-[#1C1814]/90 backdrop-blur-md border border-[#3E342B] px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-xl shadow-lg pointer-events-auto shrink-0">
           {stats.festivalReadyShots > 0 ? (
-            <div className="flex items-center gap-2 animate-pulse text-[#FFD700]">
-              <Sparkles size={18} className="text-[#FFD700] animate-spin" />
+            <div className="flex items-center gap-1.5 sm:gap-2 animate-pulse text-[#FFD700]">
+              <Sparkles size={16} className="text-[#FFD700] animate-spin sm:w-[18px] sm:h-[18px]" />
               <div className="flex flex-col">
-                <span className="text-[10px] uppercase font-black tracking-widest text-[#FFD700]">
-                  ⚡ FESTIVAL 2X SHOT ⚡
+                <span className="text-[9px] sm:text-[10px] uppercase font-black tracking-widest text-[#FFD700]">
+                  ⚡ FESTIVAL 2X ⚡
                 </span>
-                <span className="text-xs font-mono font-bold text-white">
-                  {stats.festivalReadyShots} shot{stats.festivalReadyShots > 1 ? 's' : ''} left
+                <span className="text-[10px] sm:text-xs font-mono font-bold text-white">
+                  {stats.festivalReadyShots} shot{stats.festivalReadyShots > 1 ? 's' : ''}
                 </span>
               </div>
             </div>
           ) : isFever ? (
-            <div className="flex items-center gap-2 animate-pulse text-[#FFD700]">
-              <Flame size={18} className="text-[#E74C3C] animate-bounce" />
+            <div className="flex items-center gap-1.5 sm:gap-2 animate-pulse text-[#FFD700]">
+              <Flame size={16} className="text-[#E74C3C] animate-bounce sm:w-[18px] sm:h-[18px]" />
               <div className="flex flex-col">
-                <span className="text-[10px] uppercase font-black tracking-widest text-[#FFD700]">
-                  ⚡ TAIKO FEVER 2X ⚡
+                <span className="text-[9px] sm:text-[10px] uppercase font-black tracking-widest text-[#FFD700]">
+                  ⚡ FEVER 2X ⚡
                 </span>
-                <span className="text-xs font-mono font-bold text-white">
-                  {stats.feverTimer.toFixed(1)}s remaining
+                <span className="text-[10px] sm:text-xs font-mono font-bold text-white">
+                  {stats.feverTimer.toFixed(1)}s
                 </span>
               </div>
             </div>
           ) : (
-            <div className="flex flex-col gap-1 w-24 sm:w-32">
-              <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-wider">
+            <div className="flex flex-col gap-1 w-20 sm:w-32">
+              <div className="flex justify-between items-center text-[9px] sm:text-[10px] font-bold uppercase tracking-wider">
                 <span className="text-[#A89886] flex items-center gap-1">
-                  <Flame size={12} className="text-[#E67E22]" /> Hype
+                  <Flame size={11} className="text-[#E67E22]" /> Hype
                 </span>
                 <span className="text-[#F1C40F] font-mono">{Math.round(stats.crowdHype)}%</span>
               </div>
@@ -137,7 +154,7 @@ export const HUD: React.FC<HUDProps> = ({
           )}
         </div>
 
-        {/* Control Buttons */}
+        {/* Right: Salt Button + Settings / Desktop Menu */}
         <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto shrink-0">
           {/* Salt Throw Button */}
           <button
@@ -156,174 +173,208 @@ export const HUD: React.FC<HUDProps> = ({
             }`}
           >
             <Sparkles size={14} className={stats.saltCharges > 0 ? 'text-[#60A5FA]' : 'text-gray-500'} />
-            <span className="hidden sm:inline">Salt</span>
-            <span className="text-[10px] font-mono font-black bg-[#111827] px-1.5 py-0.5 rounded text-[#93C5FD]">
+            <span className="inline text-[11px] sm:text-xs">Salt</span>
+            <span className="text-[10px] font-mono font-black bg-[#111827] px-1 py-0.5 rounded text-[#93C5FD]">
               {stats.saltCharges > 0 ? stats.saltCharges : `${stats.saltLaunchCount}/6`}
             </span>
           </button>
 
-          {/* Game Mode Selector (Classic, Career Banzuke, Challenge) */}
-          {onSelectGameMode && (
+          {/* Desktop-only action items in top row */}
+          <div className="hidden sm:flex items-center gap-1.5">
+            {/* Game Mode Selector */}
+            {onSelectGameMode && (
+              <button
+                id="hud-game-mode-btn"
+                onClick={() => {
+                  const modes: GameModeType[] = ['CLASSIC', 'CAREER', 'CHALLENGE'];
+                  const nextIdx = (modes.indexOf(stats.gameMode) + 1) % modes.length;
+                  const nextMode = modes[nextIdx];
+                  onSelectGameMode(nextMode, nextMode === 'CHALLENGE' ? 'BROKEN_TAWARA' : undefined);
+                }}
+                title={`Game Mode: ${stats.gameMode}. Click to switch between Classic Dohyō, Career Banzuke, and Challenges.`}
+                className={`flex items-center gap-1 border px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-semibold shadow-md transition-all active:scale-95 cursor-pointer ${
+                  stats.gameMode === 'CAREER'
+                    ? 'bg-[#B7791F]/30 hover:bg-[#B7791F]/50 text-[#FFD700] border-[#B7791F]'
+                    : stats.gameMode === 'CHALLENGE'
+                    ? 'bg-[#9B59B6]/30 hover:bg-[#9B59B6]/50 text-[#D2B4DE] border-[#9B59B6]'
+                    : 'bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] border-[#3E342B]'
+                }`}
+              >
+                <Trophy size={14} className={stats.gameMode === 'CAREER' ? 'text-[#FFD700]' : stats.gameMode === 'CHALLENGE' ? 'text-[#AF7AC5]' : 'text-[#A89886]'} />
+                <span className="text-[10px] uppercase font-bold">
+                  {stats.gameMode === 'CAREER' ? `Banzuke ${stats.careerStageIndex + 1}/5` : stats.gameMode === 'CHALLENGE' ? 'Challenge' : 'Classic'}
+                </span>
+              </button>
+            )}
+
+            {/* Arena Mode Toggle */}
             <button
-              id="hud-game-mode-btn"
-              onClick={() => {
-                const modes: GameModeType[] = ['CLASSIC', 'CAREER', 'CHALLENGE'];
-                const nextIdx = (modes.indexOf(stats.gameMode) + 1) % modes.length;
-                const nextMode = modes[nextIdx];
-                onSelectGameMode(nextMode, nextMode === 'CHALLENGE' ? 'BROKEN_TAWARA' : undefined);
-              }}
-              title={`Game Mode: ${stats.gameMode}. Click to switch between Classic Dohyō, Career Banzuke, and Challenges.`}
-              className={`flex items-center gap-1 border px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-semibold shadow-md transition-all active:scale-95 cursor-pointer ${
-                stats.gameMode === 'CAREER'
-                  ? 'bg-[#B7791F]/30 hover:bg-[#B7791F]/50 text-[#FFD700] border-[#B7791F]'
-                  : stats.gameMode === 'CHALLENGE'
-                  ? 'bg-[#9B59B6]/30 hover:bg-[#9B59B6]/50 text-[#D2B4DE] border-[#9B59B6]'
-                  : 'bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] border-[#3E342B]'
-              }`}
+              id="hud-arena-mode-btn"
+              onClick={onCycleArenaMode}
+              title="Toggle Dohyō Arena Mode (Circular, Elliptical, Wobble)"
+              className="flex items-center gap-1 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] border border-[#3E342B] px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-semibold shadow-md transition-all active:scale-95 cursor-pointer"
             >
-              <Trophy size={14} className={stats.gameMode === 'CAREER' ? 'text-[#FFD700]' : stats.gameMode === 'CHALLENGE' ? 'text-[#AF7AC5]' : 'text-[#A89886]'} />
-              <span className="text-[10px] uppercase font-bold hidden sm:inline">
-                {stats.gameMode === 'CAREER' ? `Banzuke ${stats.careerStageIndex + 1}/5` : stats.gameMode === 'CHALLENGE' ? 'Challenge' : 'Classic'}
+              <Compass size={14} className="text-[#3498DB]" />
+              <span className="text-[10px] uppercase font-bold text-white">
+                {stats.arenaMode === 'CIRCULAR' ? 'Circle' : stats.arenaMode === 'ELLIPTICAL' ? 'Oval' : 'Wobble'}
               </span>
             </button>
-          )}
 
-          {/* Arena Mode Toggle */}
-          <button
-            id="hud-arena-mode-btn"
-            onClick={onCycleArenaMode}
-            title="Toggle Dohyō Arena Mode (Circular, Elliptical, Wobble)"
-            className="flex items-center gap-1 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] border border-[#3E342B] px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-semibold shadow-md transition-all active:scale-95 cursor-pointer"
-          >
-            <Compass size={14} className="text-[#3498DB]" />
-            <span className="text-[10px] uppercase font-bold text-white hidden sm:inline">
-              {stats.arenaMode === 'CIRCULAR' ? 'Circle' : stats.arenaMode === 'ELLIPTICAL' ? 'Oval' : 'Wobble'}
-            </span>
-          </button>
+            {/* Physics Tuner Button */}
+            <button
+              id="hud-tuner-btn"
+              onClick={onOpenTuner}
+              title="Open Interactive Godot Physics Parameter Tuner"
+              className="flex items-center gap-1 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] border border-[#3E342B] px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-semibold shadow-md transition-all active:scale-95 cursor-pointer"
+            >
+              <Sliders size={14} className="text-[#F1C40F]" />
+              <span className="hidden md:inline">Tuner</span>
+            </button>
 
-          {/* Physics Tuner Button */}
-          <button
-            id="hud-tuner-btn"
-            onClick={onOpenTuner}
-            title="Open Interactive Godot Physics Parameter Tuner"
-            className="flex items-center gap-1 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] border border-[#3E342B] px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-semibold shadow-md transition-all active:scale-95 cursor-pointer"
-          >
-            <Sliders size={14} className="text-[#F1C40F]" />
-            <span className="hidden md:inline">Tuner</span>
-          </button>
+            {/* Godot Project Export Button */}
+            <button
+              id="hud-godot-btn"
+              onClick={onOpenGodotFiles}
+              title="Download Godot 4.3 Engine Project .ZIP Archive"
+              className="flex items-center gap-1 bg-[#27AE60] hover:bg-[#2ECC71] text-white px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all active:scale-95 cursor-pointer border border-[#2ECC71]"
+            >
+              <FolderArchive size={14} />
+              <span>Godot .ZIP</span>
+            </button>
 
-          {/* Godot Project Export Button */}
-          <button
-            id="hud-godot-btn"
-            onClick={onOpenGodotFiles}
-            title="Download Godot 4.3 Engine Project .ZIP Archive"
-            className="flex items-center gap-1 bg-[#27AE60] hover:bg-[#2ECC71] text-white px-2.5 sm:px-3 py-1.5 rounded-lg text-xs font-bold shadow-md transition-all active:scale-95 cursor-pointer border border-[#2ECC71]"
-          >
-            <FolderArchive size={14} />
-            <span className="hidden sm:inline">Godot .ZIP</span>
-          </button>
+            {/* Kimarite Techniques Collection Button */}
+            <button
+              id="hud-kimarite-btn"
+              onClick={onOpenKimarite}
+              title="Kimarite Techniques Collection (Winning Sumo Throws & Combos)"
+              className="flex items-center gap-1.5 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#FFD700] border border-[#5A4535] px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-semibold shadow-md transition-all active:scale-95 cursor-pointer"
+            >
+              <span className="text-sm">🥋</span>
+              <span className="text-[10px] uppercase font-bold tracking-wider">
+                {stats.unlockedKimariteCount ?? 0}/{stats.totalKimariteCount ?? 8}
+              </span>
+            </button>
 
-          {/* Roster Catalog */}
-          <button
-            id="hud-tier-btn"
-            onClick={onOpenTierList}
-            title="11 Fruit Tiers Catalog"
-            className="p-1.5 sm:p-2 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] border border-[#3E342B] rounded-lg shadow-md transition-all active:scale-95 cursor-pointer"
-          >
-            <BookOpen size={16} />
-          </button>
+            {/* Roster Catalog */}
+            <button
+              id="hud-tier-btn"
+              onClick={onOpenTierList}
+              title="11 Fruit Tiers Catalog"
+              className="p-1.5 sm:p-2 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] border border-[#3E342B] rounded-lg shadow-md transition-all active:scale-95 cursor-pointer"
+            >
+              <BookOpen size={16} />
+            </button>
 
-          {/* Sound Toggle */}
-          <button
-            id="hud-sound-btn"
-            onClick={onToggleSound}
-            title={soundEnabled ? 'Mute Audio' : 'Unmute Audio'}
-            className="p-1.5 sm:p-2 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] border border-[#3E342B] rounded-lg shadow-md transition-all active:scale-95 cursor-pointer"
-          >
-            {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} className="text-[#E74C3C]" />}
-          </button>
+            {/* Sound Toggle */}
+            <button
+              id="hud-sound-btn"
+              onClick={onToggleSound}
+              title={soundEnabled ? 'Mute Audio' : 'Unmute Audio'}
+              className="p-1.5 sm:p-2 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] border border-[#3E342B] rounded-lg shadow-md transition-all active:scale-95 cursor-pointer"
+            >
+              {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} className="text-[#E74C3C]" />}
+            </button>
 
-          {/* Pause Toggle */}
-          <button
-            id="hud-pause-btn"
-            onClick={onTogglePause}
-            title={stats.isPaused ? 'Resume' : 'Pause'}
-            className="p-1.5 sm:p-2 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] border border-[#3E342B] rounded-lg shadow-md transition-all active:scale-95 cursor-pointer"
-          >
-            {stats.isPaused ? <Play size={16} /> : <Pause size={16} />}
-          </button>
+            {/* Pause Toggle */}
+            <button
+              id="hud-pause-btn"
+              onClick={onTogglePause}
+              title={stats.isPaused ? 'Resume' : 'Pause'}
+              className="p-1.5 sm:p-2 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] border border-[#3E342B] rounded-lg shadow-md transition-all active:scale-95 cursor-pointer"
+            >
+              {stats.isPaused ? <Play size={16} /> : <Pause size={16} />}
+            </button>
 
-          {/* Restart */}
+            {/* Restart */}
+            <button
+              id="hud-restart-btn"
+              onClick={onRestart}
+              title="Restart Match"
+              className="p-1.5 sm:p-2 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] border border-[#3E342B] rounded-lg shadow-md transition-all active:scale-95 cursor-pointer"
+            >
+              <RotateCcw size={16} />
+            </button>
+          </div>
+
+          {/* Dedicated Settings Button (Always visible on mobile, also available on desktop) */}
           <button
-            id="hud-restart-btn"
-            onClick={onRestart}
-            title="Restart Match"
-            className="p-1.5 sm:p-2 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] border border-[#3E342B] rounded-lg shadow-md transition-all active:scale-95 cursor-pointer"
+            id="hud-settings-btn"
+            onClick={onOpenSettings}
+            title="Settings & Match Menu"
+            className="p-1.5 sm:p-2 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] hover:text-[#FFD700] border border-[#5A4535] rounded-xl shadow-lg transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0"
           >
-            <RotateCcw size={16} />
+            <Settings size={18} className="transition-transform duration-300 hover:rotate-45" />
           </button>
         </div>
       </div>
 
-      {/* Sub-row: Combo Multiplier Banner & Next Fruits Queue */}
-      <div className="flex items-center justify-between gap-2 w-full">
-        {/* Upcoming Wrestlers Queue (Floating Top-Left) */}
-        <div className="flex items-center gap-2 bg-[#1C1814]/90 backdrop-blur-md border border-[#3E342B] px-3 py-1 rounded-xl shadow-lg pointer-events-auto">
-          <div className="text-[10px] uppercase font-bold text-[#A89886] tracking-wider">
+      {/* Row 2: Next Fruit Queue + Clean Status Info (No clutter of tiny buttons!) */}
+      <div className="flex items-center justify-between gap-1.5 sm:gap-2 w-full">
+        {/* Upcoming Wrestlers Queue */}
+        <div className="flex items-center gap-1.5 bg-[#1C1814]/90 backdrop-blur-md border border-[#3E342B] px-2.5 sm:px-3 py-1 rounded-xl shadow-lg pointer-events-auto shrink-0">
+          <div className="text-[9px] sm:text-[10px] uppercase font-bold text-[#A89886] tracking-wider">
             Next:
           </div>
           <div className="flex items-center gap-1.5 sm:gap-2">
             {/* Next 1 */}
             <div
-              className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg border border-[#44382E]"
-              style={{ backgroundColor: `${next1.color}22` }}
+              className="flex items-center gap-1 sm:gap-1.5 px-2 py-0.5 rounded-lg border border-[#44382E]"
+              style={{ backgroundColor: `${next1.color}25` }}
             >
               <div
-                className="w-3 h-3 rounded-full border border-black/40 shadow-sm"
+                className="w-3.5 h-3.5 rounded-full border border-black/50 shadow-sm flex items-center justify-center text-[8px] font-black text-white"
                 style={{ backgroundColor: next1.color }}
-              />
-              <span className="text-xs font-bold text-[#EDE2D4]">{next1.name}</span>
+              >
+                {next1.tier}
+              </div>
+              <span className="text-[11px] sm:text-xs font-bold text-[#EDE2D4]">
+                T{next1.tier} {next1.name}
+              </span>
             </div>
 
             {/* Next 2 */}
             <div
-              className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-lg border border-[#44382E] opacity-75"
-              style={{ backgroundColor: `${next2.color}22` }}
+              className="flex items-center gap-1 sm:gap-1.5 px-2 py-0.5 rounded-lg border border-[#44382E] opacity-80"
+              style={{ backgroundColor: `${next2.color}20` }}
             >
               <div
-                className="w-2.5 h-2.5 rounded-full border border-black/40 shadow-sm"
+                className="w-3 h-3 rounded-full border border-black/50 shadow-sm flex items-center justify-center text-[7px] font-black text-white"
                 style={{ backgroundColor: next2.color }}
-              />
-              <span className="text-[11px] font-medium text-[#D1C3B2]">{next2.name}</span>
+              >
+                {next2.tier}
+              </div>
+              <span className="text-[10px] sm:text-[11px] font-medium text-[#D1C3B2]">
+                T{next2.tier} {next2.name}
+              </span>
             </div>
           </div>
         </div>
 
-        {/* Career Stage & Rival Banner (if Career Mode) */}
-        {stats.gameMode === 'CAREER' && stats.currentRivalProfile && (
-          <div className="flex items-center gap-2 bg-[#1C1814]/90 backdrop-blur-md border border-[#E67E22] px-3 py-1 rounded-xl shadow-lg pointer-events-auto">
-            <div
-              className="w-3 h-3 rounded-full border border-black/40 shadow-sm shrink-0"
-              style={{ backgroundColor: stats.currentRivalProfile.color }}
-            />
-            <span className="text-[10px] uppercase font-black text-[#F39C12] tracking-wider">
-              Bout {stats.careerStageIndex + 1}/{stats.careerStageCount}:
-            </span>
-            <span className="text-xs font-bold text-white truncate max-w-[140px] sm:max-w-[200px]">
-              {stats.currentRivalProfile.name}
-            </span>
-          </div>
-        )}
+        {/* Right side of Row 2: Career Bout Tag or Combo Banner (Clean & purposeful, no mini buttons!) */}
+        <div className="flex items-center gap-2 pointer-events-auto">
+          {/* Career Stage & Rival Banner (if Career Mode) */}
+          {stats.gameMode === 'CAREER' && stats.currentRivalProfile && (
+            <div className="flex items-center gap-1.5 sm:gap-2 bg-[#1C1814]/90 backdrop-blur-md border border-[#E67E22] px-2.5 py-1 rounded-xl shadow-lg">
+              <div
+                className="w-2.5 h-2.5 rounded-full border border-black/40 shadow-sm shrink-0"
+                style={{ backgroundColor: stats.currentRivalProfile.color }}
+              />
+              <span className="text-[10px] font-black text-[#F39C12] tracking-wider">
+                Bout {stats.careerStageIndex + 1}/{stats.careerStageCount}
+              </span>
+            </div>
+          )}
 
-        {/* Combo Streak Multiplier (Floating Center-Right) */}
-        {stats.comboCount >= 2 && (
-          <div className="flex items-center gap-1.5 bg-[#E67E22] text-white px-3 py-1 rounded-full font-black text-xs shadow-lg animate-bounce pointer-events-auto border border-white/40">
-            <Flame size={14} className="text-[#FFD700]" />
-            <span>
-              {stats.comboCount}x COMBO! ({stats.comboMultiplier.toFixed(1)}x Pts)
-            </span>
-          </div>
-        )}
+          {/* Combo Streak Multiplier */}
+          {stats.comboCount >= 2 && (
+            <div className="flex items-center gap-1.5 bg-[#E67E22] text-white px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full font-black text-[11px] sm:text-xs shadow-lg animate-bounce border border-white/40">
+              <Flame size={13} className="text-[#FFD700]" />
+              <span>
+                {stats.comboCount}x COMBO! ({stats.comboMultiplier.toFixed(1)}x)
+              </span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Overflow Alarm Banner (when bowl capacity exceeded & protruding) */}

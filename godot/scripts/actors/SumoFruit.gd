@@ -133,6 +133,31 @@ func _draw() -> void:
 	# Specular Shine
 	draw_circle(Vector2(-r * 0.32, -r * 0.32), r * 0.22, Color(1, 1, 1, 0.45))
 
+	# 2.5 Distinct Botanical Traits (Cherry twin stems, Strawberry calyx/seeds, Apple stalk)
+	if data.tier == 2:
+		# Cherry: Twin green stems
+		draw_line(Vector2(0, -r * 0.7), Vector2(-r * 0.3, -r * 1.5), Color("#16A34A"), 2.2)
+		draw_line(Vector2(0, -r * 0.7), Vector2(r * 0.25, -r * 1.55), Color("#16A34A"), 2.2)
+		draw_circle(Vector2(-r * 0.1, -r * 1.45), r * 0.12, Color("#22C55E"))
+	elif data.tier == 4:
+		# Strawberry: Green leaf calyx & golden seeds
+		for i in range(5):
+			var angle = -PI / 2.0 + (i * TAU / 5.0)
+			var leaf_pos = Vector2(cos(angle) * (r * 0.5), -r * 0.75 + sin(angle) * (r * 0.3))
+			draw_circle(leaf_pos, r * 0.12, Color("#16A34A"))
+		draw_circle(Vector2(-r * 0.4, -r * 0.1), 2.0, Color("#FDE047"))
+		draw_circle(Vector2(r * 0.4, -r * 0.1), 2.0, Color("#FDE047"))
+		draw_circle(Vector2(-r * 0.25, r * 0.2), 2.0, Color("#FDE047"))
+		draw_circle(Vector2(r * 0.25, r * 0.2), 2.0, Color("#FDE047"))
+	elif data.tier == 7:
+		# Apple: Wood stem & green apple leaf
+		draw_line(Vector2(0, -r * 0.8), Vector2(r * 0.1, -r * 1.4), Color("#78350F"), 3.0)
+		draw_circle(Vector2(r * 0.3, -r * 1.25), r * 0.15, Color("#84CC16"))
+	elif data.tier == 10:
+		# Watermelon stripes
+		draw_line(Vector2(-r * 0.5, -r * 0.7), Vector2(-r * 0.5, r * 0.7), Color("#14532D"), 3.5)
+		draw_line(Vector2(r * 0.5, -r * 0.7), Vector2(r * 0.5, r * 0.7), Color("#14532D"), 3.5)
+
 	# 3. Traditional Chonmage Topknot (Hair knot on top)
 	var topknot_pos = Vector2(0, -r * 0.95)
 	draw_circle(topknot_pos, r * 0.18, Color("#1A1412"))
@@ -144,9 +169,14 @@ func _draw() -> void:
 	var mawashi_rect = Rect2(-mawashi_w * 0.5, r * 0.15, mawashi_w, mawashi_h)
 	draw_rect(mawashi_rect, data.mawashi_color)
 	draw_rect(mawashi_rect, Color(0, 0, 0, 0.3), false, 1.5)
-	# Center knot
-	draw_rect(Rect2(-r * 0.18, r * 0.1, r * 0.36, mawashi_h * 1.3), data.mawashi_color)
-	draw_rect(Rect2(-r * 0.18, r * 0.1, r * 0.36, mawashi_h * 1.3), Color(0, 0, 0, 0.4), false, 1.2)
+	# Center knot & Tier number
+	var knot_w = maxf(14.0, r * 0.4)
+	var knot_h = mawashi_h * 1.35
+	var knot_rect = Rect2(-knot_w * 0.5, r * 0.15 - (knot_h - mawashi_h) * 0.5, knot_w, knot_h)
+	draw_rect(knot_rect, Color("#181512"))
+	draw_rect(knot_rect, Color("#F59E0B"), false, 1.4)
+	var font_sz = int(clampf(knot_h * 0.85, 9.0, 15.0))
+	draw_string(ThemeDB.fallback_font, Vector2(-knot_w * 0.5, r * 0.15 + knot_h * 0.65), str(data.tier), HORIZONTAL_ALIGNMENT_CENTER, int(knot_w), font_sz, Color("#FFD700"))
 
 	# 5. Sumo Eyes & Expression
 	var eye_x = data.eye_offset

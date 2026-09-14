@@ -26,9 +26,9 @@ export const FRUIT_CATALOG: FruitTierData[] = [
     damp: 0.8,
     restitution: 0.85,
     resistance: 0.05,
-    color: '#4B69FD',
-    secondaryColor: '#2D44D2',
-    mawashiColor: '#FFFFFF',
+    color: '#3B82F6',
+    secondaryColor: '#1D4ED8',
+    mawashiColor: '#F8FAFC',
     faceDetails: { eyeOffset: 4, eyeSize: 3, pupilSize: 1.5, mawashiWidth: 4 }
   },
   {
@@ -39,9 +39,9 @@ export const FRUIT_CATALOG: FruitTierData[] = [
     damp: 0.9,
     restitution: 0.82,
     resistance: 0.10,
-    color: '#DE2638',
-    secondaryColor: '#A51624',
-    mawashiColor: '#FFEAA7',
+    color: '#991B1B', // Deep Bordeaux / Wine Ruby (rich dark cherry)
+    secondaryColor: '#5B0E1B',
+    mawashiColor: '#FFFFFF', // Clean white belt with black knot
     faceDetails: { eyeOffset: 6, eyeSize: 3.5, pupilSize: 1.8, mawashiWidth: 5 }
   },
   {
@@ -52,9 +52,9 @@ export const FRUIT_CATALOG: FruitTierData[] = [
     damp: 1.0,
     restitution: 0.80,
     resistance: 0.18,
-    color: '#6CE838',
-    secondaryColor: '#4CA822',
-    mawashiColor: '#2C3E50',
+    color: '#65A30D',
+    secondaryColor: '#3F6212',
+    mawashiColor: '#0F172A',
     faceDetails: { eyeOffset: 8, eyeSize: 4.5, pupilSize: 2.2, mawashiWidth: 6 }
   },
   {
@@ -65,9 +65,9 @@ export const FRUIT_CATALOG: FruitTierData[] = [
     damp: 1.1,
     restitution: 0.78,
     resistance: 0.28,
-    color: '#FF3B62',
-    secondaryColor: '#D11C41',
-    mawashiColor: '#F1C40F',
+    color: '#E11D48', // Vibrant Berry Pink / Fuchsia Rose (distinct from Cherry/Apple)
+    secondaryColor: '#9F1239',
+    mawashiColor: '#059669', // Fresh Emerald Green belt (matches leaf calyx)
     faceDetails: { eyeOffset: 10, eyeSize: 5.5, pupilSize: 2.5, mawashiWidth: 7 }
   },
   {
@@ -78,9 +78,9 @@ export const FRUIT_CATALOG: FruitTierData[] = [
     damp: 1.2,
     restitution: 0.75,
     resistance: 0.40,
-    color: '#FFB38A',
-    secondaryColor: '#E68555',
-    mawashiColor: '#8E44AD',
+    color: '#FB923C', // Warm pastel apricot peach
+    secondaryColor: '#EA580C',
+    mawashiColor: '#7C3AED', // Royal violet belt
     faceDetails: { eyeOffset: 13, eyeSize: 6.5, pupilSize: 3.0, mawashiWidth: 9 }
   },
   {
@@ -91,9 +91,9 @@ export const FRUIT_CATALOG: FruitTierData[] = [
     damp: 1.4,
     restitution: 0.72,
     resistance: 0.55,
-    color: '#FFA21F',
-    secondaryColor: '#D67600',
-    mawashiColor: '#16A085',
+    color: '#F97316', // Radiant Citrus Orange
+    secondaryColor: '#C2410C',
+    mawashiColor: '#0E7490', // Ocean teal belt
     faceDetails: { eyeOffset: 16, eyeSize: 8, pupilSize: 3.8, mawashiWidth: 11 }
   },
   {
@@ -104,9 +104,9 @@ export const FRUIT_CATALOG: FruitTierData[] = [
     damp: 1.6,
     restitution: 0.70,
     resistance: 0.70,
-    color: '#F02828',
-    secondaryColor: '#B51515',
-    mawashiColor: '#D35400',
+    color: '#DC2626', // Scarlet Crimson Apple
+    secondaryColor: '#7F1D1D',
+    mawashiColor: '#18181B', // Championship Kuro Jet Black with Gold buckle
     faceDetails: { eyeOffset: 20, eyeSize: 9.5, pupilSize: 4.5, mawashiWidth: 14 }
   },
   {
@@ -117,9 +117,9 @@ export const FRUIT_CATALOG: FruitTierData[] = [
     damp: 1.8,
     restitution: 0.68,
     resistance: 0.82,
-    color: '#B6E85B',
-    secondaryColor: '#89BD31',
-    mawashiColor: '#2980B9',
+    color: '#84CC16',
+    secondaryColor: '#4D7C0F',
+    mawashiColor: '#0284C7',
     faceDetails: { eyeOffset: 24, eyeSize: 11, pupilSize: 5.2, mawashiWidth: 17 }
   },
   {
@@ -130,9 +130,9 @@ export const FRUIT_CATALOG: FruitTierData[] = [
     damp: 2.0,
     restitution: 0.65,
     resistance: 0.92,
-    color: '#8B5A2B',
-    secondaryColor: '#5C3814',
-    mawashiColor: '#E74C3C',
+    color: '#78350F',
+    secondaryColor: '#451A03',
+    mawashiColor: '#F59E0B',
     faceDetails: { eyeOffset: 28, eyeSize: 13, pupilSize: 6.0, mawashiWidth: 20 }
   },
   {
@@ -143,9 +143,9 @@ export const FRUIT_CATALOG: FruitTierData[] = [
     damp: 2.3,
     restitution: 0.60,
     resistance: 0.98,
-    color: '#2BA84A',
-    secondaryColor: '#196E2F',
-    mawashiColor: '#9B59B6',
+    color: '#15803D',
+    secondaryColor: '#14532D',
+    mawashiColor: '#9333EA',
     faceDetails: { eyeOffset: 34, eyeSize: 15, pupilSize: 7.0, mawashiWidth: 24 }
   },
   {
@@ -156,9 +156,9 @@ export const FRUIT_CATALOG: FruitTierData[] = [
     damp: 3.0,
     restitution: 0.50,
     resistance: 1.00,
-    color: '#FFD700',
-    secondaryColor: '#D4AF37',
-    mawashiColor: '#C0392B', // Ceremonial red & gold
+    color: '#EAB308',
+    secondaryColor: '#CA8A04',
+    mawashiColor: '#B91C1C', // Ceremonial red & gold
     faceDetails: { eyeOffset: 42, eyeSize: 18, pupilSize: 8.5, mawashiWidth: 30 }
   }
 ];
@@ -205,6 +205,8 @@ export interface SumoFruitInstance {
   y: number;
   vx: number;
   vy: number;
+  spin?: number; // English gyro spin in rad/s (-15 to +15)
+  rotation?: number;
   state: FruitState;
   entryPending: boolean;
   rimPermission: boolean;
@@ -222,7 +224,7 @@ export interface SumoFruitInstance {
   wasInRimDanger?: boolean;
 }
 
-export type HazardKind = 'BUG' | 'ICE' | 'WASABI' | 'CHILI' | 'RIVAL';
+export type HazardKind = 'BUG' | 'ICE' | 'WASABI' | 'CHILI' | 'RIVAL' | 'GINKO_MAGNET';
 
 export interface HazardInstance {
   id: number;
@@ -353,6 +355,9 @@ export interface TechniqueRibbon {
   subtitle: string;
   color: string;
   duration: number;
+  kanji?: string;
+  icon?: string;
+  kimariteTag?: string;
 }
 
 export interface PhysicsTuning {
@@ -403,4 +408,37 @@ export interface TrajectoryPoint {
   y: number;
   impact?: boolean;
   boosted?: boolean;
+}
+
+export type MissionType =
+  | 'MERGES'
+  | 'COMBO_CHAIN'
+  | 'SALT_PURIFY'
+  | 'REACH_TIER'
+  | 'BANK_SHOTS'
+  | 'SCORE_TARGET'
+  | 'RIVAL_DEFEAT';
+
+export interface DailyMission {
+  id: string;
+  title: string;
+  description: string;
+  target: number;
+  current: number;
+  completed: boolean;
+  rewardScore: number;
+  icon: string;
+  category: 'DAILY' | 'CAREER';
+}
+
+export interface ComboEvent {
+  id: number;
+  comboCount: number;
+  multiplier: number;
+  x: number;
+  y: number;
+  timer: number;
+  maxTimer: number;
+  label: string;
+  color: string;
 }
