@@ -65,13 +65,18 @@ workflows:
 
       - name: Build signed IPA
         script: |
+          set -e
           xcode-project build-ipa \
             --project "$CM_BUILD_DIR/$XCODE_PROJECT" \
             --scheme "$XCODE_SCHEME" \
             --archive-flags "-clonedSourcePackagesDirPath $CM_BUILD_DIR/SourcePackages"
 
+          IPA_PATH="$(find "$CM_BUILD_DIR/build/ios/ipa" -maxdepth 1 -type f -name '*.ipa' -print -quit)"
+          test -n "$IPA_PATH"
+          echo "IPA ready for publishing: $IPA_PATH"
+
     artifacts:
-      - ios/App/build/ios/ipa/*.ipa
+      - build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
       - $HOME/Library/Developer/Xcode/DerivedData/**/Build/**/*.dSYM
 
