@@ -19,6 +19,9 @@ import {
 import { FusionResult, MergeClashManager } from '../physics/mergeClashManager';
 import {
   ArenaMode,
+  ArenaConditionState,
+  ArenaConditionType,
+  DailyBashoState,
   FRUIT_CATALOG,
   FruitTierData,
   GameModeType,
@@ -27,6 +30,7 @@ import {
   Particle,
   PhysicsTuning,
   RefereeCall,
+  RefereePriority,
   RivalIntent,
   RivalProfile,
   SaltZone,
@@ -35,11 +39,14 @@ import {
   TechniqueRibbon,
   TrajectoryPoint,
   SpinMode,
+  VersusState,
 } from '../types/game';
+import { ArenaConditionManager, CONDITION_METADATA } from './ArenaConditionManager';
 import { CareerManager } from './CareerManager';
 import { RefereeDirector } from './RefereeDirector';
 import { RIVAL_PROFILES, RivalSumoController } from './RivalSumo';
 import { TechniqueRibbonManager } from './TechniqueRibbonManager';
+import { VersusManager } from './VersusManager';
 
 export interface GameStats {
   score: number;
@@ -81,6 +88,9 @@ export interface GameStats {
   selectedSpinMode: SpinMode;
   unlockedKimariteCount: number;
   totalKimariteCount: number;
+  versus: VersusState | null;
+  arenaCondition: ArenaConditionState;
+  dailyBasho: DailyBashoState | null;
 }
 
 export class GameEngine {
@@ -98,6 +108,11 @@ export class GameEngine {
   public refereeDirector: RefereeDirector = new RefereeDirector();
   public techniqueRibbons: TechniqueRibbonManager = new TechniqueRibbonManager();
   public kimariteManager: KimariteManager = new KimariteManager();
+  public versusManager: VersusManager = new VersusManager();
+  public arenaConditionManager: ArenaConditionManager = new ArenaConditionManager();
+  public dailyBashoState: DailyBashoState | null = null;
+  public dailyRngSeed: number = 12345;
+  private dailyScoreRecorded = false;
   public gameMode: GameModeType = 'CLASSIC';
   public activeChallengeId: string | null = null;
 
@@ -151,6 +166,7 @@ export class GameEngine {
 
   // Gyōji (Sumo Referee) Callouts
   public activeRefereeCall: RefereeCall | null = null;
+  public totalSimTime = 0;
 
   // Physics Tuning
   public tuning: PhysicsTuning = {
@@ -206,7 +222,15 @@ export class GameEngine {
         '🥋',
         tech.category
       );
-      this.refereeDirector.triggerCall('決まり手', tech.nameRomaji.toUpperCase(), tech.title, '#FFD700', 'YOKOZUNA');
+      this.refereeDirector.triggerCall(
+        '決まり手',
+        tech.nameRomaji.toUpperCase(),
+        tech.title,
+        '#FFD700',
+        'KIMARITE',
+        2.5,
+        'kimarite'
+      );
       this.activeRefereeCall = this.refereeDirector.getActiveCall();
       sound.playTaikoRoll();
       haptics.trigger('FUSION');
@@ -232,6 +256,7 @@ export class GameEngine {
       escapeSpeedThreshold: this.tuning.escapeSpeed,
       capacityFactor: 0.82,
     };
+    this.arenaConditionManager.syncArenaRadius(radius);
 
     this.launcherPos = {
       x: centerX,
@@ -261,6 +286,9 @@ export class GameEngine {
 
   public setSpinMode(mode: SpinMode) {
     this.selectedSpinMode = mode;
+    if (this.gameMode === 'VERSUS') {
+      this.versusManager.setSpinModeForCurrentPlayer(mode);
+    }
     if (mode === 'LEFT') {
       this.launcherSpin = -0.75;
     } else if (mode === 'RIGHT') {
@@ -305,6 +333,19 @@ export class GameEngine {
   public setGameMode(mode: GameModeType, challengeId?: string) {
     this.gameMode = mode;
     this.activeChallengeId = challengeId || null;
+
+    if (mode === 'DAILY') {
+      const daily = ArenaConditionManager.generateDailyBasho();
+      this.dailyBashoState = daily;
+      this.dailyRngSeed = daily.seed;
+      this.arenaConditionManager.setSeed(daily.seed);
+      this.arenaConditionManager.setCondition(daily.condition, this.arena.radius);
+    } else {
+      this.dailyBashoState = null;
+      this.arenaConditionManager.setSeed(null);
+      this.arenaConditionManager.setCondition('NONE', this.arena.radius);
+    }
+
     this.restart();
 
     if (mode === 'CAREER') {
@@ -323,10 +364,39 @@ export class GameEngine {
         });
       }
       this.triggerRefereeCall('巡業', 'FESTIVAL CHALLENGE', challengeId.replace('_', ' '), '#E74C3C', 'shobu');
+    } else if (mode === 'VERSUS') {
+      this.setArenaMode('CIRCULAR');
+      this.triggerRefereeCall('対戦開始', 'LOCAL SHOWDOWN', 'East (東) vs West (西) Dohyō Bout!', '#FFD700', 'hakkeyoi');
+    } else if (mode === 'DAILY' && this.dailyBashoState) {
+      this.setArenaMode('CIRCULAR');
+      const condName = CONDITION_METADATA[this.dailyBashoState.condition].nameRomaji;
+      this.triggerRefereeCall(
+        '日替場所',
+        'DAILY BASHO',
+        `${this.dailyBashoState.title} • ${condName}`,
+        '#FFD700',
+        'fever',
+        'MATCH_RESULT'
+      );
     } else {
       this.setArenaMode('CIRCULAR');
       this.triggerRefereeCall('初日', 'CLASSIC BOWL', 'Traditional Dohyō Bout', '#2ECC71', 'hakkeyoi');
     }
+    this.emitStats();
+  }
+
+  public setArenaCondition(condition: ArenaConditionType) {
+    if (this.gameMode === 'DAILY') return;
+    this.arenaConditionManager.setCondition(condition, this.arena.radius);
+    const meta = CONDITION_METADATA[condition];
+    this.triggerRefereeCall(
+      meta.nameJp,
+      meta.nameRomaji.toUpperCase(),
+      meta.description,
+      meta.badgeColor,
+      'kiyome',
+      'ORDINARY'
+    );
     this.emitStats();
   }
 
@@ -343,13 +413,11 @@ export class GameEngine {
     textRomaji: string,
     subText: string,
     color: string,
-    soundType?: 'hakkeyoi' | 'nokotta' | 'shobu' | 'fever' | 'kinboshi' | 'kiyome'
+    soundType?: 'hakkeyoi' | 'nokotta' | 'shobu' | 'yokozuna' | 'kinboshi' | 'personal_best' | 'kimarite' | 'fever' | 'kiyome',
+    priority: RefereePriority = 'ORDINARY'
   ) {
-    this.refereeDirector.triggerCall(textJp, textRomaji, subText, color, 'ORDINARY', 1.8);
+    this.refereeDirector.triggerCall(textJp, textRomaji, subText, color, priority, 1.8, soundType);
     this.activeRefereeCall = this.refereeDirector.getActiveCall();
-    if (soundType) {
-      sound.playRefereeCall(soundType);
-    }
     this.emitStats();
   }
 
@@ -363,7 +431,7 @@ export class GameEngine {
     if (this.crowdHype >= 100 && this.festivalReadyShots <= 0) {
       this.festivalReadyShots = 3;
       this.crowdHype = 0;
-      this.refereeDirector.triggerCall('大入り', 'FESTIVAL READY!', 'NEXT 3 SHOTS 2X MERGE SCORE!', '#FFD700', 'YOKOZUNA');
+      this.refereeDirector.triggerCall('大入り', 'FESTIVAL READY!', 'NEXT 3 SHOTS 2X MERGE SCORE!', '#FFD700', 'YOKOZUNA', 2.8, 'fever');
       this.activeRefereeCall = this.refereeDirector.getActiveCall();
       sound.playTaikoFlourish();
       this.spawnConfetti(this.arena.centerX, this.arena.centerY, 60);
@@ -374,7 +442,11 @@ export class GameEngine {
 
   // Sacred Salt Ability
   public enterSaltTargeting() {
-    if (this.saltCharges <= 0 || this.isGameOver || this.isPaused) return;
+    if (this.gameMode === 'VERSUS') {
+      if (!this.versusManager.canThrowSalt() || this.isGameOver || this.isPaused) return;
+    } else {
+      if (this.saltCharges <= 0 || this.isGameOver || this.isPaused) return;
+    }
     this.isSaltTargeting = true;
     this.saltTargetPos = { x: this.arena.centerX, y: this.arena.centerY };
     this.emitStats();
@@ -386,11 +458,13 @@ export class GameEngine {
   }
 
   public throwSalt(targetX?: number, targetY?: number): boolean {
-    if (this.saltCharges <= 0 || this.isGameOver || this.isPaused) return false;
-
-    // Deduct charge
-    this.saltCharges = 0;
-    this.saltLaunchCount = 0;
+    if (this.gameMode === 'VERSUS') {
+      if (!this.versusManager.consumeSalt() || this.isGameOver || this.isPaused) return false;
+    } else {
+      if (this.saltCharges <= 0 || this.isGameOver || this.isPaused) return false;
+      this.saltCharges = 0;
+      this.saltLaunchCount = 0;
+    }
     this.isSaltTargeting = false;
 
     const x = targetX ?? this.saltTargetPos.x ?? this.arena.centerX;
@@ -453,10 +527,22 @@ export class GameEngine {
 
   private rollSpawnTier(): number {
     // Spawnable tiers are 1-3
-    const r = Math.random();
+    let r: number;
+    if (this.gameMode === 'DAILY' && this.dailyBashoState) {
+      this.dailyRngSeed = (this.dailyRngSeed * 9301 + 49297) % 233280;
+      r = this.dailyRngSeed / 233280;
+    } else {
+      r = Math.random();
+    }
     if (r < 0.55) return 1;
     if (r < 0.85) return 2;
     return 3;
+  }
+
+  private gameplayRandom(): number {
+    if (this.gameMode !== 'DAILY' || !this.dailyBashoState) return Math.random();
+    this.dailyRngSeed = (this.dailyRngSeed * 9301 + 49297) % 233280;
+    return this.dailyRngSeed / 233280;
   }
 
   public addScore(amount: number) {
@@ -480,7 +566,15 @@ export class GameEngine {
           '最高',
           '🏆'
         );
-        this.refereeDirector.triggerCall('最高得点', 'NEW RECORD!', `${this.highScore.toLocaleString()} PTS!`, '#FFD700', 'YOKOZUNA');
+        this.refereeDirector.triggerCall(
+          '最高得点',
+          'SAIKŌ TOKUTEN!',
+          `${this.highScore.toLocaleString()} PTS!`,
+          '#FFD700',
+          'PERSONAL_BEST',
+          3.0,
+          'personal_best'
+        );
         this.activeRefereeCall = this.refereeDirector.getActiveCall();
         sound.playTaikoFlourish();
         this.spawnConfetti(this.arena.centerX, this.arena.centerY - 50, 40);
@@ -489,6 +583,15 @@ export class GameEngine {
   }
 
   public restart() {
+    if (this.gameMode === 'VERSUS') this.versusManager.reset();
+    this.rivalController.reset();
+    const condition = this.dailyBashoState?.condition ?? this.arenaConditionManager.state.type;
+    if (this.dailyBashoState) {
+      this.dailyRngSeed = this.dailyBashoState.seed;
+      this.arenaConditionManager.setSeed(this.dailyBashoState.seed);
+    }
+    this.arenaConditionManager.setCondition(condition, this.arena.radius);
+    this.dailyScoreRecorded = false;
     this.fruits = [];
     this.hazards = [];
     this.particles = [];
@@ -537,8 +640,22 @@ export class GameEngine {
   }
 
   public loadNextFruit() {
-    const tier = this.upcomingTiers[0];
-    this.upcomingTiers = [this.upcomingTiers[1], this.rollSpawnTier()];
+    let tier: number;
+    let team: 'PLAYER' | 'PLAYER_1' | 'PLAYER_2' = 'PLAYER';
+
+    if (this.gameMode === 'VERSUS') {
+      const consumed = this.versusManager.consumeCurrentLoadedTier();
+      tier = consumed.tier;
+      team = this.versusManager.state.playerTurn === 1 ? 'PLAYER_1' : 'PLAYER_2';
+      this.upcomingTiers = this.versusManager.state.playerTurn === 1
+        ? this.versusManager.state.p1NextTiers
+        : this.versusManager.state.p2NextTiers;
+      this.selectedSpinMode = this.versusManager.getActiveSpinMode();
+      this.launcherSpin = this.selectedSpinMode === 'LEFT' ? -0.75 : this.selectedSpinMode === 'RIGHT' ? 0.75 : 0;
+    } else {
+      tier = this.upcomingTiers[0];
+      this.upcomingTiers = [this.upcomingTiers[1], this.rollSpawnTier()];
+    }
 
     const catalog = FRUIT_CATALOG[tier - 1];
     const fruit: SumoFruitInstance = {
@@ -549,7 +666,7 @@ export class GameEngine {
       vx: 0,
       vy: 0,
       state: 'IDLE',
-      team: 'PLAYER',
+      team,
       entryPending: true,
       rimPermission: false,
       clashId: null,
@@ -712,26 +829,62 @@ export class GameEngine {
         haptics.trigger('MEDIUM');
       }
 
+      // Arena condition shot trigger (Closing ring count, etc.)
+      const shrinkRes = this.arenaConditionManager.onShotCommitted(this.totalShots, this.arena.radius);
+      if (shrinkRes.shrunk) {
+        this.refereeDirector.triggerCall(
+          '縮小土俵',
+          'DOHYŌ SHRINKS!',
+          `LEGAL RING AT ${Math.round(shrinkRes.newRatio * 100)}%!`,
+          '#E74C3C',
+          'EDGE_DANGER',
+          2.5,
+          'nokotta'
+        );
+        this.activeRefereeCall = this.refereeDirector.getActiveCall();
+        this.techniqueRibbons.addRibbon(
+          'Dohyō Shrinks!',
+          `Legal boundary contracted to ${Math.round(shrinkRes.newRatio * 100)}%`,
+          '#E74C3C',
+          2.5,
+          '縮',
+          '⚠️'
+        );
+        sound.playTaiko(0.9);
+        this.triggerCameraTrauma(0.2);
+      }
+
       // Notify Rival Controller (never retargets mid-shot; executes or plans)
       this.rivalController.onPlayerLaunchCommitted(this.arena, this.fruits);
 
       sound.playLaunch(cat.mass);
       this.triggerCameraTrauma(0.08);
 
-      // Gyōji callout: HAKKEYOI!
-      this.triggerRefereeCall('発気揚々', 'HAKKEYOI!', 'TACHIAI CHARGE!', '#2ECC71', 'hakkeyoi');
+      if (this.gameMode === 'VERSUS') {
+        const activeTurn = this.versusManager.state.playerTurn;
+        this.versusManager.onPlayerLaunch();
+        const turnName = activeTurn === 1 ? '東方発気' : '西方発気';
+        const turnSub = activeTurn === 1 ? 'EAST (HIGASHI) LAUNCH!' : 'WEST (NISHI) LAUNCH!';
+        const turnColor = activeTurn === 1 ? '#E74C3C' : '#3498DB';
+        this.triggerRefereeCall(turnName, 'HAKKEYOI!', turnSub, turnColor, 'hakkeyoi', 'TACHIAI');
+      } else {
+        // Gyōji callout: HAKKEYOI!
+        this.triggerRefereeCall('発気揚々', 'HAKKEYOI!', 'TACHIAI CHARGE!', '#2ECC71', 'hakkeyoi', 'TACHIAI');
+      }
 
       this.loadedFruit = null;
       this.trajectoryPoints = [];
       this.touchSpinModifier = null;
       this.refreshLauncherSpin();
 
-      // Cooldown before loading next fruit (ensures smooth shot rhythm)
-      setTimeout(() => {
-        if (!this.isGameOver && !this.loadedFruit) {
-          this.loadNextFruit();
-        }
-      }, 550);
+      if (this.gameMode !== 'VERSUS') {
+        // Cooldown before loading next fruit (ensures smooth shot rhythm)
+        setTimeout(() => {
+          if (!this.isGameOver && !this.loadedFruit) {
+            this.loadNextFruit();
+          }
+        }, 550);
+      }
 
       return true;
     } else {
@@ -740,7 +893,8 @@ export class GameEngine {
       this.loadedFruit.y = this.launcherPos.y;
       this.loadedFruit.state = 'IDLE';
       this.trajectoryPoints = [];
-      this.launcherSpin = this.selectedSpinMode === 'LEFT' ? -0.7 : this.selectedSpinMode === 'RIGHT' ? 0.7 : 0;
+      this.touchSpinModifier = null;
+      this.refreshLauncherSpin();
       return false;
     }
   }
@@ -775,11 +929,19 @@ export class GameEngine {
         x: f.x,
         y: f.y,
         radius: FRUIT_CATALOG[f.tier - 1].radius,
-      }));
+      }))
+      .concat(
+        this.hazards
+          .filter((h) => !h.ringOut)
+          .map((h) => ({ x: h.x, y: h.y, radius: h.radius }))
+      );
+
+    const windAcc = this.arenaConditionManager.getWindAcceleration(cat.mass);
+    const extraDamp = this.arenaConditionManager.getExtraDamping();
 
     this.trajectoryPoints = predictTrajectory(
-      this.launcherPos.x,
-      this.launcherPos.y,
+      this.dragPos.x,
+      this.dragPos.y,
       launchVx,
       launchVy,
       cat,
@@ -787,7 +949,10 @@ export class GameEngine {
       this.arena,
       1.2,
       45,
-      this.launcherSpin * 12.0
+      this.launcherSpin * 12.0,
+      extraDamp,
+      windAcc.ax,
+      windAcc.ay
     );
   }
 
@@ -806,6 +971,10 @@ export class GameEngine {
    */
   public update(realDt: number) {
     if (this.isPaused || this.isGameOver) return;
+    if (
+      this.gameMode === 'VERSUS' &&
+      (this.versusManager.state.isHandoverPending || this.versusManager.state.isMatchOver)
+    ) return;
 
     // Handle hit-stop (Engine.time_scale = 0.05 during hit-stop)
     let timeScale = 1.0;
@@ -814,6 +983,7 @@ export class GameEngine {
       timeScale = this.tuning.hitStopScale;
     }
     const dt = realDt * timeScale;
+    this.totalSimTime += dt;
 
     // Combo timer decay
     if (this.comboTimer > 0) {
@@ -835,14 +1005,6 @@ export class GameEngine {
       if (this.feverTimer <= 0) {
         this.isFever = false;
         this.crowdHype = 0;
-      }
-    }
-
-    // Gyōji banner timer decay
-    if (this.activeRefereeCall) {
-      this.activeRefereeCall.duration -= dt;
-      if (this.activeRefereeCall.duration <= 0) {
-        this.activeRefereeCall = null;
       }
     }
 
@@ -903,6 +1065,9 @@ export class GameEngine {
     this.refereeDirector.update(dt);
     this.activeRefereeCall = this.refereeDirector.getActiveCall();
     this.techniqueRibbons.update(dt);
+    if (this.gameMode === 'VERSUS') {
+      this.versusManager.updateTugOfWar(this.fruits);
+    }
 
     // Step 0.5: Rival Sumo Controller Update (Executing moves or planning)
     if (this.rivalController.fruitInstance && this.rivalController.fruitInstance.state !== 'RING_OUT') {
@@ -945,6 +1110,16 @@ export class GameEngine {
       if ((allSettled && !hasActiveClashes && this.shotSettlementTimer > 0.45) || this.shotSettlementTimer > 3.2) {
         this.shotState = 'IDLE';
         this.rivalController.planNextIntent(this.arena, this.fruits);
+        if (this.arenaConditionManager.state.type === 'KAMIKAZE_WIND') {
+          this.arenaConditionManager.scheduleNewWind();
+        }
+
+        if (this.gameMode === 'VERSUS') {
+          if (!this.versusManager.state.isMatchOver) {
+            this.versusManager.advanceTurn();
+            this.emitStats();
+          }
+        }
       }
     }
 
@@ -966,6 +1141,25 @@ export class GameEngine {
     // Step 4: Resolve Body-to-Body Collisions & Pair Transactions
     this.resolveCollisions();
 
+    // Step 4.5: Closing Ring Out-of-bounds Check
+    if (this.arenaConditionManager.state.type === 'CLOSING_RING') {
+      const { eliminatedIds } = this.arenaConditionManager.updateOutOfBounds(
+        this.fruits,
+        this.arena.centerX,
+        this.arena.centerY,
+        dt
+      );
+      for (const elimId of eliminatedIds) {
+        const fruit = this.fruits.find((f) => f.id === elimId);
+        if (fruit && fruit.state === 'IN_RING') {
+          fruit.state = 'RING_OUT';
+          this.spawnSparks(fruit.x, fruit.y, '#E74C3C', 18);
+          this.commitRingOut(fruit);
+          this.techniqueRibbons.addRibbon('Ring Out!', 'Eliminated by closing ring boundary!', '#E74C3C', 2.5, '場外', '⚡');
+        }
+      }
+    }
+
     // Step 5: Capacity & 2.0s Overflow Check
     this.checkCapacityAndOverflow(dt);
 
@@ -974,6 +1168,8 @@ export class GameEngine {
 
     // Step 7: Update Particles
     this.updateParticles(dt);
+
+    this.finalizeDailyBashoIfNeeded();
 
     this.emitStats();
   }
@@ -1006,7 +1202,7 @@ export class GameEngine {
 
       // Inward bowl acceleration (elliptical and wobble responsive)
       const { ax, ay } = getBowlAcceleration(fruit.x, fruit.y, this.arena);
-      const metrics = getBowlMetrics(fruit.x, fruit.y, cat.radius, this.arena);
+      let metrics = getBowlMetrics(fruit.x, fruit.y, cat.radius, this.arena);
 
       // Check if fruit is inside a sacred salt zone (explicit directional braking)
       let inSaltZone = false;
@@ -1031,9 +1227,15 @@ export class GameEngine {
       fruit.x += fruit.vx * dt;
       fruit.y += fruit.vy * dt;
 
-      const damping = Math.max(0, 1 - cat.damp * dt);
-      fruit.vx = (fruit.vx + ax * dt) * damping;
-      fruit.vy = (fruit.vy + ay * dt) * damping;
+      // Arena condition: Kamikaze Wind and Grippy Clay
+      const windAcc = this.arenaConditionManager.getWindAcceleration(cat.mass);
+      const extraDamping = this.arenaConditionManager.getExtraDamping();
+      const totalDamp = cat.damp + extraDamping;
+      const damping = Math.max(0, 1 - totalDamp * dt);
+
+      fruit.vx = (fruit.vx + (ax + windAcc.ax) * dt) * damping;
+      fruit.vy = (fruit.vy + (ay + windAcc.ay) * dt) * damping;
+      metrics = getBowlMetrics(fruit.x, fruit.y, cat.radius, this.arena);
 
       // Sacred Salt Braking Formula: a_salt = -gamma_salt * v - k_brake * max(0, v . n_out) * n_out
       if (inSaltZone) {
@@ -1120,6 +1322,10 @@ export class GameEngine {
         }
 
         // Rim permission logic based on straw bale integrity
+        if (metrics.dSurface <= 0) {
+          fruit.spin = 0;
+          fruit.spinActive = false;
+        }
         if (metrics.dSurface <= 15 && vOut >= escapeThreshold) {
           fruit.rimPermission = true;
         } else if (metrics.dSurface > 25) {
@@ -1174,8 +1380,33 @@ export class GameEngine {
         }
       }
 
-      // "Not Today!" Tawara Rim Save detection (only for active fruits already inside the ring)
+      // "Not Today!" Tawara Rim Save and Edge Danger detection (only for active fruits already inside the ring)
       if (fruit.hasEnteredRing && !fruit.entryPending) {
+        // Edge danger struggle check (outer 8% danger zone)
+        if (metrics.dSurface <= this.arena.radius * 0.08 && (vOut > 10 || Math.hypot(fruit.vx, fruit.vy) > 25)) {
+          if (this.refereeDirector.canTriggerEdgeDanger(fruit.id, this.totalSimTime)) {
+            this.refereeDirector.triggerCall(
+              '残った',
+              'NOKOTTA! NOKOTTA!',
+              'RIM DANGER STRUGGLE!',
+              '#E67E22',
+              'EDGE_DANGER',
+              1.6,
+              'nokotta'
+            );
+            this.activeRefereeCall = this.refereeDirector.getActiveCall();
+            this.techniqueRibbons.addRibbon(
+              'Nokotta!',
+              'Rim struggle on the bales!',
+              '#E67E22',
+              2.0,
+              '残',
+              '⚔️',
+              'DEFENSE'
+            );
+          }
+        }
+
         // Did fruit enter critical rim danger?
         if (metrics.dSurface <= 22 && vOut > 15) {
           fruit.wasInRimDanger = true;
@@ -1275,7 +1506,7 @@ export class GameEngine {
       if (hazard.kind === 'RIVAL') {
         hazard.aiChargeTimer = (hazard.aiChargeTimer || 1.8) - dt;
         if (hazard.aiChargeTimer <= 0) {
-          hazard.aiChargeTimer = 1.8 + Math.random() * 1.2;
+          hazard.aiChargeTimer = 1.8 + this.gameplayRandom() * 1.2;
           // Target closest player fruit and charge towards it
           let targetFruit: SumoFruitInstance | null = null;
           let minDist = 9999;
@@ -1608,6 +1839,11 @@ export class GameEngine {
 
     const catNext = FRUIT_CATALOG[fusion.newTier - 1];
 
+    const newFruitTeam =
+      fusion.owner === 'PLAYER_1' || fusion.owner === 'PLAYER_2'
+        ? fusion.owner
+        : 'PLAYER';
+
     const newFruit: SumoFruitInstance = {
       id: this.nextEntityId++,
       tier: fusion.newTier,
@@ -1616,7 +1852,7 @@ export class GameEngine {
       vx: fusion.spawnVx,
       vy: fusion.spawnVy,
       state: 'IN_RING',
-      team: 'PLAYER',
+      team: newFruitTeam,
       entryPending: false,
       rimPermission: false,
       clashId: null,
@@ -1659,7 +1895,14 @@ export class GameEngine {
 
     const baseScore = fusion.score;
     const finalScore = Math.round(baseScore * finalMult);
-    this.addScore(finalScore);
+    if (this.gameMode === 'VERSUS') {
+      const scoringPlayer =
+        fusion.owner === 'PLAYER_1' ? 1 : fusion.owner === 'PLAYER_2' ? 2 : this.versusManager.state.playerTurn;
+      this.versusManager.addScore(scoringPlayer, finalScore);
+      this.score = this.versusManager.state.p1Score + this.versusManager.state.p2Score;
+    } else {
+      this.addScore(finalScore);
+    }
     this.highestTier = Math.max(this.highestTier, fusion.newTier);
     this.addHype(12);
 
@@ -1702,7 +1945,15 @@ export class GameEngine {
 
     // Dynamic Gyōji Callouts on milestones
     if (fusion.newTier >= 10 || fusion.isYokozuna) {
-      this.refereeDirector.triggerCall('横綱昇進', 'YOKOZUNA ASCENSION!', 'SUPREME PINEAPPLE DEITY!', '#FFD700', 'YOKOZUNA');
+      this.refereeDirector.triggerCall(
+        '横綱昇進',
+        'YOKOZUNA ASCENSION!',
+        'SUPREME PINEAPPLE DEITY!',
+        '#FFD700',
+        'YOKOZUNA',
+        3.5,
+        'yokozuna'
+      );
       this.activeRefereeCall = this.refereeDirector.getActiveCall();
       this.techniqueRibbons.addRibbon(
         'Yokozuna Divine',
@@ -1778,7 +2029,15 @@ export class GameEngine {
       this.addHype(25);
       this.kinboshiFlashTimer = 0.35;
       this.triggerHitStop(0.08);
-      this.refereeDirector.triggerCall('金星', 'KINBOSHI!', 'RIVAL YORIKIRI DEFEAT!', '#FFD700', 'RIVAL_DEFEAT');
+      this.refereeDirector.triggerCall(
+        '金星',
+        'KINBOSHI!',
+        'RIVAL YORIKIRI DEFEAT!',
+        '#FFD700',
+        'RIVAL_DEFEAT',
+        2.5,
+        'kinboshi'
+      );
       this.activeRefereeCall = this.refereeDirector.getActiveCall();
       this.techniqueRibbons.addRibbon(
         'Kinboshi Victory!',
@@ -1798,10 +2057,75 @@ export class GameEngine {
           this.techniqueRibbons.addRibbon('Stage Cleared!', 'Next Banzuke bout unlocked!', '#2ECC71', 3.0, '勝星', '🏆');
         } else {
           this.techniqueRibbons.addRibbon('Yokozuna Beaten!', 'You are the Grand Champion!', '#FFD700', 4.0, '優勝', '👑');
+          this.refereeDirector.triggerCall('天下統一', 'EMPEROR CUP VICTORY!', 'CAREER BANZUKE CONQUERED!', '#FFD700', 'MATCH_RESULT', 3.5, 'shobu');
+          this.activeRefereeCall = this.refereeDirector.getActiveCall();
         }
       }
       this.triggerCameraTrauma(0.4);
       this.spawnSplash(fruit.x, fruit.y, this.rivalController.profile.color);
+      return;
+    }
+
+    if (this.gameMode === 'VERSUS') {
+      const isP1 = fruit.team === 'PLAYER_1' || fruit.team === 'PLAYER';
+      const winner: 1 | 2 = isP1 ? 2 : 1;
+      const loserName = isP1 ? 'Player 1 (East 東)' : 'Player 2 (West 西)';
+      const winnerName = isP1 ? 'Player 2 (West 西)' : 'Player 1 (East 東)';
+      const winColor = winner === 1 ? '#E74C3C' : '#3498DB';
+
+      this.versusManager.addScore(winner, 350);
+      this.score = this.versusManager.state.p1Score + this.versusManager.state.p2Score;
+      this.ringOutFlashTimer = 0.45;
+      this.triggerHitStop(0.12);
+      sound.playRingOut();
+      this.triggerCameraTrauma(0.45);
+      this.spawnSplash(fruit.x, fruit.y, FRUIT_CATALOG[fruit.tier - 1].color);
+
+      this.techniqueRibbons.addRibbon(
+        'Oshidashi Push-Out!',
+        `${loserName}'s ${FRUIT_CATALOG[fruit.tier - 1].name} forced out!`,
+        winColor,
+        3.5,
+        '勝星',
+        '⭐',
+        'KIMARITE'
+      );
+
+      const boutOutcome = this.versusManager.recordBoutVictory(
+        winner,
+        'Oshidashi Push-Out',
+        '押し出し',
+        fruit.tier
+      );
+
+      if (boutOutcome.isMatchOver) {
+        this.refereeDirector.triggerCall(
+          '天下統一',
+          'MATCH DECIDED!',
+          `${winnerName} WINS EMPEROR'S CUP!`,
+          '#FFD700',
+          'MATCH_RESULT',
+          3.5,
+          'shobu'
+        );
+        this.activeRefereeCall = this.refereeDirector.getActiveCall();
+        sound.playTaikoRoll();
+        this.spawnConfetti(this.arena.centerX, this.arena.centerY, 80);
+        this.triggerCameraTrauma(0.5);
+      } else {
+        this.refereeDirector.triggerCall(
+          '勝負あり',
+          'SHŌBU ARI!',
+          `${winnerName} WINS BOUT ${this.versusManager.state.currentBout - 1}!`,
+          winColor,
+          'MATCH_RESULT',
+          2.5,
+          'shobu'
+        );
+        this.activeRefereeCall = this.refereeDirector.getActiveCall();
+        sound.playTaikoFlourish();
+        this.spawnConfetti(this.arena.centerX, this.arena.centerY, 40);
+      }
       return;
     }
 
@@ -1824,10 +2148,26 @@ export class GameEngine {
     if (this.lives <= 0) {
       this.isGameOver = true;
       this.gameOverReason = 'All 3 wrestlers were pushed out of the dohyō!';
+      this.refereeDirector.triggerCall(
+        '勝負あり',
+        'SHŌBU ARI!',
+        'ALL RIKISHI PUSHED OUT!',
+        '#E74C3C',
+        'MATCH_RESULT',
+        3.0,
+        'shobu'
+      );
+      this.activeRefereeCall = this.refereeDirector.getActiveCall();
     }
   }
 
   private checkCapacityAndOverflow(dt: number) {
+    if (this.arenaConditionManager.state.type === 'CLOSING_RING') {
+      this.isOverflowing = false;
+      this.overflowTimer = 0;
+      return;
+    }
+
     // A_occupied = sum(pi * r_i^2) + sum(A_hazard)
     let occupiedArea = 0;
     let anyProtruding = false;
@@ -1859,6 +2199,16 @@ export class GameEngine {
       if (this.overflowTimer >= 2.0) {
         this.isGameOver = true;
         this.gameOverReason = 'Dohyō capacity exceeded! The bowl overflowed!';
+        this.refereeDirector.triggerCall(
+          '勝負あり',
+          'SHŌBU ARI!',
+          'DOHYŌ CAPACITY OVERFLOW!',
+          '#E74C3C',
+          'MATCH_RESULT',
+          3.0,
+          'shobu'
+        );
+        this.activeRefereeCall = this.refereeDirector.getActiveCall();
       }
     } else {
       this.isOverflowing = false;
@@ -1867,11 +2217,12 @@ export class GameEngine {
   }
 
   private updateHazardDirector(dt: number) {
+    if (this.gameMode === 'VERSUS') return;
     if (this.totalShots < 3) return; // No hazards during first few shots
 
     this.hazardSpawnCooldown -= dt;
     if (this.hazardSpawnCooldown <= 0 && this.hazards.length < 4) {
-      this.hazardSpawnCooldown = 7.0 + Math.random() * 5.0;
+      this.hazardSpawnCooldown = 7.0 + this.gameplayRandom() * 5.0;
       this.spawnHazard();
     }
 
@@ -1880,14 +2231,14 @@ export class GameEngine {
     if (!hasRival && this.totalShots >= 5) {
       this.rivalSpawnTimer -= dt;
       if (this.rivalSpawnTimer <= 0) {
-        this.rivalSpawnTimer = 24.0 + Math.random() * 8.0;
+        this.rivalSpawnTimer = 24.0 + this.gameplayRandom() * 8.0;
         this.spawnRival();
       }
     }
   }
 
   private spawnRival() {
-    const angle = Math.random() * Math.PI * 2;
+    const angle = this.gameplayRandom() * Math.PI * 2;
     const r = this.arena.radius * 0.45;
     const x = this.arena.centerX + Math.cos(angle) * r;
     const y = this.arena.centerY + Math.sin(angle) * r;
@@ -1920,7 +2271,7 @@ export class GameEngine {
   }
 
   private spawnHazard() {
-    const roll = Math.random();
+    const roll = this.gameplayRandom();
     let kind: HazardKind = 'BUG';
     let name = 'Rotten Beetle';
     let radius = 18;
@@ -1973,8 +2324,8 @@ export class GameEngine {
 
     // Find safe spawn location within bowl
     for (let attempt = 0; attempt < 8; attempt++) {
-      const angle = Math.random() * Math.PI * 2;
-      const r = Math.random() * (this.arena.radius * 0.65);
+      const angle = this.gameplayRandom() * Math.PI * 2;
+      const r = this.gameplayRandom() * (this.arena.radius * 0.65);
       const x = this.arena.centerX + Math.cos(angle) * r;
       const y = this.arena.centerY + Math.sin(angle) * r;
 
@@ -2137,6 +2488,49 @@ export class GameEngine {
     }
   }
 
+  private finalizeDailyBashoIfNeeded() {
+    if (
+      !this.isGameOver ||
+      this.gameMode !== 'DAILY' ||
+      !this.dailyBashoState ||
+      this.dailyScoreRecorded
+    ) return;
+
+    this.dailyScoreRecorded = true;
+    const result = ArenaConditionManager.recordDailyBashoScore(
+      this.dailyBashoState.dateStr,
+      this.score,
+      true
+    );
+    this.dailyBashoState.highScore = result.highScore;
+    this.dailyBashoState.completed = result.completed;
+    this.dailyBashoState.boutsPlayed = result.boutsPlayed;
+  }
+
+  public confirmVersusHandoverReady() {
+    if (this.gameMode !== 'VERSUS') return;
+    this.versusManager.setHandoverPending(false);
+    if (!this.isGameOver && !this.versusManager.state.isMatchOver) {
+      this.loadNextFruit();
+      const activeTurn = this.versusManager.state.playerTurn;
+      const turnName = activeTurn === 1 ? '東方発気' : '西方発気';
+      const turnSub = activeTurn === 1 ? 'EAST (HIGASHI) READY!' : 'WEST (NISHI) READY!';
+      const turnColor = activeTurn === 1 ? '#E74C3C' : '#3498DB';
+      this.triggerRefereeCall(turnName, 'KAMAE!', turnSub, turnColor, 'hakkeyoi', 'TACHIAI');
+    }
+    this.emitStats();
+  }
+
+  public toggleVersusTabletopInversion() {
+    this.versusManager.toggleTabletopInversion();
+    this.emitStats();
+  }
+
+  public setVersusTabletopInversion(enabled: boolean) {
+    this.versusManager.setTabletopInversion(enabled);
+    this.emitStats();
+  }
+
   private emitStats() {
     if (!this.onStatsChange) return;
 
@@ -2195,6 +2589,9 @@ export class GameEngine {
       selectedSpinMode: this.selectedSpinMode,
       unlockedKimariteCount: this.kimariteManager.getUnlockedCount().unlocked,
       totalKimariteCount: this.kimariteManager.getUnlockedCount().total,
+      versus: this.gameMode === 'VERSUS' ? { ...this.versusManager.state } : null,
+      arenaCondition: { ...this.arenaConditionManager.state },
+      dailyBasho: this.dailyBashoState ? { ...this.dailyBashoState } : null,
     });
   }
 }

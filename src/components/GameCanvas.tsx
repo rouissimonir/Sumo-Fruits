@@ -58,6 +58,18 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
       const h = container.clientHeight;
 
       ctx.save();
+      // Apply tabletop 180-degree inversion if active for Player 2
+      const isTabletopFlipped =
+        engine.gameMode === 'VERSUS' &&
+        engine.versusManager.state.tabletopInversion &&
+        engine.versusManager.state.playerTurn === 2;
+
+      if (isTabletopFlipped) {
+        ctx.translate(w / 2, h / 2);
+        ctx.rotate(Math.PI);
+        ctx.translate(-w / 2, -h / 2);
+      }
+
       // Apply camera shake trauma
       ctx.translate(engine.cameraOffset.x, engine.cameraOffset.y);
 
@@ -123,10 +135,20 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
   const getCanvasCoords = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const rect = canvasRef.current?.getBoundingClientRect();
     if (!rect) return { x: 0, y: 0 };
-    return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top,
-    };
+    let x = e.clientX - rect.left;
+    let y = e.clientY - rect.top;
+
+    const isTabletopFlipped =
+      engine.gameMode === 'VERSUS' &&
+      engine.versusManager.state.tabletopInversion &&
+      engine.versusManager.state.playerTurn === 2;
+
+    if (isTabletopFlipped) {
+      x = rect.width - x;
+      y = rect.height - y;
+    }
+
+    return { x, y };
   };
 
   const handlePointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -240,7 +262,10 @@ function drawBackground(
   );
   ctx.fill();
 
-  // Clay mound slope gradient
+  const condition = engine.arenaConditionManager.state;
+
+  // Clay mound slope gradient (altered by wet clay condition)
+  const isWetClay = condition.type === 'GRIPPY_CLAY';
   const moundGrad = ctx.createRadialGradient(
     cX,
     cY,
@@ -249,10 +274,17 @@ function drawBackground(
     cY,
     radius * 1.12
   );
-  moundGrad.addColorStop(0, '#E1C89B');
-  moundGrad.addColorStop(0.7, '#D4B886');
-  moundGrad.addColorStop(0.96, '#B69665');
-  moundGrad.addColorStop(1, '#8C6C42');
+  if (isWetClay) {
+    moundGrad.addColorStop(0, '#B89B72');
+    moundGrad.addColorStop(0.7, '#8C6C42');
+    moundGrad.addColorStop(0.96, '#5C4426');
+    moundGrad.addColorStop(1, '#3B2915');
+  } else {
+    moundGrad.addColorStop(0, '#E1C89B');
+    moundGrad.addColorStop(0.7, '#D4B886');
+    moundGrad.addColorStop(0.96, '#B69665');
+    moundGrad.addColorStop(1, '#8C6C42');
+  }
 
   ctx.fillStyle = moundGrad;
   ctx.beginPath();
@@ -262,6 +294,96 @@ function drawBackground(
     ctx.arc(cX, cY, radius, 0, Math.PI * 2);
   }
   ctx.fill();
+
+  // Wet clay water sheen effect
+  if (isWetClay) {
+    const shimmer = 0.5 + 0.5 * Math.sin(performance.now() * 0.003);
+    ctx.strokeStyle = `rgba(255, 255, 255, ${0.12 + 0.08 * shimmer})`;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(cX, cY, radius * 0.55, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.06)';
+    ctx.font = 'bold 12px serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('濡れ土俵 • GRIPPY WET CLAY', cX, cY - radius * 0.52);
+  }
+
+  // Kamikaze Wind visual streaks & wind vector indicator
+  if (condition.type === 'KAMIKAZE_WIND' && condition.windSpeed > 0) {
+    const time = performance.now() * 0.001;
+    const angle = condition.windAngle;
+    const cosA = Math.cos(angle);
+    const sinA = Math.sin(angle);
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(235, 245, 255, 0.28)';
+    ctx.lineWidth = 1.8;
+    ctx.setLineDash([14, 28]);
+
+    for (let s = -2; s <= 2; s++) {
+      const offsetP = s * 70;
+      const perpX = -sinA * offsetP;
+      const perpY = cosA * offsetP;
+      const flow = ((time * condition.windSpeed * 0.6) % 300) - 150;
+
+      ctx.beginPath();
+      ctx.moveTo(cX + perpX - cosA * 220 + cosA * flow, cY + perpY - sinA * 220 + sinA * flow);
+      ctx.lineTo(cX + perpX + cosA * 220 + cosA * flow, cY + perpY + sinA * 220 + sinA * flow);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Wind direction arrow widget in upper-right corner
+    ctx.save();
+    const widgetX = cX + radius * 0.72;
+    const widgetY = cY - radius * 0.72;
+    ctx.fillStyle = 'rgba(20, 30, 45, 0.75)';
+    ctx.beginPath();
+    ctx.arc(widgetX, widgetY, 24, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(75, 150, 255, 0.8)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // Arrow pointing in wind direction
+    ctx.translate(widgetX, widgetY);
+    ctx.rotate(angle);
+    ctx.fillStyle = '#60A5FA';
+    ctx.beginPath();
+    ctx.moveTo(12, 0);
+    ctx.lineTo(-8, -7);
+    ctx.lineTo(-4, 0);
+    ctx.lineTo(-8, 7);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Closing Ring danger zone & boundary line
+  if (condition.type === 'CLOSING_RING' && condition.legalRadius < radius) {
+    const legalR = condition.legalRadius;
+    const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.008);
+
+    // Danger ring zone fill (between legal boundary and outer bales)
+    ctx.save();
+    ctx.fillStyle = `rgba(231, 76, 60, ${0.16 + 0.08 * pulse})`;
+    ctx.beginPath();
+    ctx.arc(cX, cY, radius - 4, 0, Math.PI * 2);
+    ctx.arc(cX, cY, legalR, 0, Math.PI * 2, true);
+    ctx.fill();
+
+    // Legal boundary glowing line
+    ctx.strokeStyle = `rgba(231, 76, 60, ${0.75 + 0.25 * pulse})`;
+    ctx.lineWidth = 3.5;
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath();
+    ctx.arc(cX, cY, legalR, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
 
   // Fever Mode golden radiant glow
   if (engine.isFever) {
@@ -405,13 +527,17 @@ function drawSaltZones(ctx: CanvasRenderingContext2D, engine: GameEngine) {
 function drawLauncher(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   const { x, y } = engine.launcherPos;
   const drag = engine.dragPos;
+  const isVersus = engine.gameMode === 'VERSUS';
+  const playerTurn = isVersus ? engine.versusManager.state.playerTurn : 1;
+  const teamThemeColor = !isVersus ? '#E67E22' : playerTurn === 1 ? '#E74C3C' : '#3498DB';
+  const teamBaseBg = !isVersus ? '#4A3525' : playerTurn === 1 ? '#4A1C18' : '#182C4A';
 
   ctx.save();
 
   // Pedestal base
-  ctx.fillStyle = '#4A3525';
-  ctx.strokeStyle = '#271B12';
-  ctx.lineWidth = 3;
+  ctx.fillStyle = teamBaseBg;
+  ctx.strokeStyle = !isVersus ? '#271B12' : playerTurn === 1 ? '#E74C3C' : '#3498DB';
+  ctx.lineWidth = isVersus ? 3.5 : 3;
   ctx.beginPath();
   ctx.roundRect(x - 42, y + 14, 84, 18, 6);
   ctx.fill();
@@ -431,8 +557,8 @@ function drawLauncher(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   ctx.stroke();
 
   // Rubber bands connecting to fruit/dragPos
-  ctx.strokeStyle = '#E67E22';
-  ctx.lineWidth = 4;
+  ctx.strokeStyle = teamThemeColor;
+  ctx.lineWidth = 4.5;
   ctx.lineCap = 'round';
 
   const fruitX = engine.isDragging ? drag.x : x;
@@ -449,6 +575,26 @@ function drawLauncher(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   ctx.moveTo(x + 28, y - 10);
   ctx.lineTo(fruitX + 10, fruitY);
   ctx.stroke();
+
+  // Versus Turn Tag floating under launcher
+  if (isVersus) {
+    ctx.save();
+    const isP1 = playerTurn === 1;
+    ctx.fillStyle = isP1 ? 'rgba(231, 76, 60, 0.92)' : 'rgba(52, 152, 219, 0.92)';
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(x - 65, y + 36, 130, 20, 10);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 10px system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(isP1 ? '東 P1 TURN (EAST)' : '西 P2 TURN (WEST)', x, y + 46);
+    ctx.restore();
+  }
 
   // English Spin Mode Visual Badge / Indicator near launcher
   const spin = engine.launcherSpin;
@@ -677,10 +823,33 @@ function drawFruit(
   ctx.stroke();
 
   // Front knot & Tier Number Buckle (e.g. 1, 2, 3... 11)
-  drawMawashiBuckle(ctx, beltY, beltH, fruit.tier, cat.mawashiColor);
+  drawMawashiBuckle(ctx, beltY, beltH, fruit.tier, cat.mawashiColor, fruit.team);
 
   // 5. Animated Eyes & Expression
   drawFace(ctx, fruit, cat);
+
+  // 6. Out-of-bounds Closing Ring Danger Warning
+  if (fruit.outOfBoundsTimer && fruit.outOfBoundsTimer > 0 && fruit.state === 'IN_RING') {
+    const remaining = Math.max(0, 2.0 - fruit.outOfBoundsTimer);
+    const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.02);
+
+    ctx.save();
+    ctx.translate(0, -radius - 18);
+    ctx.fillStyle = `rgba(231, 76, 60, ${0.85 + 0.15 * pulse})`;
+    ctx.beginPath();
+    ctx.roundRect(-24, -10, 48, 20, 6);
+    ctx.fill();
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`⚠️ ${remaining.toFixed(1)}s`, 0, 0);
+    ctx.restore();
+  }
 
   ctx.restore();
 }
@@ -874,28 +1043,31 @@ function drawMawashiBuckle(
   beltY: number,
   beltH: number,
   tier: number,
-  mawashiColor: string
+  mawashiColor: string,
+  team?: 'PLAYER' | 'RIVAL' | 'PLAYER_1' | 'PLAYER_2'
 ) {
   const buckleW = Math.max(16, beltH * 1.55);
   const buckleH = Math.max(12, beltH * 1.35);
 
   ctx.save();
   // Buckle Base Plate
-  ctx.fillStyle = '#181512';
-  ctx.strokeStyle = '#F59E0B'; // Amber Gold sumo belt buckle
-  ctx.lineWidth = 1.5;
+  ctx.fillStyle = team === 'PLAYER_1' ? '#3B120F' : team === 'PLAYER_2' ? '#0F263B' : '#181512';
+  ctx.strokeStyle = team === 'PLAYER_1' ? '#E74C3C' : team === 'PLAYER_2' ? '#3498DB' : '#F59E0B';
+  ctx.lineWidth = team === 'PLAYER_1' || team === 'PLAYER_2' ? 2 : 1.5;
   ctx.beginPath();
   ctx.roundRect(-buckleW * 0.5, beltY - buckleH * 0.5, buckleW, buckleH, 3);
   ctx.fill();
   ctx.stroke();
 
   // Tier Number inside belt buckle
-  ctx.fillStyle = '#FFD700';
+  ctx.fillStyle = team === 'PLAYER_1' ? '#FFD2CC' : team === 'PLAYER_2' ? '#CCEBFF' : '#FFD700';
   const fontSize = Math.max(8, Math.min(13, buckleH * 0.78));
   ctx.font = `900 ${fontSize}px system-ui, -apple-system, sans-serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(`${tier}`, 0, beltY + 0.5);
+
+  const label = team === 'PLAYER_1' ? `東${tier}` : team === 'PLAYER_2' ? `西${tier}` : `${tier}`;
+  ctx.fillText(label, 0, beltY + 0.5);
 
   ctx.restore();
 }
@@ -1433,11 +1605,12 @@ function drawRivalTelegraph(ctx: CanvasRenderingContext2D, engine: GameEngine) {
 function drawRefereeCallout(
   ctx: CanvasRenderingContext2D,
   canvasWidth: number,
-  call: { textJp: string; textRomaji: string; subtext: string; color: string; duration?: number; timer?: number; maxTimer?: number }
+  call: { textJp: string; textRomaji: string; subText?: string; subtext?: string; color: string; duration?: number; timer?: number; maxTimer?: number }
 ) {
   const timeVal = call.duration ?? call.timer ?? 1;
   const alpha = Math.min(1, timeVal / 0.3);
   const scale = 0.95 + 0.05 * Math.sin(timeVal * 8);
+  const subtitle = call.subText ?? call.subtext ?? '';
 
   ctx.save();
   ctx.translate(canvasWidth / 2, 85);
@@ -1447,7 +1620,7 @@ function drawRefereeCallout(
   // Banner background
   const bannerW = 340;
   const bannerH = 68;
-  ctx.fillStyle = 'rgba(18, 14, 10, 0.92)';
+  ctx.fillStyle = 'rgba(18, 14, 10, 0.94)';
   ctx.strokeStyle = call.color;
   ctx.lineWidth = 2.5;
 
@@ -1465,7 +1638,7 @@ function drawRefereeCallout(
 
   // Kanji header
   ctx.fillStyle = call.color;
-  ctx.font = '900 24px serif';
+  ctx.font = '900 24px "Noto Serif JP", serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   ctx.fillText(call.textJp, 0, -8);
@@ -1476,9 +1649,11 @@ function drawRefereeCallout(
   ctx.fillText(call.textRomaji, 0, 10);
 
   // Subtitle
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
-  ctx.font = '10px sans-serif';
-  ctx.fillText(call.subtext, 0, 24);
+  if (subtitle) {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+    ctx.font = '10px sans-serif';
+    ctx.fillText(subtitle, 0, 24);
+  }
 
   ctx.restore();
 }

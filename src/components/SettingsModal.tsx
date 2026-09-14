@@ -16,7 +16,8 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { GameStats } from '../game/GameEngine';
-import { ArenaMode, GameModeType, SpinMode } from '../types/game';
+import { ArenaConditionType, ArenaMode, GameModeType, SpinMode } from '../types/game';
+import { CONDITION_METADATA } from '../game/ArenaConditionManager';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -28,6 +29,7 @@ interface SettingsModalProps {
   onRestart: () => void;
   onSelectGameMode: (mode: GameModeType, challengeId?: string) => void;
   onSelectArenaMode: (mode: ArenaMode) => void;
+  onSelectArenaCondition?: (condition: ArenaConditionType) => void;
   onSelectSpinMode?: (mode: SpinMode) => void;
   onOpenTierList: () => void;
   onOpenKimarite: () => void;
@@ -45,6 +47,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onRestart,
   onSelectGameMode,
   onSelectArenaMode,
+  onSelectArenaCondition,
   onSelectSpinMode,
   onOpenTierList,
   onOpenKimarite,
@@ -131,11 +134,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <Trophy size={14} />
               <span>Game Mode</span>
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
               <button
                 id="mode-classic-btn"
                 onClick={() => onSelectGameMode('CLASSIC')}
-                className={`py-2 px-2.5 rounded-lg border text-xs font-bold transition-all cursor-pointer text-center ${
+                className={`py-2 px-2 rounded-lg border text-xs font-bold transition-all cursor-pointer text-center ${
                   stats.gameMode === 'CLASSIC'
                     ? 'bg-[#B7791F]/30 border-[#FFD700] text-white shadow-sm'
                     : 'bg-[#1C1814] border-[#382B22] text-[#A89886] hover:text-white'
@@ -146,9 +149,37 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </button>
 
               <button
+                id="mode-daily-btn"
+                onClick={() => onSelectGameMode('DAILY')}
+                className={`py-2 px-2 rounded-lg border text-xs font-bold transition-all cursor-pointer text-center ${
+                  stats.gameMode === 'DAILY'
+                    ? 'bg-[#10B981]/30 border-[#10B981] text-white shadow-sm'
+                    : 'bg-[#1C1814] border-[#382B22] text-[#A89886] hover:text-white'
+                }`}
+              >
+                📅 Daily
+                <div className="text-[10px] font-normal text-[#8A7B6D] mt-0.5">
+                  {stats.dailyBasho ? `Day #${stats.dailyBasho.dayNumber}` : 'Daily Basho'}
+                </div>
+              </button>
+
+              <button
+                id="mode-versus-btn"
+                onClick={() => onSelectGameMode('VERSUS')}
+                className={`py-2 px-2 rounded-lg border text-xs font-bold transition-all cursor-pointer text-center ${
+                  stats.gameMode === 'VERSUS'
+                    ? 'bg-[#E74C3C]/30 border-[#E74C3C] text-white shadow-sm'
+                    : 'bg-[#1C1814] border-[#382B22] text-[#A89886] hover:text-white'
+                }`}
+              >
+                2P Versus
+                <div className="text-[10px] font-normal text-[#8A7B6D] mt-0.5">Local 1v1</div>
+              </button>
+
+              <button
                 id="mode-career-btn"
                 onClick={() => onSelectGameMode('CAREER')}
-                className={`py-2 px-2.5 rounded-lg border text-xs font-bold transition-all cursor-pointer text-center ${
+                className={`py-2 px-2 rounded-lg border text-xs font-bold transition-all cursor-pointer text-center ${
                   stats.gameMode === 'CAREER'
                     ? 'bg-[#B7791F]/30 border-[#FFD700] text-white shadow-sm'
                     : 'bg-[#1C1814] border-[#382B22] text-[#A89886] hover:text-white'
@@ -163,7 +194,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <button
                 id="mode-challenge-btn"
                 onClick={() => onSelectGameMode('CHALLENGE', 'BROKEN_TAWARA')}
-                className={`py-2 px-2.5 rounded-lg border text-xs font-bold transition-all cursor-pointer text-center ${
+                className={`py-2 px-2 rounded-lg border text-xs font-bold transition-all cursor-pointer text-center ${
                   stats.gameMode === 'CHALLENGE'
                     ? 'bg-[#9B59B6]/30 border-[#D2B4DE] text-white shadow-sm'
                     : 'bg-[#1C1814] border-[#382B22] text-[#A89886] hover:text-white'
@@ -174,6 +205,49 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Arena Dynamic Conditions */}
+          {onSelectArenaCondition && (
+            <div className="bg-[#241E19] border border-[#3D2E24] rounded-xl p-3.5 space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#E67E22]">
+                  <span>🌪️ Arena Condition Modifiers</span>
+                </div>
+                {stats.arenaCondition && (
+                  <span className="text-[10px] font-mono text-[#FFD700]">
+                    {CONDITION_METADATA[stats.arenaCondition.type].nameJp}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {(['NONE', 'GRIPPY_CLAY', 'KAMIKAZE_WIND', 'CLOSING_RING'] as ArenaConditionType[]).map((condType) => {
+                  const meta = CONDITION_METADATA[condType];
+                  const isActive = stats.arenaCondition?.type === condType;
+                  return (
+                    <button
+                      key={condType}
+                      type="button"
+                      onClick={() => onSelectArenaCondition(condType)}
+                      disabled={stats.gameMode === 'DAILY'}
+                      className={`p-2 rounded-lg border text-left transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-[#E67E22]/25 border-[#E67E22] text-white shadow-sm ring-1 ring-[#E67E22]'
+                          : 'bg-[#1C1814] border-[#382B22] text-[#A89886] hover:text-white'
+                      } ${stats.gameMode === 'DAILY' ? 'cursor-not-allowed opacity-55' : ''}`}
+                    >
+                      <div className="flex items-center gap-1 text-xs font-bold">
+                        <span>{meta.icon}</span>
+                        <span className="truncate">{meta.nameRomaji}</span>
+                      </div>
+                      <div className="text-[9px] text-[#8A7B6D] line-clamp-2 mt-0.5">
+                        {meta.description}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Arena Dohyō Shape */}
           <div className="bg-[#241E19] border border-[#3D2E24] rounded-xl p-3.5 space-y-2">

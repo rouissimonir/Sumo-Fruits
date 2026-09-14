@@ -13,6 +13,8 @@ import { ParameterTuner } from './components/ParameterTuner';
 import { GameOverModal } from './components/GameOverModal';
 import { KimariteModal } from './components/KimariteModal';
 import { SettingsModal } from './components/SettingsModal';
+import { VersusVictoryModal } from './components/VersusVictoryModal';
+import { VersusHandoverModal } from './components/VersusHandoverModal';
 import { sound } from './audio/soundEffects';
 import { HelpCircle, Sparkles } from 'lucide-react';
 import { ArenaMode, GameModeType, SpinMode } from './types/game';
@@ -22,6 +24,8 @@ export default function App() {
 
   const [stats, setStats] = useState<GameStats>({
     score: 0,
+    highScore: 0,
+    isNewHighScore: false,
     lives: 3,
     occupancy: 0,
     overflowTimer: 0,
@@ -54,9 +58,10 @@ export default function App() {
       clashDuration: 0.5,
       shockwaveImpulse: 380,
       restitution: 0.78,
+      baleMaxHealth: 3,
     },
     careerStageIndex: 0,
-    careerStageCount: 5,
+    careerStageCount: 4,
     currentRivalProfile: null,
     hasActiveRival: false,
     rivalIntent: null,
@@ -65,6 +70,25 @@ export default function App() {
     selectedSpinMode: 'STRAIGHT',
     unlockedKimariteCount: 0,
     totalKimariteCount: 8,
+    versus: null,
+    arenaCondition: {
+      type: 'NONE',
+      nameJp: '清浄土俵',
+      nameRomaji: 'Standard Clay',
+      description: 'Traditional sun-dried sacred clay surface.',
+      badgeColor: '#A0522D',
+      extraDamping: 0,
+      windForceX: 0,
+      windForceY: 0,
+      windSpeed: 0,
+      windAngle: 0,
+      legalRadiusRatio: 1,
+      legalRadius: 340,
+      shotsUntilShrink: 5,
+      shrinkCount: 0,
+      outOfBoundsTimers: {},
+    },
+    dailyBasho: null,
   });
 
   const [isTierListOpen, setIsTierListOpen] = useState(false);
@@ -162,6 +186,7 @@ export default function App() {
         onCycleArenaMode={handleCycleArenaMode}
         onSelectGameMode={handleSelectGameMode}
         onSelectSpinMode={handleSelectSpinMode}
+        onToggleTabletop={() => engine.toggleVersusTabletopInversion()}
         soundEnabled={soundEnabled}
         onToggleSound={handleToggleSound}
       />
@@ -224,6 +249,7 @@ export default function App() {
         onRestart={handleRestart}
         onSelectGameMode={handleSelectGameMode}
         onSelectArenaMode={(mode) => engine.setArenaMode(mode)}
+        onSelectArenaCondition={(cond) => engine.setArenaCondition(cond)}
         onSelectSpinMode={handleSelectSpinMode}
         onOpenTierList={() => setIsTierListOpen(true)}
         onOpenKimarite={() => setIsKimariteOpen(true)}
@@ -232,7 +258,7 @@ export default function App() {
       />
 
       <GameOverModal
-        isOpen={stats.isGameOver}
+        isOpen={stats.isGameOver && stats.gameMode !== 'VERSUS'}
         score={stats.score}
         highScore={stats.highScore}
         isNewHighScore={stats.isNewHighScore}
@@ -240,6 +266,24 @@ export default function App() {
         highestTierReached={stats.highestTierReached}
         onRestart={handleRestart}
       />
+
+      {/* Versus Handover Transition Barrier */}
+      {stats.versus && (
+        <VersusHandoverModal
+          stats={stats}
+          onConfirmReady={() => engine.confirmVersusHandoverReady()}
+          onToggleTabletop={() => engine.toggleVersusTabletopInversion()}
+        />
+      )}
+
+      {/* Versus Victory Emperor Cup Screen */}
+      {stats.versus && (
+        <VersusVictoryModal
+          versus={stats.versus}
+          onRematch={handleRestart}
+          onReturnToClassic={() => handleSelectGameMode('CLASSIC')}
+        />
+      )}
     </main>
   );
 }

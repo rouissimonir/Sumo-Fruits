@@ -200,7 +200,7 @@ export interface RippleState {
 export interface SumoFruitInstance {
   id: number;
   tier: number;
-  team: 'PLAYER' | 'RIVAL';
+  team: 'PLAYER' | 'RIVAL' | 'PLAYER_1' | 'PLAYER_2';
   x: number;
   y: number;
   vx: number;
@@ -223,6 +223,7 @@ export interface SumoFruitInstance {
   wipingSweatTimer?: number;
   hasEnteredRing?: boolean;
   wasInRimDanger?: boolean;
+  outOfBoundsTimer?: number;
 }
 
 export type HazardKind = 'BUG' | 'ICE' | 'WASABI' | 'CHILI' | 'RIVAL' | 'GINKO_MAGNET';
@@ -276,7 +277,17 @@ export interface SaltZone {
   activeInPlay: boolean; // active for first 3s of next committed shot
 }
 
-export type RefereePriority = 'RESULT' | 'YOKOZUNA' | 'RIVAL_DEFEAT' | 'COMBO' | 'ORDINARY';
+export type RefereePriority =
+  | 'MATCH_RESULT'
+  | 'YOKOZUNA'
+  | 'RIVAL_DEFEAT'
+  | 'PERSONAL_BEST'
+  | 'KIMARITE'
+  | 'EDGE_DANGER'
+  | 'TACHIAI'
+  | 'RESULT'
+  | 'COMBO'
+  | 'ORDINARY';
 
 export interface RefereeCall {
   id: number;
@@ -287,10 +298,78 @@ export interface RefereeCall {
   duration: number;
   maxDuration: number;
   priority: RefereePriority;
+  audioCue?: 'hakkeyoi' | 'nokotta' | 'shobu' | 'yokozuna' | 'kinboshi' | 'personal_best' | 'kimarite' | 'fever' | 'kiyome';
 }
 
 export type ArenaMode = 'CIRCULAR' | 'ELLIPTICAL' | 'WOBBLE';
-export type GameModeType = 'CLASSIC' | 'CAREER' | 'CHALLENGE';
+export type ArenaConditionType = 'NONE' | 'GRIPPY_CLAY' | 'KAMIKAZE_WIND' | 'CLOSING_RING';
+export type GameModeType = 'CLASSIC' | 'CAREER' | 'CHALLENGE' | 'VERSUS' | 'DAILY';
+
+export interface ArenaConditionState {
+  type: ArenaConditionType;
+  nameJp: string;
+  nameRomaji: string;
+  description: string;
+  badgeColor: string;
+  extraDamping: number; // +0.85 in GRIPPY_CLAY
+  windForceX: number;
+  windForceY: number;
+  windSpeed: number;
+  windAngle: number;
+  legalRadiusRatio: number; // 1.0 down to 0.50
+  legalRadius: number; // in pixels
+  shotsUntilShrink: number; // 0 to 5
+  shrinkCount: number;
+  outOfBoundsTimers: Record<number, number>; // fruitId -> seconds spent out of bounds (grace 2.0s)
+}
+
+export interface DailyBashoState {
+  dateStr: string; // YYYY-MM-DD UTC
+  dayNumber: number; // 1-based UTC day of year
+  seed: number;
+  title: string;
+  condition: ArenaConditionType;
+  rivalName: string;
+  highScore: number;
+  completed: boolean;
+  boutsPlayed: number;
+}
+
+export interface VersusBoutRecord {
+  bout: number;
+  winner: 1 | 2;
+  method: string;
+  methodJp: string;
+  p1Score: number;
+  p2Score: number;
+  decisiveFruitTier: number;
+}
+
+export interface VersusState {
+  playerTurn: 1 | 2; // 1 = East (東 / Higashi), 2 = West (西 / Nishi)
+  p1Score: number;
+  p2Score: number;
+  p1RoundsWon: number;
+  p2RoundsWon: number;
+  currentBout: number;
+  maxRounds: number; // e.g. 3 (Best of 3)
+  p1SaltCharges: number;
+  p2SaltCharges: number;
+  p1SaltLaunchCount: number;
+  p2SaltLaunchCount: number;
+  p1SpinMode: SpinMode;
+  p2SpinMode: SpinMode;
+  p1NextTiers: [number, number];
+  p2NextTiers: [number, number];
+  tugOfWarMassP1: number;
+  tugOfWarMassP2: number;
+  lastBoutResult: VersusBoutRecord | null;
+  boutHistory: VersusBoutRecord[];
+  isMatchOver: boolean;
+  matchWinner: 1 | 2 | null;
+  isHandoverPending: boolean;
+  tabletopInversion: boolean;
+}
 
 export type RivalActionType = 'OSHIDASHI_PUSH' | 'TSUPPARI_SLAP' | 'RECOVERY' | 'IDLE';
 
