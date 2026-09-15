@@ -49,6 +49,7 @@ import { CampaignSnapshot } from '../types/campaign';
 import { SkillManager } from './SkillManager';
 import { SkillState, SkillType } from '../types/skills';
 import { ENEMY_DEFINITIONS } from '../types/enemies';
+import { REWARD_DEFINITIONS, RewardId } from '../types/rewards';
 
 export interface GameStats {
   score: number;
@@ -367,6 +368,7 @@ export class GameEngine {
     this.arenaConditionManager.setCondition(level.arenaCondition, this.arena.radius);
     if (level.rivalId) this.rivalController.setProfile(RIVAL_PROFILES[level.rivalId]);
     this.restart();
+    if (level.recommendedSkill) this.skillManager.equipSkill(level.recommendedSkill);
     this.triggerRefereeCall('本場所', `BOUT ${level.index + 1}`, level.title, '#FFD700', 'hakkeyoi');
     this.emitStats();
   }
@@ -374,6 +376,22 @@ export class GameEngine {
   public dismissCareerResult() {
     this.careerManager.clearResult();
     this.emitStats();
+  }
+
+  public equipCampaignReward(rewardId: RewardId): boolean {
+    const equipped = this.careerManager.equipReward(rewardId);
+    if (equipped) {
+      const reward = REWARD_DEFINITIONS[rewardId];
+      this.techniqueRibbons.addRibbon(`${reward.name} Equipped`, reward.description, reward.previewColor, 2.8, '褒賞', reward.icon);
+      sound.playTaikoFlourish();
+      this.emitStats();
+    }
+    return equipped;
+  }
+
+  public getEquippedMawashiColor(fallback: string): string {
+    const rewardId = this.careerManager.getEquippedReward('MAWASHI');
+    return rewardId ? REWARD_DEFINITIONS[rewardId].mawashiColor ?? fallback : fallback;
   }
 
   public setArenaCondition(condition: ArenaConditionType) {
@@ -436,7 +454,7 @@ export class GameEngine {
         : item.kind === 'ARMOR_BUG'
         ? { name: 'Armored Beetle', radius: 24, mass: 5.25, damp: 0.7, restitution: 0.85, score: 300 }
         : { name: 'Rotten Beetle', radius: 18, mass: 3.5, damp: 0.7, restitution: 0.85, score: 120 };
-      this.hazards.push({
+      const hazard: HazardInstance = {
         id: this.nextEntityId++, kind: item.kind, name: traits.name,
         x: this.arena.centerX + item.x, y: this.arena.centerY + item.y,
         vx: 0, vy: 0, radius: traits.radius, mass: traits.mass, damp: traits.damp,
@@ -447,7 +465,10 @@ export class GameEngine {
         guardMarks: item.kind === 'ARMOR_BUG' ? 2 : undefined,
         maxGuardMarks: item.kind === 'ARMOR_BUG' ? 2 : undefined,
         hitFlashTimer: 0,
-      });
+        crackLevel: item.kind === 'ICE' ? 1 : undefined,
+      };
+      this.prepareHazardBehavior(hazard);
+      this.hazards.push(hazard);
     }
     if (level.rivalId) this.spawnCareerRival();
   }
@@ -976,6 +997,7 @@ export class GameEngine {
       this.bankShotDetected = false;
       this.shotInitialMergeDone = false;
       this.currentShotHypeGained = 0;
+      this.triggerBeetleScuttles();
 
       // Festival Shot consuming
       if (this.festivalReadyShots > 0) {
@@ -1041,6 +1063,9 @@ export class GameEngine {
         const prevCharge = this.skillManager.charge;
         const activeEmpowerment = this.skillManager.onPlayerLaunchCommitted();
         this.loadedFruit.empoweredSkill = activeEmpowerment;
+        if (activeEmpowerment === 'PALM_STRIKE' || activeEmpowerment === 'TAIKO_PULSE') {
+          this.careerManager.recordSkillUsed(activeEmpowerment);
+        }
         this.saltCharges = this.skillManager.charge;
         this.saltLaunchCount = this.skillManager.rechargeProgress;
         if (prevCharge === 0 && this.skillManager.charge === 1) {
@@ -1733,6 +1758,14 @@ export class GameEngine {
         hazard.hitFlashTimer -= dt;
       }
 
+      if (hazard.kind === 'BUG' && hazard.behaviorState === 'SCUTTLING') {
+        hazard.scuttleTimer = Math.max(0, (hazard.scuttleTimer ?? 0) - dt);
+        if (hazard.scuttleTimer <= 0) {
+          hazard.behaviorState = 'TELEGRAPH';
+          this.planBeetleIntent(hazard);
+        }
+      }
+
       // Rival Sumo AI behavior
       if (hazard.kind === 'RIVAL') {
         hazard.aiChargeTimer = (hazard.aiChargeTimer || 1.8) - dt;
@@ -1786,6 +1819,10 @@ export class GameEngine {
         // Kimarite Oshidashi push-out
         this.kimariteManager.reportAction('oshidashi');
         haptics.trigger('MEDIUM');
+        this.ringOutFlashTimer = Math.max(this.ringOutFlashTimer, 0.28);
+        this.triggerHitStop(hazard.kind === 'RIVAL' ? 0.08 : 0.05);
+        this.spawnSplash(hazard.x, hazard.y, hazard.kind === 'ICE' ? '#7DE6FF' : '#F1C40F');
+        this.spawnSparks(hazard.x, hazard.y, '#FFFFFF', hazard.kind === 'RIVAL' ? 24 : 16);
 
         // Physical hazard knockout grants 1 step toward skill charge (max 1/shot, recorded once)
         if (!this.defeatedHazardIds.has(hazard.id)) {
@@ -1815,13 +1852,43 @@ export class GameEngine {
             }
           }
         }
-        this.triggerCameraTrauma(0.2);
+        this.triggerCameraTrauma(hazard.kind === 'RIVAL' ? 0.4 : 0.32);
       } else if (metrics.dSurface <= 0 && !hazard.cleansing && vOut < 180) {
         if (vOut > 0) {
           hazard.vx -= (1 + hazard.restitution) * vOut * metrics.normalX;
           hazard.vy -= (1 + hazard.restitution) * vOut * metrics.normalY;
         }
       }
+    }
+  }
+
+  private prepareHazardBehavior(hazard: HazardInstance): void {
+    if (hazard.kind === 'BUG') {
+      hazard.behaviorState = 'TELEGRAPH';
+      hazard.lastBehaviorShot = -1;
+      this.planBeetleIntent(hazard);
+    }
+  }
+
+  private planBeetleIntent(hazard: HazardInstance): void {
+    const inwardAngle = Math.atan2(this.arena.centerY - hazard.y, this.arena.centerX - hazard.x);
+    const side = (hazard.id + this.totalShots) % 2 === 0 ? 1 : -1;
+    const angle = inwardAngle + side * 0.82;
+    hazard.intentDirX = Math.cos(angle);
+    hazard.intentDirY = Math.sin(angle);
+  }
+
+  private triggerBeetleScuttles(): void {
+    for (const hazard of this.hazards) {
+      if (hazard.kind !== 'BUG' || hazard.ringOut || hazard.lastBehaviorShot === this.totalShots) continue;
+      const dirX = hazard.intentDirX ?? 0;
+      const dirY = hazard.intentDirY ?? -1;
+      hazard.lastBehaviorShot = this.totalShots;
+      hazard.behaviorState = 'SCUTTLING';
+      hazard.scuttleTimer = 0.34;
+      hazard.vx += dirX * 58;
+      hazard.vy += dirY * 58;
+      this.spawnSparks(hazard.x, hazard.y + hazard.radius * 0.7, '#B58A62', 4);
     }
   }
 
@@ -1852,6 +1919,9 @@ export class GameEngine {
           fB.spinActive = false;
           const nx = dx / dist;
           const ny = dy / dist;
+          if (fA.team === 'RIVAL' || fB.team === 'RIVAL') {
+            this.rivalController.registerRivalContact();
+          }
 
           // Check empowered skill activation
           if (fA.empoweredSkill) {
@@ -1905,8 +1975,8 @@ export class GameEngine {
             const impX = nx * impulseMag;
             const impY = ny * impulseMag;
 
-            const multA = fA.team === 'RIVAL' ? this.rivalController.knockbackMultiplier : 1.0;
-            const multB = fB.team === 'RIVAL' ? this.rivalController.knockbackMultiplier : 1.0;
+            const multA = fA.team === 'RIVAL' ? this.rivalController.getCollisionKnockbackMultiplier(nx, ny) : 1.0;
+            const multB = fB.team === 'RIVAL' ? this.rivalController.getCollisionKnockbackMultiplier(nx, ny) : 1.0;
 
             if (fA.state === 'IN_RING') {
               fA.vx -= (impX / propA.mass) * multA;
@@ -2075,6 +2145,12 @@ export class GameEngine {
             fruit.vy -= (ny * imp) / cat.mass;
             hazard.vx += (nx * imp) / hazard.mass;
             hazard.vy += (ny * imp) / hazard.mass;
+
+            if (hazard.kind === 'ICE' && Math.abs(vNorm) > 55 && (!hazard.hitFlashTimer || hazard.hitFlashTimer <= 0)) {
+              hazard.crackLevel = Math.min(3, (hazard.crackLevel ?? 0) + 1);
+              hazard.hitFlashTimer = 0.18;
+              this.spawnSparks(hazard.x, hazard.y, '#BDEFFF', 6 + (hazard.crackLevel ?? 1) * 2);
+            }
 
             sound.playBump(Math.abs(vNorm), cat.mass);
           }
@@ -2481,6 +2557,15 @@ export class GameEngine {
 
   private getFruitPhysicalProperties(f: SumoFruitInstance) {
     const cat = FRUIT_CATALOG[f.tier - 1];
+
+    if (f.team === 'RIVAL') {
+      return {
+        radius: this.rivalController.profile.radius,
+        mass: this.rivalController.profile.mass,
+        restitution: cat.restitution ?? 0.85,
+      };
+    }
+
     return {
       radius: cat.radius,
       mass: cat.mass,
@@ -2778,8 +2863,9 @@ export class GameEngine {
           guardMarks: kind === 'ARMOR_BUG' ? 2 : undefined,
           maxGuardMarks: kind === 'ARMOR_BUG' ? 2 : undefined,
           hitFlashTimer: 0,
+          crackLevel: kind === 'ICE' ? 1 : undefined,
         };
-
+        this.prepareHazardBehavior(hazard);
         this.hazards.push(hazard);
         const sparkColor =
           kind === 'WASABI'

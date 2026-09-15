@@ -1,4 +1,5 @@
 import { ArenaConditionType, ArenaMode, HazardKind } from './game';
+import { RewardId, RewardLoadout } from './rewards';
 
 export type CampaignObjective =
   | { type: 'CREATE_TIER'; tier: number; count: number }
@@ -14,6 +15,7 @@ export type CampaignStampRule =
   | { type: 'COMBO'; count: number }
   | { type: 'MULTI_CLEAR'; count: number }
   | { type: 'USE_SALT' }
+  | { type: 'USE_SKILL'; skill: 'PALM_STRIKE' | 'TAIKO_PULSE' }
   | { type: 'CREATE_TIER'; tier: number }
   | { type: 'WIN' };
 
@@ -51,7 +53,9 @@ export interface CampaignLevel {
   initialHazards?: CampaignBoardHazard[];
   brokenBales?: number[];
   rivalId?: 'TENGU_ORANGE' | 'CHERRY_SLAPPER' | 'COCONUT_TANK' | 'DRAGONFRUIT_YOKOZUNA';
-  reward?: string;
+  rewardId?: RewardId;
+  encounterHint?: string;
+  recommendedSkill?: 'SALT' | 'PALM_STRIKE' | 'TAIKO_PULSE';
 }
 
 export type CampaignResultStatus = 'ACTIVE' | 'WON' | 'LOST';
@@ -61,14 +65,16 @@ export interface CampaignResult {
   reason: string;
   earnedStamps: number;
   newStamps: number;
+  unlockedRewardId?: RewardId;
 }
 
 export interface CampaignProgress {
-  version: 1;
+  version: 2;
   completedLevelIds: string[];
   stampsByLevel: Record<string, number>;
   bestScores: Record<string, number>;
-  unlockedRewards: string[];
+  unlockedRewardIds: RewardId[];
+  equippedRewards: RewardLoadout;
   lastLevelId: string;
 }
 
@@ -87,6 +93,7 @@ export interface CampaignSnapshot {
   completedLevelIds: string[];
   stampsByLevel: Record<string, number>;
   bestScores: Record<string, number>;
-  unlockedRewards: string[];
+  unlockedRewardIds: RewardId[];
+  equippedRewards: RewardLoadout;
   highestUnlockedIndex: number;
 }

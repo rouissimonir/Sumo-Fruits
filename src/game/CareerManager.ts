@@ -1,11 +1,12 @@
 import { CAMPAIGN_LEVELS, getCampaignLevel } from '../content/campaign';
 import { CampaignLevel, CampaignProgress, CampaignResult, CampaignSnapshot, CampaignStampRule } from '../types/campaign';
 import { HazardKind } from '../types/game';
+import { REWARD_DEFINITIONS, RewardId, RewardSlot, normalizeRewardId } from '../types/rewards';
 
 const STORAGE_KEY = 'sumo_fruits_campaign_progress_v1';
 const emptyProgress = (): CampaignProgress => ({
-  version: 1, completedLevelIds: [], stampsByLevel: {}, bestScores: {},
-  unlockedRewards: [], lastLevelId: CAMPAIGN_LEVELS[0].id,
+  version: 2, completedLevelIds: [], stampsByLevel: {}, bestScores: {},
+  unlockedRewardIds: [], equippedRewards: {}, lastLevelId: CAMPAIGN_LEVELS[0].id,
 });
 
 export class CareerManager {
@@ -20,6 +21,7 @@ export class CareerManager {
   public createdYokozuna = false;
   public highestCreatedTier = 0;
   public result: CampaignResult | null = null;
+  public usedSkills: Set<'PALM_STRIKE' | 'TAIKO_PULSE'> = new Set();
   public progress: CampaignProgress = this.loadProgress();
   private queueIndex = 0;
   private lastRemovalShot = -1;
@@ -132,6 +134,30 @@ export class CareerManager {
   public recordPlayerRingOut(): void { if (this.isActive()) this.playerRingOuts++; }
   public recordSaltUsed(): void { if (this.isActive()) this.usedSalt = true; }
 
+  public recordSkillUsed(skill: 'PALM_STRIKE' | 'TAIKO_PULSE'): void {
+    if (this.isActive()) this.usedSkills.add(skill);
+  }
+
+  public equipReward(rewardId: RewardId): boolean {
+    if (!this.progress.unlockedRewardIds.includes(rewardId)) return false;
+    const reward = REWARD_DEFINITIONS[rewardId];
+    this.progress.equippedRewards[reward.slot] = rewardId;
+    this.saveProgress();
+    return true;
+  }
+
+  public getEquippedReward(slot: RewardSlot): RewardId | null {
+    const rewardId = this.progress.equippedRewards[slot];
+    return rewardId && this.progress.unlockedRewardIds.includes(rewardId) ? rewardId : null;
+  }
+
+  public getNextReward(): { rewardId: RewardId; levelId: string; levelIndex: number } | null {
+    const level = CAMPAIGN_LEVELS.find((candidate) =>
+      candidate.rewardId && !this.progress.unlockedRewardIds.includes(candidate.rewardId)
+    );
+    return level?.rewardId ? { rewardId: level.rewardId, levelId: level.id, levelIndex: level.index } : null;
+  }
+
   public sync(score: number, lives: number): void {
     if (!this.isActive() || !this.activeLevel) return;
     if (this.activeLevel.objective.type === 'REACH_SCORE') {
@@ -159,7 +185,9 @@ export class CareerManager {
       result: this.result ? { ...this.result } : null,
       completedLevelIds: [...this.progress.completedLevelIds],
       stampsByLevel: { ...this.progress.stampsByLevel }, bestScores: { ...this.progress.bestScores },
-      unlockedRewards: [...this.progress.unlockedRewards], highestUnlockedIndex: this.getHighestUnlockedIndex(),
+      unlockedRewardIds: [...this.progress.unlockedRewardIds],
+      equippedRewards: { ...this.progress.equippedRewards },
+      highestUnlockedIndex: this.getHighestUnlockedIndex(),
     };
   }
 
@@ -170,7 +198,7 @@ export class CareerManager {
 
   private resetAttempt(): void {
     this.shotsUsed = 0; this.objectiveProgress = 0; this.playerRingOuts = 0;
-    this.usedSalt = false; this.maxCombo = 0; this.createdYokozuna = false; this.highestCreatedTier = 0; this.result = null;
+    this.usedSalt = false; this.usedSkills.clear(); this.maxCombo = 0; this.createdYokozuna = false; this.highestCreatedTier = 0; this.result = null;
     this.queueIndex = 0; this.lastRemovalShot = -1; this.removalsThisShot = 0; this.maxRemovalsInShot = 0;
   }
 
@@ -199,11 +227,21 @@ export class CareerManager {
     this.progress.stampsByLevel[level.id] = Math.max(oldStamps, earnedStamps);
     this.progress.bestScores[level.id] = Math.max(this.progress.bestScores[level.id] ?? 0, score);
     if (!this.progress.completedLevelIds.includes(level.id)) this.progress.completedLevelIds.push(level.id);
-    if (level.reward && !this.progress.unlockedRewards.includes(level.reward)) this.progress.unlockedRewards.push(level.reward);
+    let unlockedRewardId: RewardId | undefined;
+    if (level.rewardId && !this.progress.unlockedRewardIds.includes(level.rewardId)) {
+      this.progress.unlockedRewardIds.push(level.rewardId);
+      unlockedRewardId = level.rewardId;
+    }
     const next = CAMPAIGN_LEVELS[level.index + 1];
     if (next) this.progress.lastLevelId = next.id;
     this.saveProgress();
-    this.result = { status: 'WON', reason: level.index === CAMPAIGN_LEVELS.length - 1 ? 'Road to Yokozuna conquered!' : 'Objective complete!', earnedStamps, newStamps: Math.max(0, earnedStamps - oldStamps) };
+    this.result = {
+      status: 'WON',
+      reason: level.index === CAMPAIGN_LEVELS.length - 1 ? 'Road to Yokozuna conquered!' : 'Objective complete!',
+      earnedStamps,
+      newStamps: Math.max(0, earnedStamps - oldStamps),
+      unlockedRewardId,
+    };
   }
 
   private evaluateStampRule(rule: CampaignStampRule, lives: number): boolean {
@@ -214,6 +252,7 @@ export class CareerManager {
       case 'COMBO': return this.maxCombo >= rule.count;
       case 'MULTI_CLEAR': return this.maxRemovalsInShot >= rule.count;
       case 'USE_SALT': return this.usedSalt;
+      case 'USE_SKILL': return this.usedSkills.has(rule.skill);
       case 'CREATE_TIER': return this.highestCreatedTier >= rule.tier;
       case 'WIN': return true;
     }
@@ -242,13 +281,28 @@ export class CareerManager {
       if (typeof localStorage === 'undefined') return emptyProgress();
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return emptyProgress();
-      const parsed = JSON.parse(raw) as Partial<CampaignProgress>;
+      const parsed = JSON.parse(raw) as Partial<CampaignProgress> & { unlockedRewards?: unknown[] };
+      const legacyRewards = [
+        ...(Array.isArray(parsed.unlockedRewardIds) ? parsed.unlockedRewardIds : []),
+        ...(Array.isArray(parsed.unlockedRewards) ? parsed.unlockedRewards : []),
+      ];
+      const unlockedRewardIds = [...new Set(legacyRewards.map(normalizeRewardId).filter((id): id is RewardId => id !== null))];
+      const equippedRewards: CampaignProgress['equippedRewards'] = {};
+      if (parsed.equippedRewards && typeof parsed.equippedRewards === 'object') {
+        for (const slot of ['MAWASHI', 'BOWL', 'TAWARA'] as const) {
+          const rewardId = normalizeRewardId(parsed.equippedRewards[slot]);
+          if (rewardId && unlockedRewardIds.includes(rewardId) && REWARD_DEFINITIONS[rewardId].slot === slot) {
+            equippedRewards[slot] = rewardId;
+          }
+        }
+      }
       return {
-        version: 1,
+        version: 2,
         completedLevelIds: Array.isArray(parsed.completedLevelIds) ? parsed.completedLevelIds.filter((id): id is string => typeof id === 'string' && !!getCampaignLevel(id)) : [],
         stampsByLevel: parsed.stampsByLevel && typeof parsed.stampsByLevel === 'object' ? parsed.stampsByLevel : {},
         bestScores: parsed.bestScores && typeof parsed.bestScores === 'object' ? parsed.bestScores : {},
-        unlockedRewards: Array.isArray(parsed.unlockedRewards) ? parsed.unlockedRewards.filter((v): v is string => typeof v === 'string') : [],
+        unlockedRewardIds,
+        equippedRewards,
         lastLevelId: typeof parsed.lastLevelId === 'string' && getCampaignLevel(parsed.lastLevelId) ? parsed.lastLevelId : CAMPAIGN_LEVELS[0].id,
       };
     } catch { return emptyProgress(); }

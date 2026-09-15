@@ -7,11 +7,13 @@ export const RIVAL_PROFILES: Record<string, RivalProfile> = {
     name: 'Tengu Orange',
     title: 'Wind God of the Dohyō',
     fruitName: 'Orange',
-    tier: 5,
+    tier: 6,
     color: '#E67E22',
     crest: '👺',
-    mass: 8.5,
-    radius: 36,
+    // Uses the Orange tier silhouette, but a tuned boss mass keeps the first
+    // encounter winnable through positioning even without Palm Strike.
+    mass: 12.0,
+    radius: 58,
     moveType: 'OSHIDASHI_PUSH',
     attackIntervalShots: 2,
     habitDescription: 'Charges straight along a locked telegraphed lane every 2nd shot.',
@@ -79,6 +81,11 @@ export class RivalSumoController {
   public isCounteredThisShot: boolean = false;
   public knockbackMultiplier: number = 1.0;
   public dragonfruitAlternator: boolean = false; // true = rush, false = slap
+  public vulnerableShotsRemaining: number = 0;
+  public vulnerabilityCommittedThisShot: boolean = false;
+  public didHitDuringAttack: boolean = false;
+  public lastAttackDirX: number = 0;
+  public lastAttackDirY: number = 1;
 
   constructor(profile: RivalProfile = RIVAL_PROFILES.TENGU_ORANGE) {
     this.profile = profile;
@@ -102,6 +109,11 @@ export class RivalSumoController {
     this.isCounteredThisShot = false;
     this.knockbackMultiplier = 1.0;
     this.dragonfruitAlternator = false;
+    this.vulnerableShotsRemaining = 0;
+    this.vulnerabilityCommittedThisShot = false;
+    this.didHitDuringAttack = false;
+    this.lastAttackDirX = 0;
+    this.lastAttackDirY = 1;
   }
 
   public spawnRival(
@@ -146,7 +158,7 @@ export class RivalSumoController {
     arena: ArenaConfig,
     playerFruits: SumoFruitInstance[]
   ) {
-    if (!this.fruitInstance || this.fruitInstance.state === 'RING_OUT') {
+    if (!this.fruitInstance || this.fruitInstance.state === 'RING_OUT' || this.isVulnerable()) {
       this.intent = null;
       return;
     }
@@ -201,6 +213,13 @@ export class RivalSumoController {
     if (!this.fruitInstance || this.fruitInstance.state === 'RING_OUT') return;
     this.shotCounter++;
 
+    if (this.isVulnerable()) {
+      this.vulnerabilityCommittedThisShot = true;
+      this.isExecuting = false;
+      this.intent = null;
+      return;
+    }
+
     // Check if attack is scheduled for this shot
     if (this.shotCounter % this.profile.attackIntervalShots === 0) {
       if (!this.attackCanceledByYokozuna) {
@@ -217,6 +236,9 @@ export class RivalSumoController {
     if (!this.intent || !this.fruitInstance) return;
     this.isExecuting = true;
     this.executionTimer = 0;
+    this.didHitDuringAttack = false;
+    this.lastAttackDirX = this.intent.dirX;
+    this.lastAttackDirY = this.intent.dirY;
 
     if (this.intent.type === 'OSHIDASHI_PUSH') {
       this.executionTotalTime = 0.45;
@@ -248,7 +270,7 @@ export class RivalSumoController {
       this.recoveryTimer -= dt;
       if (this.recoveryTimer <= 0) {
         this.isRecovering = false;
-        this.planNextIntent(arena, playerFruits);
+        if (!this.isVulnerable()) this.planNextIntent(arena, playerFruits);
       }
       return {};
     }
@@ -266,7 +288,10 @@ export class RivalSumoController {
       if (this.executionTimer >= this.executionTotalTime) {
         this.isExecuting = false;
         this.isRecovering = true;
-        this.recoveryTimer = 0.6; // Brief visible exhale recovery
+        this.recoveryTimer = 0.6;
+        if (this.profile.id === 'TENGU_ORANGE' && !this.didHitDuringAttack) {
+          this.enterVulnerability();
+        }
         return { fxEvent: 'RECOVERY' };
       }
       return { fxEvent: 'RUSH' };
@@ -338,6 +363,7 @@ export class RivalSumoController {
     this.isRecovering = true;
     this.recoveryTimer = 1.4; // Dazed recovery
     this.attackCanceledByYokozuna = true; // Prevents retaliation for remainder of this shot
+    this.enterVulnerability();
 
     // Apply knockback modifier once; repeated contact must not stack it
     if (!this.isCounteredThisShot) {
@@ -350,9 +376,41 @@ export class RivalSumoController {
 
   public onShotResolved() {
     this.isCounteredThisShot = false;
-    this.knockbackMultiplier = 1.0;
+    if (this.vulnerabilityCommittedThisShot) {
+      this.vulnerableShotsRemaining = Math.max(0, this.vulnerableShotsRemaining - 1);
+      this.vulnerabilityCommittedThisShot = false;
+    }
+    this.knockbackMultiplier = this.isVulnerable() ? 1.45 : 1.0;
+    if (!this.isVulnerable()) this.planNextIntentFromCurrentState();
     if (this.profile.id === 'DRAGONFRUIT_YOKOZUNA') {
       this.dragonfruitAlternator = !this.dragonfruitAlternator;
     }
+  }
+
+  public isVulnerable(): boolean {
+    return this.vulnerableShotsRemaining > 0;
+  }
+
+  public registerRivalContact(): void {
+    if (this.isExecuting) this.didHitDuringAttack = true;
+  }
+
+  public getCollisionKnockbackMultiplier(normalX: number, normalY: number): number {
+    if (!this.isVulnerable()) return this.knockbackMultiplier;
+    const frontalAlignment = Math.abs(normalX * this.lastAttackDirX + normalY * this.lastAttackDirY);
+    return frontalAlignment < 0.58 ? 1.9 : 1.45;
+  }
+
+  private enterVulnerability(): void {
+    this.vulnerableShotsRemaining = Math.max(this.vulnerableShotsRemaining, 1);
+    this.vulnerabilityCommittedThisShot = false;
+    this.knockbackMultiplier = 1.45;
+    this.intent = null;
+  }
+
+  private planNextIntentFromCurrentState(): void {
+    // The engine supplies live fruit positions on its normal settlement pass.
+    // Clearing the stale intent here prevents an expired warning from lingering.
+    this.intent = null;
   }
 }

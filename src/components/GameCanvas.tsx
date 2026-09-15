@@ -847,12 +847,20 @@ function drawFruit(
 ) {
   const cat = FRUIT_CATALOG[fruit.tier - 1];
   const radius = cat.radius;
+  const mawashiColor = fruit.team === 'PLAYER' ? engine.getEquippedMawashiColor(cat.mawashiColor) : cat.mawashiColor;
 
   ctx.save();
   ctx.translate(fruit.x, fruit.y);
 
   // Fall animation scale & opacity
   if (fruit.state === 'RING_OUT') {
+    const shockAlpha = Math.max(0, 1 - fruit.fallProgress * 1.35);
+    ctx.strokeStyle = `rgba(255, 211, 92, ${shockAlpha})`;
+    ctx.lineWidth = Math.max(3, radius * 0.07);
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * (1.15 + fruit.fallProgress * 2.2), 0, Math.PI * 2);
+    ctx.stroke();
+
     const scale = Math.max(0.1, 1 - fruit.fallProgress * 0.8);
     const alpha = Math.max(0, 1 - fruit.fallProgress);
     ctx.scale(scale, scale);
@@ -892,8 +900,8 @@ function drawFruit(
   ctx.rotate(-rotation); // Counter-rotation for face readability
 
   // 1. Verlet Mawashi Cloth Tails (drawn behind body)
-  drawClothTail(ctx, fruit.leftTail, fruit.x, fruit.y, cat.mawashiColor);
-  drawClothTail(ctx, fruit.rightTail, fruit.x, fruit.y, cat.mawashiColor);
+  drawClothTail(ctx, fruit.leftTail, fruit.x, fruit.y, mawashiColor);
+  drawClothTail(ctx, fruit.rightTail, fruit.x, fruit.y, mawashiColor);
 
   // 2. Fruit Body
   const bodyGrad = ctx.createRadialGradient(
@@ -938,7 +946,7 @@ function drawFruit(
   // 4. Mawashi (Thick Sumo Belt)
   const beltY = radius * 0.35;
   const beltH = Math.max(5, cat.faceDetails.mawashiWidth);
-  ctx.fillStyle = cat.mawashiColor;
+  ctx.fillStyle = mawashiColor;
   ctx.strokeStyle = '#1E1E1E';
   ctx.lineWidth = 2;
 
@@ -948,10 +956,14 @@ function drawFruit(
   ctx.stroke();
 
   // Authentic Front Sumo Knot (Maetate / Sagari Silk Fold)
-  drawMawashiKnot(ctx, beltY, beltH, radius, fruit.tier, cat.mawashiColor, fruit.team);
+  drawMawashiKnot(ctx, beltY, beltH, radius, fruit.tier, mawashiColor, fruit.team);
 
   // 5. Animated Eyes & Expression
   drawFace(ctx, fruit, cat);
+
+  if (fruit.team === 'RIVAL' && engine.rivalController.profile.id === 'TENGU_ORANGE') {
+    drawTenguWarMask(ctx, radius, engine.rivalController.isVulnerable());
+  }
 
   // 6. Out-of-bounds Closing Ring Danger Warning
   if (fruit.outOfBoundsTimer && fruit.outOfBoundsTimer > 0 && fruit.state === 'IN_RING') {
@@ -1008,12 +1020,12 @@ function drawFruit(
   }
 
   // 8. Rival Guard Broken / Vulnerability Badge
-  if (fruit.team === 'RIVAL' && engine.rivalController.knockbackMultiplier > 1.0) {
+  if (fruit.team === 'RIVAL' && engine.rivalController.isVulnerable()) {
     ctx.save();
     ctx.translate(0, -radius - 22);
     ctx.fillStyle = 'rgba(230, 126, 34, 0.95)';
     ctx.beginPath();
-    ctx.roundRect(-44, -9, 88, 18, 5);
+    ctx.roundRect(-54, -10, 108, 20, 6);
     ctx.fill();
     ctx.strokeStyle = '#FFFFFF';
     ctx.lineWidth = 1;
@@ -1023,7 +1035,23 @@ function drawFruit(
     ctx.font = 'bold 8.5px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('⚡ GUARD BROKEN', 0, 0);
+    ctx.fillText('⚡ VULNERABLE · HIT SIDE', 0, 0);
+    ctx.restore();
+  } else if (fruit.team === 'RIVAL') {
+    ctx.save();
+    ctx.translate(0, -radius - 18);
+    ctx.fillStyle = 'rgba(37, 45, 58, 0.94)';
+    ctx.beginPath();
+    ctx.roundRect(-34, -9, 68, 18, 6);
+    ctx.fill();
+    ctx.strokeStyle = '#94A3B8';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = '#E2E8F0';
+    ctx.font = 'bold 8.5px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('◆ GUARD', 0, 0);
     ctx.restore();
   }
 
@@ -1437,6 +1465,68 @@ function drawFace(
   }
 }
 
+function drawTenguWarMask(
+  ctx: CanvasRenderingContext2D,
+  radius: number,
+  vulnerable: boolean
+) {
+  ctx.save();
+
+  // White brow paint and a long red nose make the first boss readable at a
+  // glance even when the playfield is crowded with ordinary Orange fruits.
+  ctx.strokeStyle = '#FFF7E6';
+  ctx.lineWidth = Math.max(3, radius * 0.075);
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-radius * 0.42, -radius * 0.34);
+  ctx.lineTo(-radius * 0.12, -radius * 0.25);
+  ctx.moveTo(radius * 0.42, -radius * 0.34);
+  ctx.lineTo(radius * 0.12, -radius * 0.25);
+  ctx.stroke();
+
+  const noseGradient = ctx.createLinearGradient(0, -radius * 0.12, 0, radius * 0.28);
+  noseGradient.addColorStop(0, '#EF4444');
+  noseGradient.addColorStop(1, '#991B1B');
+  ctx.fillStyle = noseGradient;
+  ctx.strokeStyle = '#4C0519';
+  ctx.lineWidth = Math.max(2, radius * 0.04);
+  ctx.beginPath();
+  ctx.moveTo(-radius * 0.1, -radius * 0.08);
+  ctx.quadraticCurveTo(-radius * 0.05, radius * 0.17, 0, radius * 0.3);
+  ctx.quadraticCurveTo(radius * 0.05, radius * 0.17, radius * 0.1, -radius * 0.08);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Small gold temple ornaments frame the face without hiding the eyes.
+  ctx.fillStyle = '#FACC15';
+  ctx.strokeStyle = '#713F12';
+  ctx.lineWidth = 1.5;
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+    ctx.moveTo(side * radius * 0.48, -radius * 0.2);
+    ctx.lineTo(side * radius * 0.7, -radius * 0.36);
+    ctx.lineTo(side * radius * 0.58, -radius * 0.04);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  if (vulnerable) {
+    const pulse = 0.75 + 0.25 * Math.sin(performance.now() * 0.012);
+    ctx.strokeStyle = `rgba(103, 232, 249, ${pulse})`;
+    ctx.lineWidth = Math.max(3, radius * 0.06);
+    ctx.setLineDash([radius * 0.16, radius * 0.1]);
+    ctx.beginPath();
+    ctx.arc(0, 0, radius * 1.12, Math.PI * 0.34, Math.PI * 0.66);
+    ctx.arc(0, 0, radius * 1.12, Math.PI * 1.34, Math.PI * 1.66);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  ctx.restore();
+}
+
 function drawHazards(ctx: CanvasRenderingContext2D, hazards: HazardInstance[]) {
   for (const h of hazards) {
     ctx.save();
@@ -1446,6 +1536,11 @@ function drawHazards(ctx: CanvasRenderingContext2D, hazards: HazardInstance[]) {
       const scale = Math.max(0.1, 1 - h.fallProgress * 0.8);
       ctx.scale(scale, scale);
       ctx.globalAlpha = Math.max(0, 1 - h.fallProgress);
+      ctx.strokeStyle = `rgba(255, 211, 92, ${Math.max(0, 1 - h.fallProgress)})`;
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.arc(0, 0, h.radius * (1.25 + h.fallProgress * 1.8), 0, Math.PI * 2);
+      ctx.stroke();
     }
 
     ctx.save();
@@ -1465,6 +1560,26 @@ function drawHazards(ctx: CanvasRenderingContext2D, hazards: HazardInstance[]) {
       // Specular shine
       ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
       ctx.fillRect(-size * 0.35, -size * 0.35, size * 0.2, size * 0.4);
+
+      const cracks = Math.max(1, h.crackLevel ?? 1);
+      ctx.strokeStyle = 'rgba(32, 105, 145, 0.78)';
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.moveTo(-size * 0.05, -size * 0.42);
+      ctx.lineTo(size * 0.03, -size * 0.12);
+      ctx.lineTo(-size * 0.16, size * 0.1);
+      if (cracks >= 2) {
+        ctx.moveTo(size * 0.03, -size * 0.12);
+        ctx.lineTo(size * 0.28, size * 0.04);
+        ctx.lineTo(size * 0.18, size * 0.34);
+      }
+      if (cracks >= 3) {
+        ctx.moveTo(-size * 0.16, size * 0.1);
+        ctx.lineTo(-size * 0.34, size * 0.32);
+        ctx.moveTo(size * 0.03, -size * 0.12);
+        ctx.lineTo(size * 0.34, -size * 0.3);
+      }
+      ctx.stroke();
     } else if (h.kind === 'WASABI') {
       // Hit flash check
       const isHitFlash = (h.hitFlashTimer ?? 0) > 0;
@@ -1688,6 +1803,24 @@ function drawHazards(ctx: CanvasRenderingContext2D, hazards: HazardInstance[]) {
       ctx.fill();
     } else {
       // Rotten Beetle
+      ctx.strokeStyle = '#1E1025';
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.moveTo(-h.radius * 0.68, -h.radius * 0.5);
+      ctx.lineTo(-h.radius * 1.18, -h.radius * 0.82);
+      ctx.lineTo(-h.radius * 1.34, -h.radius * 0.58);
+      ctx.moveTo(h.radius * 0.68, -h.radius * 0.5);
+      ctx.lineTo(h.radius * 1.18, -h.radius * 0.82);
+      ctx.lineTo(h.radius * 1.34, -h.radius * 0.58);
+      ctx.moveTo(-h.radius * 0.75, 0);
+      ctx.lineTo(-h.radius * 1.28, h.radius * 0.25);
+      ctx.moveTo(h.radius * 0.75, 0);
+      ctx.lineTo(h.radius * 1.28, h.radius * 0.25);
+      ctx.moveTo(-h.radius * 0.64, h.radius * 0.5);
+      ctx.lineTo(-h.radius * 1.1, h.radius * 0.82);
+      ctx.moveTo(h.radius * 0.64, h.radius * 0.5);
+      ctx.lineTo(h.radius * 1.1, h.radius * 0.82);
+      ctx.stroke();
       ctx.fillStyle = '#4A235A';
       ctx.strokeStyle = '#1E1025';
       ctx.lineWidth = 2;
@@ -1712,6 +1845,27 @@ function drawHazards(ctx: CanvasRenderingContext2D, hazards: HazardInstance[]) {
     }
 
     ctx.restore(); // Restore hazard rotation
+
+    if (!h.ringOut && h.kind === 'BUG' && h.behaviorState === 'TELEGRAPH') {
+      const dx = (h.intentDirX ?? 0) * 34;
+      const dy = (h.intentDirY ?? -1) * 34;
+      const angle = Math.atan2(dy, dx);
+      ctx.strokeStyle = 'rgba(241, 196, 15, 0.9)';
+      ctx.fillStyle = '#F1C40F';
+      ctx.lineWidth = 2.5;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(dx, dy);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(dx, dy);
+      ctx.lineTo(dx - Math.cos(angle - 0.65) * 9, dy - Math.sin(angle - 0.65) * 9);
+      ctx.lineTo(dx - Math.cos(angle + 0.65) * 9, dy - Math.sin(angle + 0.65) * 9);
+      ctx.closePath();
+      ctx.fill();
+    }
 
     // Overhead Status Badges: clear indicator of name, status, and defeat mechanics
     if (!h.ringOut && h.kind === 'ARMOR_BUG') {
@@ -1917,8 +2071,17 @@ function drawRivalTelegraph(ctx: CanvasRenderingContext2D, engine: GameEngine) {
     ctx.lineTo(targetX, targetY);
     ctx.stroke();
 
-    // Target bullseye
+    const arrowAngle = Math.atan2(targetY - rival.y, targetX - rival.x);
     ctx.setLineDash([]);
+    ctx.fillStyle = isImminent ? '#E67E22' : '#F1C40F';
+    ctx.beginPath();
+    ctx.moveTo(targetX, targetY);
+    ctx.lineTo(targetX - Math.cos(arrowAngle - 0.55) * 15, targetY - Math.sin(arrowAngle - 0.55) * 15);
+    ctx.lineTo(targetX - Math.cos(arrowAngle + 0.55) * 15, targetY - Math.sin(arrowAngle + 0.55) * 15);
+    ctx.closePath();
+    ctx.fill();
+
+    // Target bullseye
     ctx.fillStyle = isImminent ? 'rgba(230, 126, 34, 0.35)' : 'rgba(241, 196, 15, 0.25)';
     ctx.strokeStyle = isImminent ? 'rgba(230, 126, 34, 0.9)' : 'rgba(241, 196, 15, 0.65)';
     ctx.beginPath();

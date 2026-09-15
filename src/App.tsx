@@ -391,6 +391,7 @@ export default function App() {
         campaign={stats.campaign}
         onClose={() => setIsCampaignMapOpen(false)}
         onStart={handleStartCareerLevel}
+        onEquipReward={(rewardId) => engine.equipCampaignReward(rewardId)}
       />
 
       {stats.gameMode === 'CAREER' && (
@@ -399,6 +400,11 @@ export default function App() {
           score={stats.score}
           onRetry={() => engine.restart()}
           onNext={() => {
+            const next = CAMPAIGN_LEVELS[stats.campaign.activeLevelIndex + 1];
+            if (next) handleStartCareerLevel(next.id);
+          }}
+          onEquipAndNext={(rewardId) => {
+            engine.equipCampaignReward(rewardId);
             const next = CAMPAIGN_LEVELS[stats.campaign.activeLevelIndex + 1];
             if (next) handleStartCareerLevel(next.id);
           }}

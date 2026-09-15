@@ -4,6 +4,9 @@ import { CAMPAIGN_LEVELS } from '../src/content/campaign';
 import { CareerManager } from '../src/game/CareerManager';
 import { GameEngine } from '../src/game/GameEngine';
 import { FRUIT_CATALOG } from '../src/types/game';
+import { DEFAULT_ARENA } from '../src/physics/bowlMotion';
+import { RIVAL_PROFILES, RivalSumoController } from '../src/game/RivalSumo';
+import { REWARD_DEFINITIONS } from '../src/types/rewards';
 
 test('campaign defines 24 sequential, valid levels in four chapters', () => {
   assert.equal(CAMPAIGN_LEVELS.length, 24);
@@ -67,6 +70,27 @@ test('campaign physical pushout objectives reject salt removal', () => {
   assert.equal(manager.result?.status, 'WON');
 });
 
+test('bouts 3 through 6 form the intended enemy and skill tutorial sequence', () => {
+  const [pushout, salt, palm, tengu] = CAMPAIGN_LEVELS.slice(2, 6);
+  assert.deepEqual(pushout.objective, { type: 'CLEAR_HAZARDS', count: 1, kinds: ['BUG'], physicalOnly: true });
+  assert.equal(salt.recommendedSkill, 'SALT');
+  assert.equal(salt.initialHazards?.[0]?.kind, 'ICE');
+  assert.equal(palm.recommendedSkill, 'PALM_STRIKE');
+  assert.deepEqual(palm.techniqueRule, { type: 'USE_SKILL', skill: 'PALM_STRIKE' });
+  assert.equal(tengu.rivalId, 'TENGU_ORANGE');
+  assert.equal(tengu.rewardId, 'TRAINING_MAWASHI');
+  assert.ok(REWARD_DEFINITIONS[tengu.rewardId].mawashiColor);
+});
+
+test('Palm Strike is available, equipped, and demonstrated when bout 5 starts', () => {
+  const engine = new GameEngine();
+  engine.careerManager.progress.completedLevelIds = CAMPAIGN_LEVELS.slice(0, 4).map((level) => level.id);
+  engine.startCareerLevel('career-05');
+  assert.ok(engine.skillManager.getUnlockedSkills().includes('PALM_STRIKE'));
+  assert.equal(engine.skillManager.equipped, 'PALM_STRIKE');
+  assert.equal(engine.hazards.find((hazard) => hazard.kind === 'ICE')?.crackLevel, 1);
+});
+
 test('campaign fails only after the final committed shot resolves', () => {
   const manager = new CareerManager();
   manager.startLevel('career-01');
@@ -83,4 +107,58 @@ test('career score cannot overwrite the classic high score', () => {
   engine.addScore(5000);
   assert.equal(engine.score, 5000);
   assert.equal(engine.highScore, 500);
+});
+
+test('Tengu keeps its announced charge lane and exposes its flank after a miss', () => {
+  const controller = new RivalSumoController(RIVAL_PROFILES.TENGU_ORANGE);
+  controller.spawnRival({ ...DEFAULT_ARENA }, 99);
+  controller.onPlayerLaunchCommitted({ ...DEFAULT_ARENA }, []);
+  const announced = controller.intent ? { ...controller.intent } : null;
+  assert.ok(announced?.locked);
+  controller.onPlayerLaunchCommitted({ ...DEFAULT_ARENA }, []);
+  assert.equal(controller.isExecuting, true);
+  assert.equal(controller.intent?.targetX, announced?.targetX);
+  assert.equal(controller.intent?.targetY, announced?.targetY);
+
+  controller.update(0.5, { ...DEFAULT_ARENA }, []);
+  assert.equal(controller.isVulnerable(), true);
+  const sideKnockback = controller.getCollisionKnockbackMultiplier(1, 0);
+  const frontKnockback = controller.getCollisionKnockbackMultiplier(0, 1);
+  assert.ok(sideKnockback > frontKnockback);
+
+  controller.onShotResolved();
+  assert.equal(controller.isVulnerable(), true, 'the opening must remain for the next player shot');
+  controller.onPlayerLaunchCommitted({ ...DEFAULT_ARENA }, []);
+  controller.onShotResolved();
+  assert.equal(controller.isVulnerable(), false);
+});
+
+test('Tengu reward ownership and equipped mawashi persist across manager instances', () => {
+  const values = new Map<string, string>();
+  const originalStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+  const storage = {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+    removeItem: (key: string) => values.delete(key),
+    clear: () => values.clear(),
+    key: (index: number) => [...values.keys()][index] ?? null,
+    get length() { return values.size; },
+  } as Storage;
+  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: storage });
+
+  try {
+    const manager = new CareerManager();
+    manager.progress.completedLevelIds = CAMPAIGN_LEVELS.slice(0, 5).map((level) => level.id);
+    manager.startLevel('career-06');
+    manager.recordRivalDefeat(2400, 3);
+    assert.equal(manager.result?.unlockedRewardId, 'TRAINING_MAWASHI');
+    assert.equal(manager.equipReward('TRAINING_MAWASHI'), true);
+
+    const restored = new CareerManager();
+    assert.ok(restored.progress.unlockedRewardIds.includes('TRAINING_MAWASHI'));
+    assert.equal(restored.getEquippedReward('MAWASHI'), 'TRAINING_MAWASHI');
+  } finally {
+    if (originalStorage) Object.defineProperty(globalThis, 'localStorage', originalStorage);
+    else delete (globalThis as { localStorage?: Storage }).localStorage;
+  }
 });

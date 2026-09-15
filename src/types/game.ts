@@ -257,6 +257,12 @@ export interface HazardInstance {
   guardMarks?: number;
   maxGuardMarks?: number;
   isEnemy?: boolean;
+  behaviorState?: 'TELEGRAPH' | 'SCUTTLING' | 'STAGGERED';
+  intentDirX?: number;
+  intentDirY?: number;
+  scuttleTimer?: number;
+  lastBehaviorShot?: number;
+  crackLevel?: number;
 }
 
 export type TawaraState = 'INTACT' | 'FRAYED' | 'CRACKED' | 'BROKEN';
