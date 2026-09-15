@@ -1,1 +1,31 @@
 @import "tailwindcss";
+
+/* iOS Safari & WebKit App Store Hardening */
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: fixed;
+  overscroll-behavior: none;
+  -webkit-overscroll-behavior: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  background-color: #14120e;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Prevent iOS text inflation */
+* {
+  -webkit-text-size-adjust: 100%;
+}

@@ -231,14 +231,18 @@ export const HUD: React.FC<HUDProps> = ({
                 }}
                 disabled={!hasCharge && !isArmed}
                 title={
-                  hasCharge
+                  currentSkill === 'SALT' && stats.isSaltTargeting
+                    ? 'Salt Targeting Active: Click on Dohyō to cast, click here or press [S] to confirm, or press [Esc] to cancel'
+                    : hasCharge
                     ? currentSkill === 'SALT'
                       ? 'Throw Kiyome-no-Shio Salt [S] (Brakes fruits & purifies hazards)'
                       : `${currentDef.name} [Space]: ${currentDef.description} (Click to ${isArmed ? 'disarm' : 'arm next launch'})`
                     : `${currentDef.name} Recharging (${rechargeProgress}/6 shots or ring-out knockout)`
                 }
                 className={`flex h-8 sm:h-auto items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 sm:py-1 rounded-lg text-xs font-bold transition-all active:scale-95 cursor-pointer border ${
-                  isArmed
+                  currentSkill === 'SALT' && stats.isSaltTargeting
+                    ? 'bg-[#1E3A8A] text-white border-[#60A5FA] ring-2 ring-[#93C5FD] shadow-lg animate-pulse'
+                    : isArmed
                     ? 'bg-[#E67E22] text-white border-[#F39C12] animate-pulse shadow-lg'
                     : hasCharge
                     ? 'bg-[#1F2937] hover:bg-[#374151] text-white border-[#4B5563]'
@@ -247,7 +251,11 @@ export const HUD: React.FC<HUDProps> = ({
               >
                 <span>{currentDef.icon}</span>
                 <span className="hidden sm:inline text-xs">{currentDef.name}</span>
-                {isArmed ? (
+                {currentSkill === 'SALT' && stats.isSaltTargeting ? (
+                  <span className="text-[10px] font-mono font-black bg-[#2563EB] px-1 py-0.5 rounded text-white animate-pulse">
+                    AIMING [S]
+                  </span>
+                ) : isArmed ? (
                   <span className="text-[10px] font-mono font-black bg-[#935116] px-1 py-0.5 rounded text-white">
                     ARMED
                   </span>

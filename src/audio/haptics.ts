@@ -40,7 +40,32 @@ export class HapticsManager {
     }
 
     void effect.catch(() => {
-      // Haptics can be unavailable in desktop browsers and some simulators.
+      // Fallback for browsers / devices where Capacitor native bridge isn't active
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator && typeof navigator.vibrate === 'function') {
+        try {
+          switch (type) {
+            case 'TICK':
+            case 'LIGHT':
+              navigator.vibrate(10);
+              break;
+            case 'MEDIUM':
+              navigator.vibrate(25);
+              break;
+            case 'HEAVY':
+              navigator.vibrate(50);
+              break;
+            case 'FUSION':
+            case 'YOKOZUNA':
+              navigator.vibrate([30, 40, 60]);
+              break;
+            case 'ERROR':
+              navigator.vibrate([40, 60, 40]);
+              break;
+          }
+        } catch {
+          // Ignored
+        }
+      }
     });
   }
 }

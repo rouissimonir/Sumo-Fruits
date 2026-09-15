@@ -121,17 +121,56 @@ export default function App() {
   }, [engine, settings]);
 
   useEffect(() => {
-    const listener = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
-      if (!isActive) {
-        engine.cancelDrag();
-        sound.suspend();
+    const handleBackground = () => {
+      engine.cancelDrag();
+      sound.suspend();
+      if (!engine.isGameOver && !engine.isPaused) {
+        engine.pause();
       }
-    });
+    };
+
+    const handleForeground = () => {
+      if (!settings.sfxMuted) {
+        sound.resume();
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.hidden) {
+        handleBackground();
+      } else {
+        handleForeground();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('pagehide', handleBackground);
+    window.addEventListener('blur', handleBackground);
+    window.addEventListener('focus', handleForeground);
+
+    let capacitorListener: Promise<{ remove: () => Promise<void> }> | null = null;
+    try {
+      capacitorListener = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+        if (!isActive) {
+          handleBackground();
+        } else {
+          handleForeground();
+        }
+      });
+    } catch {
+      // Running in standard browser
+    }
 
     return () => {
-      void listener.then((handle) => handle.remove());
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('pagehide', handleBackground);
+      window.removeEventListener('blur', handleBackground);
+      window.removeEventListener('focus', handleForeground);
+      if (capacitorListener) {
+        void capacitorListener.then((handle) => handle?.remove?.());
+      }
     };
-  }, [engine]);
+  }, [engine, settings.sfxMuted]);
 
   const updateSettings = useCallback((partial: Partial<GameSettings>) => {
     setSettings((prev) => {
@@ -171,7 +210,11 @@ export default function App() {
   }, [settings.sfxMuted, updateSettings]);
 
   const handleThrowSalt = useCallback(() => {
-    engine.throwSalt();
+    if (engine.isSaltTargeting) {
+      engine.throwSalt();
+    } else {
+      engine.enterSaltTargeting();
+    }
   }, [engine]);
 
   const handleCycleArenaMode = useCallback(() => {
@@ -203,7 +246,15 @@ export default function App() {
         return;
       }
       if (e.key === 's' || e.key === 'S') {
-        engine.throwSalt();
+        if (engine.isSaltTargeting) {
+          engine.throwSalt();
+        } else {
+          engine.enterSaltTargeting();
+        }
+      } else if (e.key === 'Escape') {
+        if (engine.isSaltTargeting) {
+          engine.cancelSaltTargeting();
+        }
       } else if (e.key === ' ' || e.code === 'Space') {
         e.preventDefault();
         engine.triggerActiveSkill();

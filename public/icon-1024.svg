@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="65%">
+      <stop offset="0%" stop-color="#3D2E24"/>
+      <stop offset="60%" stop-color="#241B15"/>
+      <stop offset="100%" stop-color="#14100C"/>
+    </radialGradient>
+    <radialGradient id="ringGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="70%" stop-color="#D4A373" stop-opacity="0.15"/>
+      <stop offset="90%" stop-color="#C68B59" stop-opacity="0.4"/>
+      <stop offset="98%" stop-color="#8C5835" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#54331C"/>
+    </radialGradient>
+    <radialGradient id="melonGrad" cx="42%" cy="38%" r="58%">
+      <stop offset="0%" stop-color="#2ECC71"/>
+      <stop offset="45%" stop-color="#27AE60"/>
+      <stop offset="85%" stop-color="#1E8449"/>
+      <stop offset="100%" stop-color="#145A32"/>
+    </radialGradient>
+    <linearGradient id="mawashiGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#42352B"/>
+      <stop offset="40%" stop-color="#211812"/>
+      <stop offset="100%" stop-color="#100B07"/>
+    </linearGradient>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF3B0"/>
+      <stop offset="50%" stop-color="#F1C40F"/>
+      <stop offset="100%" stop-color="#B7950B"/>
+    </linearGradient>
+    <radialGradient id="shadowGrad" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#000000" stop-opacity="0.75"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bgGrad)"/>
+  <circle cx="512" cy="512" r="440" fill="none" stroke="#C68B59" stroke-width="8" opacity="0.35"/>
+  <circle cx="512" cy="512" r="410" fill="none" stroke="#E0A96D" stroke-width="4" opacity="0.25" stroke-dasharray="14 10"/>
+  <circle cx="512" cy="512" r="380" fill="url(#ringGrad)"/>
+  <g opacity="0.6" stroke="#C68B59" stroke-width="6">
+    <line x1="512" y1="122" x2="512" y2="152"/>
+    <line x1="512" y1="872" x2="512" y2="902"/>
+    <line x1="122" y1="512" x2="152" y2="512"/>
+    <line x1="872" y1="512" x2="902" y2="512"/>
+    <line x1="236" y1="236" x2="258" y2="258"/>
+    <line x1="788" y1="236" x2="766" y2="258"/>
+    <line x1="236" y1="788" x2="258" y2="766"/>
+    <line x1="788" y1="788" x2="766" y2="766"/>
+  </g>
+  <g fill="#FFFFFF" opacity="0.8">
+    <polygon points="460,200 466,206 460,212 454,206" opacity="0.6"/>
+    <polygon points="560,190 568,198 560,206 552,198" opacity="0.7"/>
+    <polygon points="300,320 306,326 300,332 294,326" opacity="0.5"/>
+    <polygon points="720,310 727,317 720,324 713,317" opacity="0.6"/>
+  </g>
+  <ellipse cx="512" cy="740" rx="270" ry="80" fill="url(#shadowGrad)"/>
+  <g>
+    <circle cx="512" cy="490" r="260" fill="url(#melonGrad)"/>
+    <path d="M 512,230 Q 420,360 410,490 Q 400,620 512,750" fill="none" stroke="#145A32" stroke-width="26" stroke-linecap="round" opacity="0.85"/>
+    <path d="M 512,230 Q 320,360 310,490 Q 300,620 512,750" fill="none" stroke="#145A32" stroke-width="24" stroke-linecap="round" opacity="0.8"/>
+    <path d="M 512,230 Q 604,360 614,490 Q 624,620 512,750" fill="none" stroke="#145A32" stroke-width="26" stroke-linecap="round" opacity="0.85"/>
+    <path d="M 512,230 Q 704,360 714,490 Q 724,620 512,750" fill="none" stroke="#145A32" stroke-width="24" stroke-linecap="round" opacity="0.8"/>
+    <ellipse cx="430" cy="350" rx="90" ry="50" fill="#FFFFFF" opacity="0.22" transform="rotate(-25 430 350)"/>
+    <g>
+      <path d="M 380,430 Q 425,415 450,445 Q 415,465 380,430 Z" fill="#FFFFFF"/>
+      <circle cx="422" cy="440" r="14" fill="#14120E"/>
+      <circle cx="426" cy="436" r="5" fill="#FFFFFF"/>
+      <path d="M 360,410 Q 410,390 460,425" fill="none" stroke="#0D381E" stroke-width="14" stroke-linecap="round"/>
+      <path d="M 644,430 Q 599,415 574,445 Q 609,465 644,430 Z" fill="#FFFFFF"/>
+      <circle cx="602" cy="440" r="14" fill="#14120E"/>
+      <circle cx="598" cy="436" r="5" fill="#FFFFFF"/>
+      <path d="M 664,410 Q 614,390 564,425" fill="none" stroke="#0D381E" stroke-width="14" stroke-linecap="round"/>
+      <path d="M 340,465 Q 370,475 390,495" fill="none" stroke="#E74C3C" stroke-width="10" stroke-linecap="round" opacity="0.85"/>
+      <path d="M 684,465 Q 654,475 634,495" fill="none" stroke="#E74C3C" stroke-width="10" stroke-linecap="round" opacity="0.85"/>
+      <path d="M 470,515 Q 512,535 554,515" fill="none" stroke="#0D381E" stroke-width="10" stroke-linecap="round"/>
+    </g>
+    <g>
+      <path d="M 276,570 Q 512,650 748,570 L 734,655 Q 512,735 290,655 Z" fill="url(#mawashiGrad)" stroke="#5A4535" stroke-width="4"/>
+      <g stroke="#F1C40F" stroke-width="6" stroke-linecap="round">
+        <line x1="480" y1="640" x2="475" y2="720"/>
+        <line x1="496" y1="645" x2="493" y2="735"/>
+        <line x1="512" y1="647" x2="512" y2="742"/>
+        <line x1="528" y1="645" x2="531" y2="735"/>
+        <line x1="544" y1="640" x2="549" y2="720"/>
+      </g>
+      <ellipse cx="512" cy="635" rx="42" ry="24" fill="url(#goldGrad)" stroke="#7D6608" stroke-width="4"/>
+      <circle cx="488" cy="635" r="16" fill="url(#goldGrad)" stroke="#7D6608" stroke-width="3"/>
+      <circle cx="536" cy="635" r="16" fill="url(#goldGrad)" stroke="#7D6608" stroke-width="3"/>
+    </g>
+    <g>
+      <path d="M 480,240 Q 512,170 544,240 Q 512,220 480,240 Z" fill="#1A1510" stroke="#0D0A08" stroke-width="4"/>
+      <ellipse cx="512" cy="195" rx="22" ry="14" fill="#2C221A" stroke="#0D0A08" stroke-width="3"/>
+      <rect x="502" y="215" width="20" height="10" rx="2" fill="url(#goldGrad)"/>
+    </g>
+  </g>
+  <g transform="translate(512, 915)">
+    <rect x="-190" y="-36" width="380" height="72" rx="36" fill="#1C1814" stroke="#E67E22" stroke-width="4"/>
+    <text x="0" y="10" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="34" font-weight="900" fill="#FFF3B0" text-anchor="middle" letter-spacing="4">
+      SUMO FRUITS
+    </text>
+  </g>
+</svg>

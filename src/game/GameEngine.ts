@@ -120,6 +120,8 @@ export class GameEngine {
   public activeChallengeId: string | null = null;
 
   // Launcher state & Shot Lifecycle
+  public arenaWidth: number = 900;
+  public arenaHeight: number = 800;
   public launcherPos = { x: 450, y: 760 }; // Below the bowl
   public dragPos = { x: 450, y: 760 };
   public isDragging = false;
@@ -243,6 +245,8 @@ export class GameEngine {
   }
 
   public setArenaSize(width: number, height: number) {
+    this.arenaWidth = width;
+    this.arenaHeight = height;
     // Keep arena centered and scaled nicely for any screen width
     const minDim = Math.min(width, height);
     const radius = Math.max(180, Math.min(330, (minDim - 140) * 0.46));
@@ -262,10 +266,16 @@ export class GameEngine {
     };
     this.arenaConditionManager.syncArenaRadius(radius);
 
+    // Provide safe bottom clearance for mobile screens and iOS Home Indicator
+    const bottomClearance = Math.min(95, Math.max(70, height * 0.12));
     this.launcherPos = {
       x: centerX,
-      y: Math.min(height - 65, centerY + radius + 75),
+      y: Math.min(height - bottomClearance, centerY + radius + 70),
     };
+
+    if (this.saltTargetPos.x === 0 && this.saltTargetPos.y === 0) {
+      this.saltTargetPos = { x: centerX, y: centerY };
+    }
 
     if (this.loadedFruit && this.loadedFruit.state === 'IDLE') {
       this.loadedFruit.x = this.launcherPos.x;
@@ -502,15 +512,23 @@ export class GameEngine {
   public triggerActiveSkill(): boolean {
     if (this.isGameOver || this.isPaused) return false;
     if (this.gameMode === 'VERSUS') {
-      this.throwSalt();
-      return true;
+      if (this.isSaltTargeting) {
+        return this.throwSalt();
+      } else {
+        this.enterSaltTargeting();
+        return true;
+      }
     }
 
     const equipped = this.skillManager.equipped;
     if (equipped === 'SALT') {
       if (this.skillManager.charge > 0) {
-        this.throwSalt();
-        return true;
+        if (this.isSaltTargeting) {
+          return this.throwSalt();
+        } else {
+          this.enterSaltTargeting();
+          return true;
+        }
       }
       return false;
     } else {
@@ -545,11 +563,28 @@ export class GameEngine {
     this.isSaltTargeting = false;
     if (this.gameMode === 'CAREER') this.careerManager.recordSaltUsed();
 
-    const x = targetX ?? this.saltTargetPos.x ?? this.arena.centerX;
-    const y = targetY ?? this.saltTargetPos.y ?? this.arena.centerY;
-    const radius = 90; // 90px footprint as requested
+    // Resolve target position safely
+    const rawX = targetX !== undefined
+      ? targetX
+      : (this.saltTargetPos.x > 0 || this.saltTargetPos.y > 0)
+        ? this.saltTargetPos.x
+        : this.arena.centerX;
+    const rawY = targetY !== undefined
+      ? targetY
+      : (this.saltTargetPos.x > 0 || this.saltTargetPos.y > 0)
+        ? this.saltTargetPos.y
+        : this.arena.centerY;
 
-    // 1 salt zone at a time
+    // Clamp inside arena legal boundary (max 95% radius)
+    const dx = rawX - this.arena.centerX;
+    const dy = rawY - this.arena.centerY;
+    const dist = Math.hypot(dx, dy);
+    const maxR = this.arena.radius * 0.95;
+    const x = dist > maxR && dist > 0 ? this.arena.centerX + (dx / dist) * maxR : rawX;
+    const y = dist > maxR && dist > 0 ? this.arena.centerY + (dy / dist) * maxR : rawY;
+    const radius = 90; // 90px footprint as specified
+
+    // 1 salt zone active at a time (purifies current zone)
     this.saltZones = [];
     this.saltZones.push({
       id: this.nextEntityId++,
@@ -562,37 +597,52 @@ export class GameEngine {
     });
 
     // Dissolve non-rival hazards inside salt radius (25% knockout score, 0 recharge, no combo advance)
+    let purifiedHazardCount = 0;
     for (const h of this.hazards) {
       if (h.ringOut || h.kind === 'CHILI' || h.kind === 'RIVAL') continue;
       const d = Math.hypot(h.x - x, h.y - y);
       if (d < radius + h.radius) {
         h.ringOut = true;
+        h.hp = 0;
+        if (h.guardMarks) h.guardMarks = 0;
         const bonus = Math.round(h.scoreValue * 0.25);
         this.score += bonus;
-        this.spawnSparks(h.x, h.y, '#FFFFFF', 16);
+        this.spawnSparks(h.x, h.y, '#FFFFFF', 18);
+        purifiedHazardCount++;
         if (this.gameMode === 'CAREER') {
           this.careerManager.recordHazardRemoval(h.kind, 'SALT', this.score, this.lives);
         }
         if (h.kind === 'WASABI') {
-          sound.playHazardClear();
           this.techniqueRibbons.addRibbon('Wasabi Purified!', 'Sacred Salt dissolved the sticky sludge!', '#4B69FD');
+        } else if (h.kind === 'ICE') {
+          this.techniqueRibbons.addRibbon('Ice Thawed!', 'Sacred Salt melted the slippery ice block!', '#4B69FD');
+        } else if (h.kind === 'ARMOR_BUG') {
+          this.techniqueRibbons.addRibbon('Carapace Corroded!', 'Sacred Salt dissolved armored beetle defenses!', '#4B69FD');
+        } else if (h.kind === 'BUG') {
+          this.techniqueRibbons.addRibbon('Pest Cleansed!', 'Sacred Salt banished the rotten pest!', '#4B69FD');
+        } else if (h.kind === 'GINKO_MAGNET') {
+          this.techniqueRibbons.addRibbon('Magnet Cleansed!', 'Sacred Salt dispelled magnetic interference!', '#4B69FD');
         }
       }
     }
 
+    if (purifiedHazardCount > 0) {
+      sound.playHazardClear();
+    }
+
     // Shimmering salt crystal particles
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < 32; i++) {
       const angle = Math.random() * Math.PI * 2;
-      const dist = Math.random() * radius;
+      const distP = Math.random() * radius;
       this.particles.push({
-        x: x + Math.cos(angle) * dist,
-        y: y + Math.sin(angle) * dist,
-        vx: (Math.random() - 0.5) * 45,
-        vy: -20 - Math.random() * 45,
+        x: x + Math.cos(angle) * distP,
+        y: y + Math.sin(angle) * distP,
+        vx: (Math.random() - 0.5) * 50,
+        vy: -25 - Math.random() * 50,
         color: '#FFFFFF',
         size: 2.5 + Math.random() * 3.5,
-        life: 0.8 + Math.random() * 0.6,
-        maxLife: 1.4,
+        life: 0.9 + Math.random() * 0.6,
+        maxLife: 1.5,
         type: 'SALT',
       });
     }
@@ -737,6 +787,20 @@ export class GameEngine {
     return this.isPaused;
   }
 
+  public pause(): void {
+    if (!this.isPaused) {
+      this.isPaused = true;
+      this.emitStats();
+    }
+  }
+
+  public resume(): void {
+    if (this.isPaused) {
+      this.isPaused = false;
+      this.emitStats();
+    }
+  }
+
   public loadNextFruit() {
     let tier: number;
     let team: 'PLAYER' | 'PLAYER_1' | 'PLAYER_2' = 'PLAYER';
@@ -797,7 +861,14 @@ export class GameEngine {
 
   // Pointer interactions
   public handlePointerDown(x: number, y: number): boolean {
-    if (this.isGameOver || this.isPaused || !this.loadedFruit) return false;
+    if (this.isGameOver || this.isPaused) return false;
+
+    // Sacred salt targeting mode: tap/click anywhere to cast purification zone!
+    if (this.isSaltTargeting) {
+      return this.throwSalt(x, y);
+    }
+
+    if (!this.loadedFruit) return false;
     if (this.gameMode === 'CAREER' && (this.careerManager.result || this.shotState !== 'IDLE')) return false;
 
     // Check if clicked close to launcher/loaded fruit
@@ -815,6 +886,22 @@ export class GameEngine {
   }
 
   public handlePointerMove(x: number, y: number) {
+    if (this.isSaltTargeting) {
+      const dx = x - this.arena.centerX;
+      const dy = y - this.arena.centerY;
+      const dist = Math.hypot(dx, dy);
+      const maxR = this.arena.radius * 0.95;
+      if (dist > maxR && dist > 0) {
+        this.saltTargetPos = {
+          x: this.arena.centerX + (dx / dist) * maxR,
+          y: this.arena.centerY + (dy / dist) * maxR,
+        };
+      } else {
+        this.saltTargetPos = { x, y };
+      }
+      return;
+    }
+
     if (!this.isDragging || !this.loadedFruit) return;
 
     // Drag vector d = x_pointer - x_origin
@@ -831,6 +918,10 @@ export class GameEngine {
     } else {
       this.dragPos = { x, y };
     }
+
+    // Clamp drag position to prevent triggering the bottom iOS Home Indicator bar
+    const safeMaxY = Math.max(this.launcherPos.y, this.arenaHeight - 20);
+    this.dragPos.y = Math.min(this.dragPos.y, safeMaxY);
 
     // Pull direction controls the clean, straight launch path.
     this.loadedFruit.x = this.dragPos.x;
@@ -885,26 +976,6 @@ export class GameEngine {
       this.bankShotDetected = false;
       this.shotInitialMergeDone = false;
       this.currentShotHypeGained = 0;
-
-      // Sacred Salt charge: refills through 6 committed launches
-      if (this.saltCharges < this.maxSaltCharges) {
-        this.saltLaunchCount++;
-        if (this.saltLaunchCount >= 6) {
-          this.saltCharges = 1;
-          this.saltLaunchCount = 0;
-          this.techniqueRibbons.addRibbon(
-            'Salt Ready!',
-            'Kiyome-no-Shio replenished!',
-            '#4B69FD',
-            2.5,
-            '清塩',
-            '🧂',
-            'RECHARGE'
-          );
-          sound.playTaikoFlourish();
-          haptics.trigger('MEDIUM');
-        }
-      }
 
       // Festival Shot consuming
       if (this.festivalReadyShots > 0) {
@@ -967,10 +1038,25 @@ export class GameEngine {
 
       // Consume armed skill empowerment and advance recharge counter
       if (this.gameMode !== 'VERSUS') {
+        const prevCharge = this.skillManager.charge;
         const activeEmpowerment = this.skillManager.onPlayerLaunchCommitted();
         this.loadedFruit.empoweredSkill = activeEmpowerment;
         this.saltCharges = this.skillManager.charge;
         this.saltLaunchCount = this.skillManager.rechargeProgress;
+        if (prevCharge === 0 && this.skillManager.charge === 1) {
+          const def = this.skillManager.getDefinition(this.skillManager.equipped);
+          this.techniqueRibbons.addRibbon(
+            `${def.name} Ready!`,
+            `${def.name} fully replenished!`,
+            def.color,
+            2.5,
+            def.nameJp,
+            def.icon,
+            'RECHARGE'
+          );
+          sound.playTaikoFlourish();
+          haptics.trigger('MEDIUM');
+        }
       }
 
       this.loadedFruit = null;

@@ -25,19 +25,19 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
     let accumulator = 0;
     const fixedStep = 1 / 120;
 
-    // Handle high-DPI and responsive sizing
+    // Handle high-DPI and responsive sizing with Retina 2x cap for mobile thermal efficiency
+    let currentDpr = 1;
     const updateSize = () => {
       const width = container.clientWidth;
       const height = container.clientHeight;
-      const dpr = window.devicePixelRatio || 1;
+      currentDpr = Math.min(window.devicePixelRatio || 1, 2);
 
-      canvas.width = width * dpr;
-      canvas.height = height * dpr;
+      canvas.width = Math.floor(width * currentDpr);
+      canvas.height = Math.floor(height * currentDpr);
       canvas.style.width = `${width}px`;
       canvas.style.height = `${height}px`;
 
-      ctx.resetTransform?.();
-      ctx.scale(dpr, dpr);
+      ctx.setTransform(currentDpr, 0, 0, currentDpr, 0, 0);
 
       engine.setArenaSize(width, height);
     };
@@ -46,13 +46,21 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
     resizeObserver.observe(container);
     updateSize();
 
-    // Main game loop
+    // Main game loop with ProMotion 120Hz stability & anti-tunneling clamps
     const renderLoop = (now: number) => {
-      const frameTime = Math.min(0.05, (now - lastTime) / 1000);
+      if (document.hidden || engine.isPaused) {
+        lastTime = now;
+        accumulator = 0;
+        animationId = requestAnimationFrame(renderLoop);
+        return;
+      }
+
+      // Clamp frame delta-time to 0.033s (prevents physics tunneling on frame drops or tab switching)
+      const frameTime = Math.min(0.033, (now - lastTime) / 1000);
       lastTime = now;
 
-      // Keep physics stable across standard 60 Hz and ProMotion 120 Hz displays.
-      accumulator = Math.min(0.05, accumulator + frameTime);
+      // Fixed 120Hz physics sub-step accumulator
+      accumulator = Math.min(0.033, accumulator + frameTime);
       while (accumulator >= fixedStep) {
         engine.update(fixedStep);
         accumulator -= fixedStep;
@@ -62,6 +70,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
       const w = container.clientWidth;
       const h = container.clientHeight;
 
+      ctx.setTransform(currentDpr, 0, 0, currentDpr, 0, 0);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       ctx.save();
       // Apply tabletop 180-degree inversion if active for Player 2
       const isTabletopFlipped =
@@ -106,6 +117,11 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
 
       // 8. Particles & Shockwaves
       drawParticles(ctx, engine);
+
+      // 8.5 Sacred Salt Targeting Reticle
+      if (engine.isSaltTargeting) {
+        drawSaltTargetingReticle(ctx, engine);
+      }
 
       // 9. Gyōji Referee Callout Banner
       if (engine.activeRefereeCall) {
@@ -187,7 +203,9 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const { x, y } = getCanvasCoords(e);
-    if (e.pointerId === primaryPointerId.current) engine.handlePointerMove(x, y);
+    if (engine.isSaltTargeting || e.pointerId === primaryPointerId.current) {
+      engine.handlePointerMove(x, y);
+    }
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLCanvasElement>) => {
@@ -199,6 +217,18 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
     if (e.pointerId === primaryPointerId.current) {
       primaryPointerId.current = null;
       engine.handlePointerUp();
+    }
+  };
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    } catch {
+      // Ignored
+    }
+    if (e.pointerId === primaryPointerId.current) {
+      primaryPointerId.current = null;
+      engine.cancelDrag();
     }
   };
 
@@ -217,7 +247,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          if (engine.isSaltTargeting) {
+            engine.cancelSaltTargeting();
+          }
+        }}
       />
     </div>
   );
@@ -536,6 +572,116 @@ function drawSaltZones(ctx: CanvasRenderingContext2D, engine: GameEngine) {
     ctx.fillText('清', 0, 0);
 
     ctx.restore();
+  }
+}
+
+function drawSaltTargetingReticle(ctx: CanvasRenderingContext2D, engine: GameEngine) {
+  if (!engine.isSaltTargeting) return;
+  const targetX = (engine.saltTargetPos.x !== 0 || engine.saltTargetPos.y !== 0)
+    ? engine.saltTargetPos.x
+    : engine.arena.centerX;
+  const targetY = (engine.saltTargetPos.x !== 0 || engine.saltTargetPos.y !== 0)
+    ? engine.saltTargetPos.y
+    : engine.arena.centerY;
+  const radius = 90;
+  const now = performance.now();
+  const pulse = 1 + 0.04 * Math.sin(now * 0.008);
+  const rot = (now * 0.001) % (Math.PI * 2);
+
+  ctx.save();
+  ctx.translate(targetX, targetY);
+
+  // Outer glow aura
+  const grad = ctx.createRadialGradient(0, 0, 10, 0, 0, radius * pulse);
+  grad.addColorStop(0, 'rgba(147, 197, 253, 0.45)');
+  grad.addColorStop(0.65, 'rgba(96, 165, 250, 0.22)');
+  grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
+
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius * pulse, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Shimenawa dashed ring (rotating slowly)
+  ctx.save();
+  ctx.rotate(rot);
+  ctx.strokeStyle = '#93C5FD';
+  ctx.lineWidth = 2.5;
+  ctx.setLineDash([10, 8]);
+  ctx.beginPath();
+  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+
+  // Subtle inner guideline ring
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(0, 0, radius * 0.45, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Crosshair brackets
+  ctx.strokeStyle = '#FFD700';
+  ctx.lineWidth = 2;
+  const chLen = 14;
+  const chDist = radius + 6;
+  [0, Math.PI / 2, Math.PI, (3 * Math.PI) / 2].forEach((ang) => {
+    const cos = Math.cos(ang);
+    const sin = Math.sin(ang);
+    ctx.beginPath();
+    ctx.moveTo(cos * (chDist - chLen), sin * (chDist - chLen));
+    ctx.lineTo(cos * chDist, sin * chDist);
+    ctx.stroke();
+  });
+
+  // Kanji in center with dark outline for contrast
+  ctx.font = 'bold 30px "Noto Serif JP", serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#0F172A';
+  ctx.fillText('清', 1, 1);
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillText('清', 0, 0);
+
+  // Floating prompt badge
+  ctx.font = 'bold 12px sans-serif';
+  const badgeText = '🧂 CLICK DOHYŌ TO PURIFY [S] • [ESC] CANCEL';
+  const textW = ctx.measureText(badgeText).width;
+  const badgeY = radius + 22;
+
+  ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+  ctx.strokeStyle = '#60A5FA';
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.roundRect(-textW / 2 - 12, badgeY - 12, textW + 24, 24, 6);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#93C5FD';
+  ctx.fillText(badgeText, 0, badgeY);
+
+  ctx.restore();
+
+  // Highlight any hazards in danger of being purified
+  for (const h of engine.hazards) {
+    if (h.ringOut || h.kind === 'CHILI' || h.kind === 'RIVAL') continue;
+    const d = Math.hypot(h.x - targetX, h.y - targetY);
+    if (d < radius + h.radius) {
+      ctx.save();
+      ctx.strokeStyle = '#F59E0B';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.arc(h.x, h.y, h.radius + 6, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = '#FDE68A';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('PURIFY', h.x, h.y - h.radius - 8);
+      ctx.restore();
+    }
   }
 }
 

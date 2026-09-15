@@ -78,6 +78,33 @@ class SoundEngine {
     }
   }
 
+  public resume() {
+    if (this.ctx?.state === 'suspended') {
+      void this.ctx.resume().catch(() => {});
+    }
+  }
+
+  /**
+   * Hardware-level Web Audio unlock for iOS Safari / WKWebView.
+   * Plays a 1-sample silent buffer on user gesture to wake the hardware bus.
+   */
+  public unlockAudio() {
+    this.init();
+    if (!this.ctx) return;
+    if (this.ctx.state === 'suspended') {
+      void this.ctx.resume().catch(() => {});
+    }
+    try {
+      const buffer = this.ctx.createBuffer(1, 1, 22050);
+      const source = this.ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(this.ctx.destination);
+      source.start(0);
+    } catch {
+      // Ignored
+    }
+  }
+
   /**
    * Traditional Hyoshigi (sumo wooden clappers) strike
    */
@@ -768,3 +795,13 @@ class SoundEngine {
 }
 
 export const sound = new SoundEngine();
+
+// Auto-register one-time unlock handlers for iOS Web Audio
+if (typeof window !== 'undefined') {
+  const unlockEvents = ['touchstart', 'touchend', 'pointerdown', 'keydown', 'mousedown'];
+  const handleUnlock = () => {
+    sound.unlockAudio();
+    unlockEvents.forEach((ev) => window.removeEventListener(ev, handleUnlock, { capture: true }));
+  };
+  unlockEvents.forEach((ev) => window.addEventListener(ev, handleUnlock, { capture: true, passive: true }));
+}

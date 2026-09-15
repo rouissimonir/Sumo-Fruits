@@ -94,17 +94,56 @@ export const LegalCreditsModal: React.FC<LegalCreditsModalProps> = ({
             </p>
           </div>
 
+          {/* Trademarks & Cultural Authenticity */}
+          <div className="bg-[#241E19] border border-[#3D2E24] rounded-xl p-4 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#9B59B6]">
+              <ShieldCheck size={16} />
+              <span>{isJa ? '伝統文化・商標クリアランス (Apple 5.2 準拠)' : 'Cultural Heritage & Trademarks (Apple Guideline 5.2)'}</span>
+            </div>
+            <p className="text-xs text-[#C8B8A6] leading-relaxed">
+              {isJa
+                ? '本作に登場する大相撲用語（横綱、大関、行司、軍配、土俵、俵、水引幕、四股名、および「はっけよい」「残った」などの掛け声）は、数百年以上の歴史を有する日本の伝統神事・国技文化に基づくパブリックドメインの概念です。特定の商業団体や日本相撲協会の登録商標を侵害するものではなく、商業提携を示すものではありません。'
+                : 'All sumo references—including ranks (Yokozuna, Ozeki, Sekiwake, Komusubi, Maegashira), referee terminology (Hakkeyoi, Nokotta, Gyoji, Gunbai), arena architecture (Dohyo, Tawara, Shimenawa, Salt), and 8 Kimarite techniques—are centuries-old traditional Japanese cultural concepts belonging to the public domain. Sumo Fruits is an independent artistic arcade game with zero unauthorized trademarks or proprietary corporate logos.'}
+            </p>
+          </div>
+
           {/* Privacy & App Store Compliance */}
           <div className="bg-[#241E19] border border-[#3D2E24] rounded-xl p-4 space-y-2">
             <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#2ECC71]">
               <Lock size={16} />
-              <span>{isJa ? 'プライバシー・データ通信宣言' : 'App Store Privacy & Zero Telemetry'}</span>
+              <span>{isJa ? 'プライバシーポリシー・完全オフライン動作 (Apple 5.1.1 & 4.2)' : 'Privacy Policy & Zero Telemetry (Apple Guidelines 5.1.1 & 4.2)'}</span>
+            </div>
+            <div className="text-xs text-[#C8B8A6] space-y-1.5 leading-relaxed">
+              <p>
+                {isJa
+                  ? '【データ収集ゼロ】本作はユーザーの個人情報、位置情報、端末識別子を一切収集・送信しません。広告ネットワークSDKや外部分析トラッカーは一切含まれていません。'
+                  : '【Zero Data Collection】Sumo Fruits collects, stores, and transmits zero personal data, location data, or device identifiers. There are no advertising SDKs, third-party analytics, or behavioral trackers.'}
+              </p>
+              <p>
+                {isJa
+                  ? '【機内モード・完全オフライン対応】すべての物理演算、サウンド合成、巡業AIは端末ローカルで完結します。機内モードやネットワーク未接続環境でも全ての機能を制限なく楽しめます。'
+                  : '【100% Offline / Airplane Mode Ready】All physics calculations, procedural audio synthesis, and career AI run completely on-device with zero backend dependencies. Fully playable in Airplane Mode.'}
+              </p>
+            </div>
+          </div>
+
+          {/* Support & Developer Inquiries */}
+          <div className="bg-[#241E19] border border-[#3D2E24] rounded-xl p-4 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#F39C12]">
+              <Palette size={16} />
+              <span>{isJa ? 'サポート窓口・お問い合わせ' : 'Support & Developer Contact'}</span>
             </div>
             <p className="text-xs text-[#C8B8A6] leading-relaxed">
               {isJa
-                ? '完全オフライン動作。外部サーバーへの通信、ユーザー追跡、広告SDK、分析トラッカーは一切組み込まれていません。すべてのセーブデータは端末ローカルに安全に保存されます。'
-                : '100% offline-ready. No network tracking, no ad networks, no analytics trackers. All high scores, daily basho records, and preferences are stored exclusively on-device in LocalStorage.'}
+                ? 'ゲームの不具合報告、フィードバック、またはApp Store審査に関するお問い合わせは、以下の開発者窓口までご連絡ください。'
+                : 'For player support, bug reports, and App Store review inquiries:'}
             </p>
+            <div className="flex items-center gap-2 text-xs font-mono bg-[#181410] px-3 py-1.5 rounded-lg border border-[#3A2D23] text-[#F1C40F]">
+              <span>Email:</span>
+              <a href="mailto:mounirrouissi2@gmail.com" className="underline hover:text-white">
+                mounirrouissi2@gmail.com
+              </a>
+            </div>
           </div>
         </div>
 
