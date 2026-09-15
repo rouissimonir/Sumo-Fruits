@@ -399,20 +399,6 @@ export interface RivalProfile {
   defeatQuote: string;
 }
 
-export interface CareerStage {
-  index: number;
-  name: string;
-  rankTitle: string;
-  rival: RivalProfile;
-  arenaMode: ArenaMode;
-  complicationDescription: string;
-  unlocked: boolean;
-  completed: boolean;
-  hasWasabi?: boolean;
-  hasChili?: boolean;
-  hasFragileRims?: boolean;
-}
-
 export interface ChallengeScenario {
   id: string;
   title: string;

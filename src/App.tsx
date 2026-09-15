@@ -15,6 +15,9 @@ import { TutorialModal } from './components/TutorialModal';
 import { LegalCreditsModal } from './components/LegalCreditsModal';
 import { VersusVictoryModal } from './components/VersusVictoryModal';
 import { VersusHandoverModal } from './components/VersusHandoverModal';
+import { CampaignMap } from './components/campaign/CampaignMap';
+import { CampaignResultModal } from './components/campaign/CampaignResultModal';
+import { CAMPAIGN_LEVELS } from './content/campaign';
 import { sound } from './audio/soundEffects';
 import { haptics } from './audio/haptics';
 import { App as CapacitorApp } from '@capacitor/app';
@@ -93,12 +96,14 @@ export default function App() {
       outOfBoundsTimers: {},
     },
     dailyBasho: null,
+    campaign: engine.careerManager.getSnapshot(),
   });
 
   const [isTierListOpen, setIsTierListOpen] = useState(false);
   const [isKimariteOpen, setIsKimariteOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCreditsOpen, setIsCreditsOpen] = useState(false);
+  const [isCampaignMapOpen, setIsCampaignMapOpen] = useState(false);
   const [isTutorialOpen, setIsTutorialOpen] = useState(() => {
     if (typeof window === 'undefined' || !window.localStorage) return false;
     return !localStorage.getItem('sumo_tutorial_completed_v1');
@@ -177,7 +182,18 @@ export default function App() {
   }, [engine, stats.arenaMode]);
 
   const handleSelectGameMode = useCallback((mode: GameModeType, challengeId?: string) => {
+    if (mode === 'CAREER') {
+      setIsCampaignMapOpen(true);
+      return;
+    }
     engine.setGameMode(mode, challengeId);
+  }, [engine]);
+
+  const handleStartCareerLevel = useCallback((levelId: string) => {
+    engine.startCareerLevel(levelId);
+    setIsCampaignMapOpen(false);
+    setIsSettingsOpen(false);
+    setShowBottomTip(false);
   }, [engine]);
 
   // Keyboard controls for rapid desktop testing.
@@ -297,7 +313,7 @@ export default function App() {
       />
 
       <GameOverModal
-        isOpen={stats.isGameOver && stats.gameMode !== 'VERSUS'}
+        isOpen={stats.isGameOver && stats.gameMode !== 'VERSUS' && stats.gameMode !== 'CAREER'}
         score={stats.score}
         highScore={stats.highScore}
         isNewHighScore={stats.isNewHighScore}
@@ -305,6 +321,29 @@ export default function App() {
         highestTierReached={stats.highestTierReached}
         onRestart={handleRestart}
       />
+
+      <CampaignMap
+        isOpen={isCampaignMapOpen}
+        campaign={stats.campaign}
+        onClose={() => setIsCampaignMapOpen(false)}
+        onStart={handleStartCareerLevel}
+      />
+
+      {stats.gameMode === 'CAREER' && (
+        <CampaignResultModal
+          campaign={stats.campaign}
+          score={stats.score}
+          onRetry={() => engine.restart()}
+          onNext={() => {
+            const next = CAMPAIGN_LEVELS[stats.campaign.activeLevelIndex + 1];
+            if (next) handleStartCareerLevel(next.id);
+          }}
+          onMap={() => {
+            engine.dismissCareerResult();
+            setIsCampaignMapOpen(true);
+          }}
+        />
+      )}
 
       {/* Versus Handover Transition Barrier */}
       {stats.versus && (

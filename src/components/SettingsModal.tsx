@@ -304,7 +304,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               <button
                 id="mode-career-btn"
-                onClick={() => onSelectGameMode('CAREER')}
+                onClick={() => {
+                  onClose();
+                  onSelectGameMode('CAREER');
+                }}
                 className={`py-2 px-2 rounded-lg border text-xs font-bold transition-all cursor-pointer text-center ${
                   stats.gameMode === 'CAREER'
                     ? 'bg-[#B7791F]/30 border-[#FFD700] text-white shadow-sm'
@@ -313,7 +316,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               >
                 {isJa ? '番付巡業' : 'Career'}
                 <div className="text-[10px] font-normal text-[#8A7B6D] mt-0.5">
-                  Banzuke {stats.careerStageIndex + 1}/5
+                  {stats.campaign.completedLevelIds.length}/24 Bouts
                 </div>
               </button>
 

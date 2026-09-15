@@ -398,6 +398,21 @@ export const HUD: React.FC<HUDProps> = ({
         </div>
       )}
 
+      {stats.gameMode === 'CAREER' && stats.campaign.activeLevelId && !stats.campaign.result && (
+        <div className="pointer-events-auto flex w-full items-center gap-2 rounded-xl border border-[#D4AF37]/70 bg-[#1C1814]/95 px-2.5 py-1.5 shadow-lg">
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[9px] font-black uppercase tracking-wider text-[#E67E22]">
+              Bout {stats.campaign.activeLevelIndex + 1} · {stats.campaign.title}
+            </div>
+            <div className="truncate text-[11px] font-bold text-white">{stats.campaign.objectiveText}</div>
+          </div>
+          <div className="shrink-0 text-right font-mono text-[10px] font-black text-[#FFD700]">
+            <div>{stats.campaign.progress}/{stats.campaign.target}</div>
+            <div className="text-[9px] text-[#B9A996]">SHOT {stats.campaign.shotsUsed}/{stats.campaign.shotLimit}</div>
+          </div>
+        </div>
+      )}
+
       {/* Overflow Alarm Banner (when bowl capacity exceeded & protruding) */}
       {!isVersus && isOverflowWarning && (
         <div className="self-center flex items-center gap-2.5 bg-[#E74C3C] text-white px-4 py-1.5 rounded-full font-bold text-xs sm:text-sm shadow-xl animate-pulse pointer-events-auto border-2 border-white mt-1">

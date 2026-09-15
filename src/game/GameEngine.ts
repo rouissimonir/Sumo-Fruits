@@ -45,6 +45,7 @@ import { RefereeDirector } from './RefereeDirector';
 import { RIVAL_PROFILES, RivalSumoController } from './RivalSumo';
 import { TechniqueRibbonManager } from './TechniqueRibbonManager';
 import { VersusManager } from './VersusManager';
+import { CampaignSnapshot } from '../types/campaign';
 
 export interface GameStats {
   score: number;
@@ -87,6 +88,7 @@ export interface GameStats {
   versus: VersusState | null;
   arenaCondition: ArenaConditionState;
   dailyBasho: DailyBashoState | null;
+  campaign: CampaignSnapshot;
 }
 
 export class GameEngine {
@@ -286,6 +288,10 @@ export class GameEngine {
   }
 
   public setGameMode(mode: GameModeType, challengeId?: string) {
+    if (mode === 'CAREER') {
+      this.startCareerLevel(this.careerManager.getContinueLevelId());
+      return;
+    }
     this.gameMode = mode;
     this.activeChallengeId = challengeId || null;
 
@@ -303,13 +309,7 @@ export class GameEngine {
 
     this.restart();
 
-    if (mode === 'CAREER') {
-      const stage = this.careerManager.getCurrentStage();
-      this.setArenaMode(stage.arenaMode);
-      this.rivalController.setProfile(stage.rival);
-      this.spawnCareerRival();
-      this.triggerRefereeCall('本場所', 'BANZUKE BOUT', stage.name, '#FFD700', 'hakkeyoi');
-    } else if (mode === 'CHALLENGE' && challengeId) {
+    if (mode === 'CHALLENGE' && challengeId) {
       if (challengeId === 'WOBBLE_SEA') {
         this.setArenaMode('WOBBLE');
       } else if (challengeId === 'BROKEN_TAWARA') {
@@ -340,6 +340,24 @@ export class GameEngine {
     this.emitStats();
   }
 
+  public startCareerLevel(levelId: string) {
+    const level = this.careerManager.startLevel(levelId);
+    this.gameMode = 'CAREER';
+    this.activeChallengeId = null;
+    this.setArenaMode(level.arenaMode);
+    this.arenaConditionManager.setSeed(level.index + 4101);
+    this.arenaConditionManager.setCondition(level.arenaCondition, this.arena.radius);
+    if (level.rivalId) this.rivalController.setProfile(RIVAL_PROFILES[level.rivalId]);
+    this.restart();
+    this.triggerRefereeCall('本場所', `BOUT ${level.index + 1}`, level.title, '#FFD700', 'hakkeyoi');
+    this.emitStats();
+  }
+
+  public dismissCareerResult() {
+    this.careerManager.clearResult();
+    this.emitStats();
+  }
+
   public setArenaCondition(condition: ArenaConditionType) {
     if (this.gameMode === 'DAILY') return;
     this.arenaConditionManager.setCondition(condition, this.arena.radius);
@@ -361,6 +379,54 @@ export class GameEngine {
     const rivalFruit = this.rivalController.spawnRival(this.arena, this.nextEntityId++);
     this.fruits.push(rivalFruit);
     this.spawnSparks(rivalFruit.x, rivalFruit.y, this.rivalController.profile.color, 25);
+  }
+
+  private setupCampaignBoard() {
+    const level = this.careerManager.activeLevel;
+    if (!level) return;
+    for (const index of level.brokenBales ?? []) {
+      if (this.strawBales[index]) {
+        this.strawBales[index].health = 0;
+        this.strawBales[index].state = 'BROKEN';
+      }
+    }
+    for (const item of level.initialFruits ?? []) {
+      const catalog = FRUIT_CATALOG[item.tier - 1];
+      const x = this.arena.centerX + item.x;
+      const y = this.arena.centerY + item.y;
+      this.fruits.push({
+        id: this.nextEntityId++, tier: item.tier, team: 'PLAYER', x, y, vx: 0, vy: 0,
+        state: 'IN_RING', entryPending: false, rimPermission: false, clashId: null,
+        squash: { amplitude: 0, normalX: 0, normalY: 0, elapsed: 0, active: false },
+        ripple: { elapsed: 0, impactAngle: 0, active: false },
+        leftTail: createMawashiTail(x - catalog.radius * 0.4, y + catalog.radius * 0.7, catalog.radius),
+        rightTail: createMawashiTail(x + catalog.radius * 0.4, y + catalog.radius * 0.7, catalog.radius),
+        fallProgress: 0, lookTarget: null, panic: false, hasEnteredRing: true,
+        wasInRimDanger: false, nearRimSaved: false,
+      });
+      this.highestTier = Math.max(this.highestTier, item.tier);
+    }
+    for (const item of level.initialHazards ?? []) {
+      const traits = item.kind === 'ICE'
+        ? { name: 'Ice Cube', radius: 22, mass: 6, damp: 0.35, restitution: 0.95, score: 150 }
+        : item.kind === 'WASABI'
+        ? { name: 'Wasabi Sludge', radius: 24, mass: 5, damp: 1.1, restitution: 0.4, score: 180 }
+        : item.kind === 'CHILI'
+        ? { name: 'Fiery Chili', radius: 20, mass: 4, damp: 0.4, restitution: 0.95, score: 220 }
+        : item.kind === 'GINKO_MAGNET'
+        ? { name: 'Sacred Ginko Nut', radius: 22, mass: 4.5, damp: 0.5, restitution: 0.85, score: 250 }
+        : { name: 'Rotten Beetle', radius: 18, mass: 3.5, damp: 0.7, restitution: 0.85, score: 120 };
+      this.hazards.push({
+        id: this.nextEntityId++, kind: item.kind, name: traits.name,
+        x: this.arena.centerX + item.x, y: this.arena.centerY + item.y,
+        vx: 0, vy: 0, radius: traits.radius, mass: traits.mass, damp: traits.damp,
+        restitution: traits.restitution, resistance: 0.2, scoreValue: traits.score,
+        cleansing: false, ringOut: false, fallProgress: 0, rotation: 0,
+        hp: item.kind === 'WASABI' ? 3 : undefined,
+        maxHp: item.kind === 'WASABI' ? 3 : undefined, hitFlashTimer: 0,
+      });
+    }
+    if (level.rivalId) this.spawnCareerRival();
   }
 
   public triggerRefereeCall(
@@ -421,6 +487,7 @@ export class GameEngine {
       this.saltLaunchCount = 0;
     }
     this.isSaltTargeting = false;
+    if (this.gameMode === 'CAREER') this.careerManager.recordSaltUsed();
 
     const x = targetX ?? this.saltTargetPos.x ?? this.arena.centerX;
     const y = targetY ?? this.saltTargetPos.y ?? this.arena.centerY;
@@ -447,6 +514,9 @@ export class GameEngine {
         const bonus = Math.round(h.scoreValue * 0.25);
         this.score += bonus;
         this.spawnSparks(h.x, h.y, '#FFFFFF', 16);
+        if (this.gameMode === 'CAREER') {
+          this.careerManager.recordHazardRemoval(h.kind, 'SALT', this.score, this.lives);
+        }
         if (h.kind === 'WASABI') {
           sound.playHazardClear();
           this.techniqueRibbons.addRibbon('Wasabi Purified!', 'Sacred Salt dissolved the sticky sludge!', '#4B69FD');
@@ -502,6 +572,7 @@ export class GameEngine {
 
   public addScore(amount: number) {
     this.score += amount;
+    if (this.gameMode !== 'CLASSIC') return;
     if (this.score > this.highScore) {
       const wasRecord = this.isNewHighScore;
       this.highScore = this.score;
@@ -539,6 +610,7 @@ export class GameEngine {
 
   public restart() {
     if (this.gameMode === 'VERSUS') this.versusManager.reset();
+    if (this.gameMode === 'CAREER' && this.careerManager.activeLevel) this.careerManager.restartAttempt();
     this.rivalController.reset();
     const condition = this.dailyBashoState?.condition ?? this.arenaConditionManager.state.type;
     if (this.dailyBashoState) {
@@ -555,7 +627,7 @@ export class GameEngine {
     this.mergeManager.clear();
     this.score = 0;
     this.isNewHighScore = false;
-    this.lives = 3;
+    this.lives = this.gameMode === 'CAREER' && this.careerManager.activeLevel ? this.careerManager.activeLevel.lives : 3;
     this.overflowTimer = 0;
     this.isOverflowing = false;
     this.isPaused = false;
@@ -564,7 +636,7 @@ export class GameEngine {
     this.cameraTrauma = 0;
     this.totalShots = 0;
     this.highestTier = 1;
-    this.saltCharges = 1;
+    this.saltCharges = this.gameMode === 'CAREER' && this.careerManager.activeLevel ? this.careerManager.activeLevel.saltCharges : 1;
     this.maxSaltCharges = 1;
     this.saltLaunchCount = 0;
     this.isSaltTargeting = false;
@@ -583,8 +655,11 @@ export class GameEngine {
     this.activeRefereeCall = null;
     this.refereeDirector.clear();
     this.techniqueRibbons.clear();
-    this.upcomingTiers = [this.rollSpawnTier(), this.rollSpawnTier()];
+    this.upcomingTiers = this.gameMode === 'CAREER' && this.careerManager.activeLevel
+      ? this.careerManager.peekTiers()
+      : [this.rollSpawnTier(), this.rollSpawnTier()];
     this.loadNextFruit();
+    if (this.gameMode === 'CAREER' && this.careerManager.activeLevel) this.setupCampaignBoard();
     this.emitStats();
   }
 
@@ -605,6 +680,9 @@ export class GameEngine {
       this.upcomingTiers = this.versusManager.state.playerTurn === 1
         ? this.versusManager.state.p1NextTiers
         : this.versusManager.state.p2NextTiers;
+    } else if (this.gameMode === 'CAREER' && this.careerManager.activeLevel) {
+      tier = this.careerManager.consumeNextTier();
+      this.upcomingTiers = this.careerManager.peekTiers();
     } else {
       tier = this.upcomingTiers[0];
       this.upcomingTiers = [this.upcomingTiers[1], this.rollSpawnTier()];
@@ -652,6 +730,7 @@ export class GameEngine {
   // Pointer interactions
   public handlePointerDown(x: number, y: number): boolean {
     if (this.isGameOver || this.isPaused || !this.loadedFruit) return false;
+    if (this.gameMode === 'CAREER' && this.careerManager.result) return false;
 
     // Check if clicked close to launcher/loaded fruit
     const dist = Math.hypot(x - this.launcherPos.x, y - this.launcherPos.y);
@@ -726,6 +805,7 @@ export class GameEngine {
 
       this.fruits.push(this.loadedFruit);
       this.totalShots++;
+      if (this.gameMode === 'CAREER') this.careerManager.recordShot();
 
       // Mobile tactile feel
       haptics.trigger('LIGHT');
@@ -1072,6 +1152,8 @@ export class GameEngine {
             this.versusManager.advanceTurn();
             this.emitStats();
           }
+        } else if (this.gameMode === 'CAREER') {
+          this.careerManager.recordShotResolved(this.score, this.lives);
         }
       }
     }
@@ -1117,6 +1199,10 @@ export class GameEngine {
 
     // Step 6: Hazard Spawning
     this.updateHazardDirector(dt);
+    if (this.gameMode === 'CAREER') {
+      this.careerManager.sync(this.score, this.lives);
+      if (this.careerManager.result) this.isPaused = true;
+    }
 
     // Step 7: Update Particles
     this.updateParticles(dt);
@@ -1520,18 +1606,14 @@ export class GameEngine {
           sound.playTaikoFlourish();
           this.spawnConfetti(hazard.x, hazard.y, 45);
 
-          if (this.gameMode === 'CAREER') {
-            const hasMore = this.careerManager.completeCurrentStage();
-            if (hasMore) {
-              this.techniqueRibbons.addRibbon('Stage Cleared!', 'Next Banzuke bout unlocked!', '#2ECC71', 3.0);
-            } else {
-              this.techniqueRibbons.addRibbon('Yokozuna Beaten!', 'You are the Grand Champion!', '#FFD700', 4.0);
-            }
-          }
+          if (this.gameMode === 'CAREER') this.careerManager.recordRivalDefeat(this.score, this.lives);
         } else {
           sound.playHazardClear();
           this.techniqueRibbons.addRibbon('Ring-Out!', `${hazard.name} ejected from the Dohyō`, '#E67E22');
           this.spawnSparks(hazard.x, hazard.y, '#F1C40F', 12);
+          if (this.gameMode === 'CAREER') {
+            this.careerManager.recordHazardRemoval(hazard.kind, 'RING_OUT', this.score, this.lives);
+          }
         }
         this.triggerCameraTrauma(0.2);
       } else if (metrics.dSurface <= 0 && !hazard.cleansing && vOut < 180) {
@@ -1698,6 +1780,9 @@ export class GameEngine {
                 this.techniqueRibbons.addRibbon('Wasabi Squashed!', '3 hits crushed the sticky sludge!', '#2ECC71');
                 this.spawnSparks(hazard.x, hazard.y, '#2ECC71', 25);
                 this.triggerCameraTrauma(0.12);
+                if (this.gameMode === 'CAREER') {
+                  this.careerManager.recordHazardRemoval('WASABI', 'DESTROYED', this.score, this.lives);
+                }
               }
             } else {
               fruit.x -= nx * overlap * 0.5;
@@ -1851,6 +1936,9 @@ export class GameEngine {
       this.addScore(finalScore);
     }
     this.highestTier = Math.max(this.highestTier, fusion.newTier);
+    if (this.gameMode === 'CAREER') {
+      this.careerManager.recordFusion(fusion.newTier, this.comboCount, this.score, this.lives);
+    }
     this.addHype(12);
 
     // Ribbons & Technique Callouts
@@ -1993,16 +2081,7 @@ export class GameEngine {
       sound.playTaikoFlourish();
       this.spawnConfetti(fruit.x, fruit.y, 45);
 
-      if (this.gameMode === 'CAREER') {
-        const hasMore = this.careerManager.completeCurrentStage();
-        if (hasMore) {
-          this.techniqueRibbons.addRibbon('Stage Cleared!', 'Next Banzuke bout unlocked!', '#2ECC71', 3.0, '勝星', '🏆');
-        } else {
-          this.techniqueRibbons.addRibbon('Yokozuna Beaten!', 'You are the Grand Champion!', '#FFD700', 4.0, '優勝', '👑');
-          this.refereeDirector.triggerCall('天下統一', 'EMPEROR CUP VICTORY!', 'CAREER BANZUKE CONQUERED!', '#FFD700', 'MATCH_RESULT', 3.5, 'shobu');
-          this.activeRefereeCall = this.refereeDirector.getActiveCall();
-        }
-      }
+      if (this.gameMode === 'CAREER') this.careerManager.recordRivalDefeat(this.score, this.lives);
       this.triggerCameraTrauma(0.4);
       this.spawnSplash(fruit.x, fruit.y, this.rivalController.profile.color);
       return;
@@ -2072,6 +2151,10 @@ export class GameEngine {
     }
 
     this.lives = Math.max(0, this.lives - 1);
+    if (this.gameMode === 'CAREER') {
+      this.careerManager.recordPlayerRingOut();
+      this.careerManager.sync(this.score, this.lives);
+    }
     this.ringOutFlashTimer = 0.45;
     this.triggerHitStop(0.12);
     sound.playRingOut();
@@ -2141,6 +2224,7 @@ export class GameEngine {
       if (this.overflowTimer >= 2.0) {
         this.isGameOver = true;
         this.gameOverReason = 'Dohyō capacity exceeded! The bowl overflowed!';
+        if (this.gameMode === 'CAREER') this.careerManager.fail(this.gameOverReason);
         this.refereeDirector.triggerCall(
           '勝負あり',
           'SHŌBU ARI!',
@@ -2159,7 +2243,7 @@ export class GameEngine {
   }
 
   private updateHazardDirector(dt: number) {
-    if (this.gameMode === 'VERSUS') return;
+    if (this.gameMode === 'VERSUS' || this.gameMode === 'CAREER') return;
     if (this.totalShots < 3) return; // No hazards during first few shots
 
     this.hazardSpawnCooldown -= dt;
@@ -2532,6 +2616,7 @@ export class GameEngine {
       versus: this.gameMode === 'VERSUS' ? { ...this.versusManager.state } : null,
       arenaCondition: { ...this.arenaConditionManager.state },
       dailyBasho: this.dailyBashoState ? { ...this.dailyBashoState } : null,
+      campaign: this.careerManager.getSnapshot(),
     });
   }
 }
