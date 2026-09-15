@@ -629,6 +629,33 @@ class SoundEngine {
   }
 
   /**
+   * Life Regained / 1UP Flourish sound: sacred ascending pentatonic bells + taiko drum
+   */
+  public playLifeGain() {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx || !this.masterGain) return;
+
+    const t = this.ctx.currentTime;
+    // Japanese Yo-scale inspired ascending shimmer: D5, F5, G5, A5, C6, D6
+    const freqs = [587.33, 698.46, 783.99, 880.0, 1046.5, 1174.66];
+    freqs.forEach((f, idx) => {
+      const osc = this.ctx!.createOscillator();
+      const gain = this.ctx!.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, t + idx * 0.065);
+      gain.gain.setValueAtTime(0.22, t + idx * 0.065);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + idx * 0.065 + 0.45);
+      osc.connect(gain);
+      gain.connect(this.masterGain!);
+      osc.start(t + idx * 0.065);
+      osc.stop(t + idx * 0.065 + 0.48);
+    });
+    // Add warm supportive taiko bass at the peak
+    setTimeout(() => this.playTaiko(1.2), 200);
+  }
+
+  /**
    * Tsuppari-inspired slap burst (3 rapid thrust impacts)
    */
   public playSlapBurst() {

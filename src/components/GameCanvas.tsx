@@ -112,8 +112,13 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ engine }) => {
         drawRefereeCallout(ctx, w, engine.activeRefereeCall);
       }
 
+      // 9.1 Versus Quick Non-Blocking Turn Transition
+      if (engine.versusTurnBanner) {
+        drawVersusTurnBanner(ctx, w, engine.versusTurnBanner);
+      }
+
       // 9.5 Technique Ribbons Stack
-      if (!engine.activeRefereeCall) drawTechniqueRibbons(ctx, engine);
+      if (!engine.activeRefereeCall && !engine.versusTurnBanner) drawTechniqueRibbons(ctx, engine);
 
       // 10. Overflow Alert Ring
       if (engine.isOverflowing) {
@@ -545,6 +550,17 @@ function drawLauncher(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   ctx.save();
 
   // Pedestal base
+  if (isVersus) {
+    ctx.save();
+    ctx.shadowColor = teamThemeColor;
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = teamThemeColor + '25';
+    ctx.beginPath();
+    ctx.ellipse(x, y + 23, 56, 18, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
   ctx.fillStyle = teamBaseBg;
   ctx.strokeStyle = !isVersus ? '#271B12' : playerTurn === 1 ? '#E74C3C' : '#3498DB';
   ctx.lineWidth = isVersus ? 3.5 : 3;
@@ -552,6 +568,29 @@ function drawLauncher(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   ctx.roundRect(x - 42, y + 14, 84, 18, 6);
   ctx.fill();
   ctx.stroke();
+
+  // Launcher active turn tag
+  if (isVersus) {
+    ctx.save();
+    const tagW = 96;
+    const tagH = 18;
+    const tagX = x - tagW / 2;
+    const tagY = y + 36;
+    ctx.fillStyle = playerTurn === 1 ? 'rgba(50, 18, 16, 0.94)' : 'rgba(16, 32, 54, 0.94)';
+    ctx.strokeStyle = teamThemeColor;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.roundRect(tagX, tagY, tagW, tagH, 9);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '900 9px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(playerTurn === 1 ? '東 P1 TURN' : '西 P2 TURN', x, tagY + tagH / 2);
+    ctx.restore();
+  }
 
   // Left post
   ctx.fillStyle = '#6E4E37';
@@ -788,6 +827,57 @@ function drawFruit(
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(`⚠️ ${remaining.toFixed(1)}s`, 0, 0);
+    ctx.restore();
+  }
+
+  // 7. Empowered Skill Active Aura
+  if (fruit.empoweredSkill) {
+    if (fruit.empoweredSkill === 'PALM_STRIKE') {
+      const pulse = 0.85 + 0.15 * Math.sin(performance.now() * 0.01);
+      ctx.save();
+      ctx.strokeStyle = 'rgba(243, 156, 18, 0.75)';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius * 1.35 * pulse, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.font = '13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('✋', 0, -radius - 12);
+      ctx.restore();
+    } else if (fruit.empoweredSkill === 'TAIKO_PULSE') {
+      const wave = (performance.now() * 0.005) % 1;
+      ctx.save();
+      ctx.strokeStyle = `rgba(192, 57, 43, ${1 - wave})`;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(0, 0, radius + wave * 26, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.font = '13px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🥁', 0, -radius - 12);
+      ctx.restore();
+    }
+  }
+
+  // 8. Rival Guard Broken / Vulnerability Badge
+  if (fruit.team === 'RIVAL' && engine.rivalController.knockbackMultiplier > 1.0) {
+    ctx.save();
+    ctx.translate(0, -radius - 22);
+    ctx.fillStyle = 'rgba(230, 126, 34, 0.95)';
+    ctx.beginPath();
+    ctx.roundRect(-44, -9, 88, 18, 5);
+    ctx.fill();
+    ctx.strokeStyle = '#FFFFFF';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = 'bold 8.5px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('⚡ GUARD BROKEN', 0, 0);
     ctx.restore();
   }
 
@@ -1398,6 +1488,58 @@ function drawHazards(ctx: CanvasRenderingContext2D, hazards: HazardInstance[]) {
       ctx.lineTo(h.radius * 0.35, -h.radius * 1.2);
       ctx.lineTo(h.radius * 0.2, -h.radius * 0.7);
       ctx.fill();
+    } else if (h.kind === 'ARMOR_BUG') {
+      // Armored Beetle (Carapace pest with shield guard marks)
+      const isHitFlash = (h.hitFlashTimer ?? 0) > 0;
+      ctx.fillStyle = isHitFlash ? '#A6ACAF' : '#2C3E50';
+      ctx.strokeStyle = isHitFlash ? '#FFFFFF' : '#1A252F';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.ellipse(0, 2, h.radius * 0.95, h.radius * 1.15, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      // Steel armor plate segmentation
+      ctx.strokeStyle = '#7F8C8D';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(-h.radius * 0.7, -h.radius * 0.1);
+      ctx.lineTo(h.radius * 0.7, -h.radius * 0.1);
+      ctx.moveTo(-h.radius * 0.75, h.radius * 0.35);
+      ctx.lineTo(h.radius * 0.75, h.radius * 0.35);
+      ctx.stroke();
+
+      // Wing split line
+      ctx.strokeStyle = '#BDC3C7';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(0, -h.radius * 0.7);
+      ctx.lineTo(0, h.radius * 0.9);
+      ctx.stroke();
+
+      // Armored beetle front horn
+      ctx.fillStyle = '#1A252F';
+      ctx.beginPath();
+      ctx.moveTo(-h.radius * 0.25, -h.radius * 0.9);
+      ctx.lineTo(0, -h.radius * 1.45);
+      ctx.lineTo(h.radius * 0.25, -h.radius * 0.9);
+      ctx.closePath();
+      ctx.fill();
+
+      // Mawashi belt on beetle
+      ctx.fillStyle = '#111111';
+      ctx.fillRect(-h.radius * 0.7, h.radius * 0.45, h.radius * 1.4, h.radius * 0.3);
+      ctx.fillStyle = '#F39C12';
+      ctx.beginPath();
+      ctx.arc(0, h.radius * 0.6, 3, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Amber eyes
+      ctx.fillStyle = isHitFlash ? '#FFFFFF' : '#F39C12';
+      ctx.beginPath();
+      ctx.arc(-h.radius * 0.38, -h.radius * 0.55, 3.2, 0, Math.PI * 2);
+      ctx.arc(h.radius * 0.38, -h.radius * 0.55, 3.2, 0, Math.PI * 2);
+      ctx.fill();
     } else {
       // Rotten Beetle
       ctx.fillStyle = '#4A235A';
@@ -1425,8 +1567,69 @@ function drawHazards(ctx: CanvasRenderingContext2D, hazards: HazardInstance[]) {
 
     ctx.restore(); // Restore hazard rotation
 
-    // Overhead Status Badge for Wasabi: clear indicator of name, HP, and defeat mechanics
-    if (!h.ringOut && h.kind === 'WASABI') {
+    // Overhead Status Badges: clear indicator of name, status, and defeat mechanics
+    if (!h.ringOut && h.kind === 'ARMOR_BUG') {
+      const guardMarks = h.guardMarks ?? 2;
+      const badgeY = -h.radius - 23;
+      const bWidth = 104;
+      const bHeight = 24;
+
+      ctx.fillStyle = 'rgba(24, 30, 36, 0.92)';
+      ctx.strokeStyle = '#7F8C8D';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(-bWidth / 2, badgeY, bWidth, bHeight, 6);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = 'bold 9px monospace';
+      ctx.fillStyle = '#BDC3C7';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('ARMOR BUG', -bWidth / 2 + 6, badgeY + 7);
+
+      // Guard mark shield pips (2 marks)
+      for (let p = 0; p < 2; p++) {
+        const isShieldActive = p < guardMarks;
+        const px = bWidth / 2 - 20 + p * 10;
+        ctx.fillStyle = isShieldActive ? '#3498DB' : '#566573';
+        ctx.beginPath();
+        ctx.arc(px, badgeY + 7, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+        if (isShieldActive) {
+          ctx.strokeStyle = '#FFFFFF';
+          ctx.lineWidth = 0.8;
+          ctx.stroke();
+        }
+      }
+
+      ctx.font = '7.5px sans-serif';
+      ctx.fillStyle = '#E5E7E9';
+      ctx.textAlign = 'center';
+      ctx.fillText('Palm Strike [Space] • Push Out', 0, badgeY + 17.5);
+    } else if (!h.ringOut && h.kind === 'ICE') {
+      const badgeY = -h.radius - 23;
+      const bWidth = 100;
+      const bHeight = 24;
+
+      ctx.fillStyle = 'rgba(20, 28, 38, 0.92)';
+      ctx.strokeStyle = '#3498DB';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.roundRect(-bWidth / 2, badgeY, bWidth, bHeight, 6);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.font = 'bold 9px monospace';
+      ctx.fillStyle = '#7DE6FF';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('ICE BLOCK', 0, badgeY + 7);
+
+      ctx.font = '7.5px sans-serif';
+      ctx.fillStyle = '#D4E6F1';
+      ctx.fillText('Palm Strike [Space] • Push Out', 0, badgeY + 17.5);
+    } else if (!h.ringOut && h.kind === 'WASABI') {
       const currentHp = h.hp ?? 3;
       const badgeY = -h.radius - 23;
 
@@ -1465,7 +1668,7 @@ function drawHazards(ctx: CanvasRenderingContext2D, hazards: HazardInstance[]) {
       ctx.font = '7.5px sans-serif';
       ctx.fillStyle = '#D5F5E3';
       ctx.textAlign = 'center';
-      ctx.fillText('Hit 3x • Push Out • Salt [S]', 0, badgeY + 17.5);
+      ctx.fillText('Hit 3x • Push Out • Taiko/Salt', 0, badgeY + 17.5);
     }
 
     ctx.restore(); // Restore translation and alpha
@@ -1641,6 +1844,65 @@ function drawRefereeCallout(
     ctx.font = `${isMobile ? 9 : 10}px sans-serif`;
     ctx.fillText(subtitle, 0, isMobile ? 21 : 24);
   }
+
+  ctx.restore();
+}
+
+function drawVersusTurnBanner(
+  ctx: CanvasRenderingContext2D,
+  canvasWidth: number,
+  banner: { player: 1 | 2; timer: number; maxTimer: number; name: string; jpName: string; color: string }
+) {
+  const progress = Math.max(0, Math.min(1, banner.timer / banner.maxTimer));
+  const alpha = Math.min(1, progress / 0.25);
+  const scale = 0.94 + 0.06 * Math.min(1, (1 - progress) * 6);
+
+  ctx.save();
+  const isMobile = canvasWidth < 640;
+  const pillY = isMobile ? 116 : 124;
+  ctx.translate(canvasWidth / 2, pillY);
+  ctx.scale(scale, scale);
+  ctx.globalAlpha = alpha;
+
+  const pillW = isMobile ? 180 : 210;
+  const pillH = isMobile ? 30 : 34;
+
+  // Outer ambient glow
+  ctx.shadowColor = banner.color;
+  ctx.shadowBlur = 10;
+
+  // Background
+  ctx.fillStyle = banner.player === 1 ? 'rgba(46, 16, 14, 0.95)' : 'rgba(16, 30, 48, 0.95)';
+  ctx.strokeStyle = banner.color;
+  ctx.lineWidth = 1.75;
+  ctx.beginPath();
+  ctx.roundRect(-pillW / 2, -pillH / 2, pillW, pillH, pillH / 2);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.shadowBlur = 0;
+
+  // Emblem circle
+  const emblemR = isMobile ? 10 : 12;
+  const emblemX = -pillW / 2 + emblemR + 5;
+  ctx.fillStyle = banner.color;
+  ctx.beginPath();
+  ctx.arc(emblemX, 0, emblemR, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = `900 ${isMobile ? 11 : 12}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(banner.player === 1 ? '東' : '西', emblemX, 0);
+
+  // Turn title
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = `900 ${isMobile ? 10 : 11}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const label = banner.player === 1 ? 'PLAYER 1 (EAST) TURN' : 'PLAYER 2 (WEST) TURN';
+  ctx.fillText(label, 12, 0);
 
   ctx.restore();
 }

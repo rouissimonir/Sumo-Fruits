@@ -26,9 +26,12 @@ export class VersusManager {
     matchWinner: null,
     isHandoverPending: false,
     tabletopInversion: false,
+    passAndPlayPauseEnabled: false,
   };
 
   public reset(maxRounds = 3) {
+    const keepPassAndPlay = this.state.passAndPlayPauseEnabled ?? false;
+    const keepTabletop = this.state.tabletopInversion;
     this.pairedTierStream = [this.rollTier(), this.rollTier()];
     this.p1TierIndex = 0;
     this.p2TierIndex = 0;
@@ -53,7 +56,8 @@ export class VersusManager {
       isMatchOver: false,
       matchWinner: null,
       isHandoverPending: false,
-      tabletopInversion: false,
+      tabletopInversion: keepTabletop,
+      passAndPlayPauseEnabled: keepPassAndPlay,
     };
   }
 
@@ -83,13 +87,21 @@ export class VersusManager {
     return { tier, nextTiers };
   }
 
-  public advanceTurn() {
+  public advanceTurn(requireHandover = false) {
     this.state.playerTurn = this.state.playerTurn === 1 ? 2 : 1;
-    this.state.isHandoverPending = true;
+    this.state.isHandoverPending = requireHandover && (this.state.passAndPlayPauseEnabled ?? false);
   }
 
   public setHandoverPending(pending: boolean) {
     this.state.isHandoverPending = pending;
+  }
+
+  public setPassAndPlayPauseEnabled(enabled: boolean) {
+    this.state.passAndPlayPauseEnabled = enabled;
+  }
+
+  public togglePassAndPlayPause() {
+    this.state.passAndPlayPauseEnabled = !this.state.passAndPlayPauseEnabled;
   }
 
   public setTabletopInversion(enabled: boolean) {

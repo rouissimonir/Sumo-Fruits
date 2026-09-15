@@ -16,6 +16,7 @@ import {
   Eye,
   ShieldCheck,
   Music,
+  Swords,
 } from 'lucide-react';
 import { GameStats } from '../game/GameEngine';
 import { ArenaConditionType, ArenaMode, GameModeType } from '../types/game';
@@ -37,6 +38,7 @@ interface SettingsModalProps {
   onOpenKimarite: () => void;
   onOpenTutorial: () => void;
   onOpenCredits: () => void;
+  onToggleVersusPassAndPlay?: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -54,6 +56,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onOpenKimarite,
   onOpenTutorial,
   onOpenCredits,
+  onToggleVersusPassAndPlay,
 }) => {
   if (!isOpen) return null;
 
@@ -334,6 +337,41 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Versus 1v1 Specific Controls */}
+          {stats.gameMode === 'VERSUS' && stats.versus && (
+            <div className="bg-[#241E19] border border-[#3D2E24] rounded-xl p-3.5 space-y-2.5">
+              <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#E74C3C]">
+                <Swords size={14} />
+                <span>{isJa ? '2P 対戦設定' : '2P Versus Match Settings'}</span>
+              </div>
+              <div className="flex items-center justify-between p-2.5 bg-[#1C1814] rounded-lg border border-[#382B22]">
+                <div className="pr-2">
+                  <div className="text-xs font-bold text-white">
+                    {isJa ? 'ターン交代の一時停止' : 'Pass & Play Turn Pause'}
+                  </div>
+                  <div className="text-[10px] text-[#8A7B6D] mt-0.5">
+                    {stats.versus.passAndPlayPauseEnabled
+                      ? (isJa ? '各ターンごとに確認画面を表示' : 'Pause with confirmation banner between turns')
+                      : (isJa ? 'シームレス連続プレイ（中断なし）' : 'Continuous seamless turns (no pause banners)')}
+                  </div>
+                </div>
+                {onToggleVersusPassAndPlay && (
+                  <button
+                    id="settings-versus-pause-btn"
+                    onClick={onToggleVersusPassAndPlay}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer shrink-0 ${
+                      stats.versus.passAndPlayPauseEnabled
+                        ? 'bg-[#E74C3C] text-white shadow-md'
+                        : 'bg-[#2A201A] text-[#8A7B6D] hover:text-white border border-[#443226]'
+                    }`}
+                  >
+                    {stats.versus.passAndPlayPauseEnabled ? 'PAUSE ON' : 'FAST FLOW'}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Arena Dynamic Conditions */}
           {onSelectArenaCondition && (

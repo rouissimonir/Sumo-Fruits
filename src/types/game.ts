@@ -22,9 +22,9 @@ export const FRUIT_CATALOG: FruitTierData[] = [
     tier: 1,
     name: 'Blueberry',
     radius: 16,
-    mass: 1.0,
-    damp: 0.8,
-    restitution: 0.85,
+    mass: 1.35,
+    damp: 0.95,
+    restitution: 0.80,
     resistance: 0.05,
     color: '#3B82F6',
     secondaryColor: '#1D4ED8',
@@ -224,9 +224,10 @@ export interface SumoFruitInstance {
   hasEnteredRing?: boolean;
   wasInRimDanger?: boolean;
   outOfBoundsTimer?: number;
+  empoweredSkill?: 'SALT' | 'PALM_STRIKE' | 'TAIKO_PULSE' | null;
 }
 
-export type HazardKind = 'BUG' | 'ICE' | 'WASABI' | 'CHILI' | 'RIVAL' | 'GINKO_MAGNET';
+export type HazardKind = 'BUG' | 'ICE' | 'WASABI' | 'CHILI' | 'RIVAL' | 'GINKO_MAGNET' | 'ARMOR_BUG';
 
 export interface HazardInstance {
   id: number;
@@ -253,6 +254,9 @@ export interface HazardInstance {
   hp?: number;
   maxHp?: number;
   hitFlashTimer?: number;
+  guardMarks?: number;
+  maxGuardMarks?: number;
+  isEnemy?: boolean;
 }
 
 export type TawaraState = 'INTACT' | 'FRAYED' | 'CRACKED' | 'BROKEN';
@@ -367,6 +371,7 @@ export interface VersusState {
   matchWinner: 1 | 2 | null;
   isHandoverPending: boolean;
   tabletopInversion: boolean;
+  passAndPlayPauseEnabled?: boolean;
 }
 
 export type RivalActionType = 'OSHIDASHI_PUSH' | 'TSUPPARI_SLAP' | 'RECOVERY' | 'IDLE';

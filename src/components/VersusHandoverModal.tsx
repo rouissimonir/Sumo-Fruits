@@ -7,12 +7,14 @@ interface VersusHandoverModalProps {
   stats: GameStats;
   onConfirmReady: () => void;
   onToggleTabletop: () => void;
+  onTogglePassAndPlay?: () => void;
 }
 
 export const VersusHandoverModal: React.FC<VersusHandoverModalProps> = ({
   stats,
   onConfirmReady,
   onToggleTabletop,
+  onTogglePassAndPlay,
 }) => {
   const versus = stats.versus;
   if (!versus || !versus.isHandoverPending || versus.isMatchOver || stats.isGameOver) {
@@ -146,6 +148,19 @@ export const VersusHandoverModal: React.FC<VersusHandoverModalProps> = ({
           <CheckCircle2 size={18} />
           <span>I'M READY • はじめ!</span>
         </button>
+
+        {onTogglePassAndPlay && (
+          <button
+            id="versus-disable-handover-btn"
+            onClick={() => {
+              onTogglePassAndPlay();
+              onConfirmReady();
+            }}
+            className="text-[11px] text-[#A89886] hover:text-[#FFD700] transition-colors underline cursor-pointer block w-full text-center"
+          >
+            Switch to Seamless Continuous Turns (Never Pause)
+          </button>
+        )}
       </div>
     </div>
   );

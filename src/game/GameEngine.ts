@@ -46,6 +46,9 @@ import { RIVAL_PROFILES, RivalSumoController } from './RivalSumo';
 import { TechniqueRibbonManager } from './TechniqueRibbonManager';
 import { VersusManager } from './VersusManager';
 import { CampaignSnapshot } from '../types/campaign';
+import { SkillManager } from './SkillManager';
+import { SkillState, SkillType } from '../types/skills';
+import { ENEMY_DEFINITIONS } from '../types/enemies';
 
 export interface GameStats {
   score: number;
@@ -67,6 +70,7 @@ export interface GameStats {
   maxSaltCharges: number;
   saltLaunchCount: number;
   isSaltTargeting: boolean;
+  skillState: SkillState;
   comboCount: number;
   comboMultiplier: number;
   crowdHype: number;
@@ -102,6 +106,7 @@ export class GameEngine {
 
   // Subsystems
   public careerManager: CareerManager = new CareerManager();
+  public skillManager: SkillManager = new SkillManager();
   public rivalController: RivalSumoController = new RivalSumoController();
   public refereeDirector: RefereeDirector = new RefereeDirector();
   public techniqueRibbons: TechniqueRibbonManager = new TechniqueRibbonManager();
@@ -121,6 +126,9 @@ export class GameEngine {
   public loadedFruit: SumoFruitInstance | null = null;
   public upcomingTiers: [number, number] = [1, 2];
   public trajectoryPoints: TrajectoryPoint[] = [];
+  public loadNextFruitTimer: number = -1;
+  public currentAttemptId: number = 0;
+  public defeatedHazardIds: Set<number> = new Set();
 
   // Shot state machine
   public shotState: 'IDLE' | 'AIMING' | 'LAUNCHED' | 'CHAIN_RESOLVING' | 'RIVAL_ACTION' | 'SETTLING' = 'IDLE';
@@ -408,13 +416,15 @@ export class GameEngine {
     }
     for (const item of level.initialHazards ?? []) {
       const traits = item.kind === 'ICE'
-        ? { name: 'Ice Cube', radius: 22, mass: 6, damp: 0.35, restitution: 0.95, score: 150 }
+        ? { name: 'Ice Cub', radius: 22, mass: 6, damp: 0.35, restitution: 0.95, score: 150 }
         : item.kind === 'WASABI'
-        ? { name: 'Wasabi Sludge', radius: 24, mass: 5, damp: 1.1, restitution: 0.4, score: 180 }
+        ? { name: 'Wasabi Slug', radius: 25, mass: 9, damp: 1.1, restitution: 0.4, score: 250 }
         : item.kind === 'CHILI'
         ? { name: 'Fiery Chili', radius: 20, mass: 4, damp: 0.4, restitution: 0.95, score: 220 }
         : item.kind === 'GINKO_MAGNET'
-        ? { name: 'Sacred Ginko Nut', radius: 22, mass: 4.5, damp: 0.5, restitution: 0.85, score: 250 }
+        ? { name: 'Ginkgo Trickster', radius: 20, mass: 4.5, damp: 0.5, restitution: 0.85, score: 280 }
+        : item.kind === 'ARMOR_BUG'
+        ? { name: 'Armored Beetle', radius: 24, mass: 5.25, damp: 0.7, restitution: 0.85, score: 300 }
         : { name: 'Rotten Beetle', radius: 18, mass: 3.5, damp: 0.7, restitution: 0.85, score: 120 };
       this.hazards.push({
         id: this.nextEntityId++, kind: item.kind, name: traits.name,
@@ -423,7 +433,10 @@ export class GameEngine {
         restitution: traits.restitution, resistance: 0.2, scoreValue: traits.score,
         cleansing: false, ringOut: false, fallProgress: 0, rotation: 0,
         hp: item.kind === 'WASABI' ? 3 : undefined,
-        maxHp: item.kind === 'WASABI' ? 3 : undefined, hitFlashTimer: 0,
+        maxHp: item.kind === 'WASABI' ? 3 : undefined,
+        guardMarks: item.kind === 'ARMOR_BUG' ? 2 : undefined,
+        maxGuardMarks: item.kind === 'ARMOR_BUG' ? 2 : undefined,
+        hitFlashTimer: 0,
       });
     }
     if (level.rivalId) this.spawnCareerRival();
@@ -461,12 +474,55 @@ export class GameEngine {
     this.emitStats();
   }
 
-  // Sacred Salt Ability
+  // Sacred Salt Ability & Skill Controls
+  public toggleArmSkill(): boolean {
+    if (this.gameMode === 'VERSUS') return false;
+    const armed = this.skillManager.toggleArm();
+    this.emitStats();
+    return armed;
+  }
+
+  public equipSkill(skill: SkillType): boolean {
+    if (this.gameMode === 'VERSUS') return false;
+    const ok = this.skillManager.equipSkill(skill);
+    this.isSaltTargeting = false;
+    this.emitStats();
+    return ok;
+  }
+
+  public cycleEquippedSkill(): void {
+    if (this.gameMode === 'VERSUS') return;
+    const unlocked = this.skillManager.getUnlockedSkills();
+    if (unlocked.length <= 1) return;
+    const currentIdx = unlocked.indexOf(this.skillManager.equipped);
+    const nextIdx = (currentIdx + 1) % unlocked.length;
+    this.equipSkill(unlocked[nextIdx]);
+  }
+
+  public triggerActiveSkill(): boolean {
+    if (this.isGameOver || this.isPaused) return false;
+    if (this.gameMode === 'VERSUS') {
+      this.throwSalt();
+      return true;
+    }
+
+    const equipped = this.skillManager.equipped;
+    if (equipped === 'SALT') {
+      if (this.skillManager.charge > 0) {
+        this.throwSalt();
+        return true;
+      }
+      return false;
+    } else {
+      return this.toggleArmSkill();
+    }
+  }
+
   public enterSaltTargeting() {
     if (this.gameMode === 'VERSUS') {
       if (!this.versusManager.canThrowSalt() || this.isGameOver || this.isPaused) return;
     } else {
-      if (this.saltCharges <= 0 || this.isGameOver || this.isPaused) return;
+      if (this.skillManager.charge <= 0 || this.isGameOver || this.isPaused) return;
     }
     this.isSaltTargeting = true;
     this.saltTargetPos = { x: this.arena.centerX, y: this.arena.centerY };
@@ -482,9 +538,9 @@ export class GameEngine {
     if (this.gameMode === 'VERSUS') {
       if (!this.versusManager.consumeSalt() || this.isGameOver || this.isPaused) return false;
     } else {
-      if (this.saltCharges <= 0 || this.isGameOver || this.isPaused) return false;
-      this.saltCharges = 0;
-      this.saltLaunchCount = 0;
+      if (!this.skillManager.consumeSaltCharge() || this.isGameOver || this.isPaused) return false;
+      this.saltCharges = this.skillManager.charge;
+      this.saltLaunchCount = this.skillManager.rechargeProgress;
     }
     this.isSaltTargeting = false;
     if (this.gameMode === 'CAREER') this.careerManager.recordSaltUsed();
@@ -636,9 +692,21 @@ export class GameEngine {
     this.cameraTrauma = 0;
     this.totalShots = 0;
     this.highestTier = 1;
-    this.saltCharges = this.gameMode === 'CAREER' && this.careerManager.activeLevel ? this.careerManager.activeLevel.saltCharges : 1;
+    this.currentAttemptId++;
+    this.loadNextFruitTimer = -1;
+    this.defeatedHazardIds.clear();
+    const initCharge = this.gameMode === 'CAREER' && this.careerManager.activeLevel ? this.careerManager.activeLevel.saltCharges : 1;
+    if (this.gameMode === 'DAILY') {
+      this.skillManager.setDailyKit(this.dailyRngSeed);
+      this.skillManager.resetForNewGame(initCharge);
+    } else {
+      this.skillManager.clearDailyOverride();
+      this.skillManager.updateCareerProgression(this.careerManager.getHighestUnlockedIndex());
+      this.skillManager.resetForNewGame(initCharge);
+    }
+    this.saltCharges = this.skillManager.charge;
     this.maxSaltCharges = 1;
-    this.saltLaunchCount = 0;
+    this.saltLaunchCount = this.skillManager.rechargeProgress;
     this.isSaltTargeting = false;
     this.shotState = 'IDLE';
     this.shotSettlementTimer = 0;
@@ -730,7 +798,7 @@ export class GameEngine {
   // Pointer interactions
   public handlePointerDown(x: number, y: number): boolean {
     if (this.isGameOver || this.isPaused || !this.loadedFruit) return false;
-    if (this.gameMode === 'CAREER' && this.careerManager.result) return false;
+    if (this.gameMode === 'CAREER' && (this.careerManager.result || this.shotState !== 'IDLE')) return false;
 
     // Check if clicked close to launcher/loaded fruit
     const dist = Math.hypot(x - this.launcherPos.x, y - this.launcherPos.y);
@@ -897,16 +965,20 @@ export class GameEngine {
         this.triggerRefereeCall('発気揚々', 'HAKKEYOI!', 'TACHIAI CHARGE!', '#2ECC71', 'hakkeyoi', 'TACHIAI');
       }
 
+      // Consume armed skill empowerment and advance recharge counter
+      if (this.gameMode !== 'VERSUS') {
+        const activeEmpowerment = this.skillManager.onPlayerLaunchCommitted();
+        this.loadedFruit.empoweredSkill = activeEmpowerment;
+        this.saltCharges = this.skillManager.charge;
+        this.saltLaunchCount = this.skillManager.rechargeProgress;
+      }
+
       this.loadedFruit = null;
       this.trajectoryPoints = [];
 
       if (this.gameMode !== 'VERSUS') {
-        // Cooldown before loading next fruit (ensures smooth shot rhythm)
-        setTimeout(() => {
-          if (!this.isGameOver && !this.loadedFruit) {
-            this.loadNextFruit();
-          }
-        }, 550);
+        // Cooldown before loading next fruit (deterministic timer, no setTimeout)
+        this.loadNextFruitTimer = 0.55;
       }
 
       return true;
@@ -1086,6 +1158,23 @@ export class GameEngine {
       this.cameraOffset = { x: 0, y: 0 };
     }
 
+    // Load next fruit deterministic timer
+    if (this.loadNextFruitTimer > 0) {
+      this.loadNextFruitTimer -= dt;
+      if (this.loadNextFruitTimer <= 0) {
+        this.loadNextFruitTimer = -1;
+        if (this.gameMode === 'CAREER') {
+          if (this.shotState === 'IDLE' && !this.isGameOver && !this.loadedFruit && !this.careerManager.result) {
+            this.loadNextFruit();
+          }
+        } else {
+          if (!this.isGameOver && !this.loadedFruit) {
+            this.loadNextFruit();
+          }
+        }
+      }
+    }
+
     // Decay screen flash visual cues
     if (this.ringOutFlashTimer > 0) {
       this.ringOutFlashTimer = Math.max(0, this.ringOutFlashTimer - realDt);
@@ -1142,6 +1231,12 @@ export class GameEngine {
       const hasActiveClashes = this.mergeManager.getActiveClashes().length > 0;
       if ((allSettled && !hasActiveClashes && this.shotSettlementTimer > 0.45) || this.shotSettlementTimer > 3.2) {
         this.shotState = 'IDLE';
+        this.bonusRechargeGrantedThisShot = false;
+        this.rivalController.onShotResolved();
+        this.skillManager.onShotResolved();
+        for (const f of this.fruits) {
+          f.empoweredSkill = null;
+        }
         this.rivalController.planNextIntent(this.arena, this.fruits);
         if (this.arenaConditionManager.state.type === 'KAMIKAZE_WIND') {
           this.arenaConditionManager.scheduleNewWind();
@@ -1154,7 +1249,13 @@ export class GameEngine {
           }
         } else if (this.gameMode === 'CAREER') {
           this.careerManager.recordShotResolved(this.score, this.lives);
+          if (!this.isGameOver && !this.loadedFruit && !this.careerManager.result) {
+            this.loadNextFruit();
+          }
+        } else {
+          this.evaluateShotBasedArrivals();
         }
+        this.emitStats();
       }
     }
 
@@ -1201,7 +1302,20 @@ export class GameEngine {
     this.updateHazardDirector(dt);
     if (this.gameMode === 'CAREER') {
       this.careerManager.sync(this.score, this.lives);
-      if (this.careerManager.result) this.isPaused = true;
+      if (this.careerManager.result) {
+        this.isPaused = true;
+        if (this.careerManager.result.status === 'WON') {
+          const unlockedBefore = this.skillManager.getUnlockedSkills().length;
+          this.skillManager.updateCareerProgression(this.careerManager.getHighestUnlockedIndex());
+          const unlockedAfter = this.skillManager.getUnlockedSkills().length;
+          if (unlockedAfter > unlockedBefore) {
+            const newlyUnlocked = this.skillManager.getUnlockedSkills()[unlockedAfter - 1];
+            const def = this.skillManager.getDefinition(newlyUnlocked);
+            this.techniqueRibbons.addRibbon(`${def.name} Earned!`, def.description, def.color, 4.0, def.nameJp, def.icon);
+            sound.playTaikoFlourish();
+          }
+        }
+      }
     }
 
     // Step 7: Update Particles
@@ -1587,32 +1701,32 @@ export class GameEngine {
         this.kimariteManager.reportAction('oshidashi');
         haptics.trigger('MEDIUM');
 
-        // Natural hazard knockout grants 1 step toward salt charge (max 1/shot)
-        if (!this.bonusRechargeGrantedThisShot && this.saltCharges < this.maxSaltCharges) {
-          this.bonusRechargeGrantedThisShot = true;
-          this.saltLaunchCount++;
-          if (this.saltLaunchCount >= 6) {
-            this.saltCharges = 1;
-            this.saltLaunchCount = 0;
-            this.techniqueRibbons.addRibbon('Salt Ready!', 'Kiyome-no-Shio replenished from ring-out!', '#4B69FD');
+        // Physical hazard knockout grants 1 step toward skill charge (max 1/shot, recorded once)
+        if (!this.defeatedHazardIds.has(hazard.id)) {
+          this.defeatedHazardIds.add(hazard.id);
+          const recharged = this.skillManager.onPhysicalEnemyDefeat();
+          this.saltCharges = this.skillManager.charge;
+          this.saltLaunchCount = this.skillManager.rechargeProgress;
+          if (recharged) {
+            this.techniqueRibbons.addRibbon('Skill Charged!', 'Physical pushout recharged your skill!', '#4B69FD');
             sound.playTaikoFlourish();
           }
-        }
 
-        if (hazard.kind === 'RIVAL') {
-          this.refereeDirector.triggerCall('金星', 'KINBOSHI!', 'RIVAL YORIKIRI DEFEAT!', '#FFD700', 'RIVAL_DEFEAT');
-          this.activeRefereeCall = this.refereeDirector.getActiveCall();
-          this.techniqueRibbons.addRibbon('Kinboshi Victory!', `${hazard.name} defeated!`, '#FFD700');
-          sound.playTaikoFlourish();
-          this.spawnConfetti(hazard.x, hazard.y, 45);
+          if (hazard.kind === 'RIVAL') {
+            this.refereeDirector.triggerCall('金星', 'KINBOSHI!', 'RIVAL YORIKIRI DEFEAT!', '#FFD700', 'RIVAL_DEFEAT');
+            this.activeRefereeCall = this.refereeDirector.getActiveCall();
+            this.techniqueRibbons.addRibbon('Kinboshi Victory!', `${hazard.name} defeated!`, '#FFD700');
+            sound.playTaikoFlourish();
+            this.spawnConfetti(hazard.x, hazard.y, 45);
 
-          if (this.gameMode === 'CAREER') this.careerManager.recordRivalDefeat(this.score, this.lives);
-        } else {
-          sound.playHazardClear();
-          this.techniqueRibbons.addRibbon('Ring-Out!', `${hazard.name} ejected from the Dohyō`, '#E67E22');
-          this.spawnSparks(hazard.x, hazard.y, '#F1C40F', 12);
-          if (this.gameMode === 'CAREER') {
-            this.careerManager.recordHazardRemoval(hazard.kind, 'RING_OUT', this.score, this.lives);
+            if (this.gameMode === 'CAREER') this.careerManager.recordRivalDefeat(this.score, this.lives);
+          } else {
+            sound.playHazardClear();
+            this.techniqueRibbons.addRibbon('Ring-Out!', `${hazard.name} ejected from the Dohyō`, '#E67E22');
+            this.spawnSparks(hazard.x, hazard.y, '#F1C40F', 12);
+            if (this.gameMode === 'CAREER') {
+              this.careerManager.recordHazardRemoval(hazard.kind, 'RING_OUT', this.score, this.lives);
+            }
           }
         }
         this.triggerCameraTrauma(0.2);
@@ -1637,9 +1751,9 @@ export class GameEngine {
         if (fA.state === 'MERGING' || fB.state === 'MERGING') continue;
         if (fA.state === 'CLASHING' && fB.state === 'CLASHING') continue;
 
-        const catA = FRUIT_CATALOG[fA.tier - 1];
-        const catB = FRUIT_CATALOG[fB.tier - 1];
-        const minDist = catA.radius + catB.radius;
+        const propA = this.getFruitPhysicalProperties(fA);
+        const propB = this.getFruitPhysicalProperties(fB);
+        const minDist = propA.radius + propB.radius;
 
         const dx = fB.x - fA.x;
         const dy = fB.y - fA.y;
@@ -1652,6 +1766,14 @@ export class GameEngine {
           fB.spinActive = false;
           const nx = dx / dist;
           const ny = dy / dist;
+
+          // Check empowered skill activation
+          if (fA.empoweredSkill) {
+            this.handleEmpoweredFruitHit(fA, fB, nx, ny);
+          }
+          if (fB.empoweredSkill) {
+            this.handleEmpoweredFruitHit(fB, fA, -nx, -ny);
+          }
 
           // Check for transaction match (same tier)
           const decision = this.mergeManager.evaluatePair(fA, fB);
@@ -1673,17 +1795,17 @@ export class GameEngine {
 
           // Elastic collision response & Anti-wedge separation
           const overlap = minDist - dist;
-          const totalMass = catA.mass + catB.mass;
+          const totalMass = propA.mass + propB.mass;
           const relSpeed = Math.hypot(fB.vx - fA.vx, fB.vy - fA.vy);
           const separationFactor = (overlap > 3.0 && relSpeed < 10) ? 1.15 : 1.0;
 
           if (fA.state === 'IN_RING') {
-            fA.x -= nx * overlap * (catB.mass / totalMass) * separationFactor;
-            fA.y -= ny * overlap * (catB.mass / totalMass) * separationFactor;
+            fA.x -= nx * overlap * (propB.mass / totalMass) * separationFactor;
+            fA.y -= ny * overlap * (propB.mass / totalMass) * separationFactor;
           }
           if (fB.state === 'IN_RING') {
-            fB.x += nx * overlap * (catA.mass / totalMass) * separationFactor;
-            fB.y += ny * overlap * (catA.mass / totalMass) * separationFactor;
+            fB.x += nx * overlap * (propA.mass / totalMass) * separationFactor;
+            fB.y += ny * overlap * (propA.mass / totalMass) * separationFactor;
           }
 
           const relVx = fB.vx - fA.vx;
@@ -1691,19 +1813,22 @@ export class GameEngine {
           const velAlongNormal = relVx * nx + relVy * ny;
 
           if (velAlongNormal < 0) {
-            const restitution = (catA.restitution + catB.restitution) / 2;
-            const impulseMag = (-(1 + restitution) * velAlongNormal) / (1 / catA.mass + 1 / catB.mass);
+            const restitution = (propA.restitution + propB.restitution) / 2;
+            const impulseMag = (-(1 + restitution) * velAlongNormal) / (1 / propA.mass + 1 / propB.mass);
 
             const impX = nx * impulseMag;
             const impY = ny * impulseMag;
 
+            const multA = fA.team === 'RIVAL' ? this.rivalController.knockbackMultiplier : 1.0;
+            const multB = fB.team === 'RIVAL' ? this.rivalController.knockbackMultiplier : 1.0;
+
             if (fA.state === 'IN_RING') {
-              fA.vx -= impX / catA.mass;
-              fA.vy -= impY / catA.mass;
+              fA.vx -= (impX / propA.mass) * multA;
+              fA.vy -= (impY / propA.mass) * multA;
             }
             if (fB.state === 'IN_RING') {
-              fB.vx += impX / catB.mass;
-              fB.vy += impY / catB.mass;
+              fB.vx += (impX / propB.mass) * multB;
+              fB.vy += (impY / propB.mass) * multB;
             }
 
             const bumpSpeed = Math.abs(velAlongNormal);
@@ -1722,7 +1847,7 @@ export class GameEngine {
                 elapsed: 0,
                 active: true,
               };
-              sound.playBump(bumpSpeed, (catA.mass + catB.mass) / 2);
+              sound.playBump(bumpSpeed, (propA.mass + propB.mass) / 2);
             }
           }
         }
@@ -1747,6 +1872,32 @@ export class GameEngine {
           const nx = dx / dist;
           const ny = dy / dist;
           const overlap = minDist - dist;
+
+          if (fruit.empoweredSkill) {
+            this.handleEmpoweredHazardHit(fruit, hazard, nx, ny);
+            continue;
+          }
+
+          if (hazard.kind === 'ARMOR_BUG') {
+            fruit.x -= nx * overlap * 0.45;
+            fruit.y -= ny * overlap * 0.45;
+            hazard.x += nx * overlap * 0.55;
+            hazard.y += ny * overlap * 0.55;
+
+            const relVx = hazard.vx - fruit.vx;
+            const relVy = hazard.vy - fruit.vy;
+            const vNorm = relVx * nx + relVy * ny;
+            if (vNorm < 0) {
+              const imp = (-(1 + 0.65) * vNorm) / (1 / cat.mass + 1 / hazard.mass);
+              fruit.vx -= (nx * imp) / cat.mass;
+              fruit.vy -= (ny * imp) / cat.mass;
+              hazard.vx += (nx * imp) / hazard.mass;
+              hazard.vy += (ny * imp) / hazard.mass;
+              hazard.hitFlashTimer = 0.2;
+              sound.playBump(Math.abs(vNorm), cat.mass);
+            }
+            continue;
+          }
 
           if (hazard.kind === 'WASABI') {
             // Wasabi sticky sludge: can be damaged by Rikishi impacts, pushed physically, or purified by salt
@@ -2242,25 +2393,13 @@ export class GameEngine {
     }
   }
 
-  private updateHazardDirector(dt: number) {
-    if (this.gameMode === 'VERSUS' || this.gameMode === 'CAREER') return;
-    if (this.totalShots < 3) return; // No hazards during first few shots
-
-    this.hazardSpawnCooldown -= dt;
-    if (this.hazardSpawnCooldown <= 0 && this.hazards.length < 4) {
-      this.hazardSpawnCooldown = 7.0 + this.gameplayRandom() * 5.0;
-      this.spawnHazard();
-    }
-
-    // Rival Sumo AI Director: spawns every 24-32 seconds if none currently active
-    const hasRival = this.hazards.some((h) => h.kind === 'RIVAL' && !h.ringOut);
-    if (!hasRival && this.totalShots >= 5) {
-      this.rivalSpawnTimer -= dt;
-      if (this.rivalSpawnTimer <= 0) {
-        this.rivalSpawnTimer = 24.0 + this.gameplayRandom() * 8.0;
-        this.spawnRival();
-      }
-    }
+  private getFruitPhysicalProperties(f: SumoFruitInstance) {
+    const cat = FRUIT_CATALOG[f.tier - 1];
+    return {
+      radius: cat.radius,
+      mass: cat.mass,
+      restitution: cat.restitution ?? 0.85,
+    };
   }
 
   private spawnRival() {
@@ -2296,71 +2435,236 @@ export class GameEngine {
     this.triggerCameraTrauma(0.2);
   }
 
-  private spawnHazard() {
-    const roll = this.gameplayRandom();
-    let kind: HazardKind = 'BUG';
-    let name = 'Rotten Beetle';
-    let radius = 18;
-    let mass = 3.5;
-    let damp = 0.7;
-    let rest = 0.85;
-    let scoreVal = 120;
+  private handleEmpoweredFruitHit(user: SumoFruitInstance, target: SumoFruitInstance, nx: number, ny: number) {
+    const skill = user.empoweredSkill;
+    if (!skill) return;
+    user.empoweredSkill = null;
 
-    if (roll < 0.28) {
-      kind = 'ICE';
-      name = 'Ice Cube';
-      radius = 22;
-      mass = 6.0;
-      damp = 0.35;
-      rest = 0.95;
-      scoreVal = 150;
-    } else if (roll < 0.52) {
-      kind = 'BUG';
-      name = 'Rotten Beetle';
-      radius = 18;
-      mass = 3.5;
-      damp = 0.7;
-      rest = 0.85;
-      scoreVal = 120;
-    } else if (roll < 0.70) {
-      kind = 'WASABI';
-      name = 'Wasabi Sludge';
-      radius = 24;
-      mass = 5.0;
-      damp = 1.1;
-      rest = 0.4;
-      scoreVal = 180;
-    } else if (roll < 0.86) {
-      kind = 'CHILI';
-      name = 'Fiery Chili';
-      radius = 20;
-      mass = 4.0;
-      damp = 0.4;
-      rest = 0.95;
-      scoreVal = 220;
-    } else {
-      kind = 'GINKO_MAGNET';
-      name = 'Sacred Ginko Nut';
-      radius = 22;
-      mass = 4.5;
-      damp = 0.5;
-      rest = 0.85;
-      scoreVal = 250;
+    if (skill === 'PALM_STRIKE') {
+      const propT = this.getFruitPhysicalProperties(target);
+      sound.playBump(350, 15);
+      sound.playLaunch(10);
+      const isRival = target.team === 'RIVAL';
+      if (isRival) {
+        const countered = this.rivalController.counterBossAttack('PALM_STRIKE');
+        if (countered) {
+          this.techniqueRibbons.addRibbon('Palm Strike Counter!', 'Boss guard shattered! +35% knockback', '#E67E22');
+          this.triggerRefereeCall('突き破り', 'GUARD SHATTERED!', '+35% KNOCKBACK!', '#E67E22', 'nokotta');
+          this.spawnSparks(target.x, target.y, '#E67E22', 25);
+          this.triggerCameraTrauma(0.25);
+          sound.playTaikoFlourish();
+        }
+      }
+      target.vx += (nx * 380) / propT.mass;
+      target.vy += (ny * 380) / propT.mass;
+      this.spawnSparks(target.x, target.y, '#F39C12', 18);
+      this.triggerCameraTrauma(0.15);
+    } else if (skill === 'TAIKO_PULSE') {
+      this.triggerTaikoPulseAt(user.x, user.y);
+    }
+  }
+
+  private handleEmpoweredHazardHit(user: SumoFruitInstance, hazard: HazardInstance, nx: number, ny: number) {
+    const skill = user.empoweredSkill;
+    if (!skill) return;
+    user.empoweredSkill = null;
+
+    if (skill === 'PALM_STRIKE') {
+      sound.playBump(350, 15);
+      if (hazard.kind === 'ICE') {
+        hazard.ringOut = true;
+        this.score += hazard.scoreValue;
+        sound.playHazardClear();
+        this.spawnSparks(hazard.x, hazard.y, '#7DE6FF', 25);
+        this.techniqueRibbons.addRibbon('Palm Strike Shatter!', 'Ice shattered on impact!', '#3498DB');
+        if (this.gameMode === 'CAREER') {
+          this.careerManager.recordHazardRemoval('ICE', 'DESTROYED', this.score, this.lives);
+        }
+      } else if (hazard.kind === 'ARMOR_BUG') {
+        hazard.guardMarks = Math.max(0, (hazard.guardMarks ?? 2) - 1);
+        hazard.hitFlashTimer = 0.35;
+        hazard.vx += nx * 280;
+        hazard.vy += ny * 280;
+        this.spawnSparks(hazard.x, hazard.y, '#5D6D7E', 18);
+        if (hazard.guardMarks === 0) {
+          hazard.ringOut = true;
+          this.score += hazard.scoreValue;
+          sound.playHazardClear();
+          this.techniqueRibbons.addRibbon('Armor Shattered!', 'Armored Beetle guard broken!', '#5D6D7E');
+          if (this.gameMode === 'CAREER') {
+            this.careerManager.recordHazardRemoval('ARMOR_BUG', 'DESTROYED', this.score, this.lives);
+          }
+        } else {
+          this.techniqueRibbons.addRibbon('Guard Weakened!', '1 shield mark remaining!', '#E67E22');
+        }
+      } else {
+        hazard.vx += nx * 280;
+        hazard.vy += ny * 280;
+        this.spawnSparks(hazard.x, hazard.y, '#F39C12', 15);
+      }
+      this.triggerCameraTrauma(0.15);
+    } else if (skill === 'TAIKO_PULSE') {
+      this.triggerTaikoPulseAt(user.x, user.y);
+    }
+  }
+
+  private triggerTaikoPulseAt(originX: number, originY: number) {
+    const pulseRadius = 115;
+    sound.playTaiko(1.0);
+    sound.playTaikoFlourish();
+    this.triggerCameraTrauma(0.22);
+
+    for (let i = 0; i < 24; i++) {
+      const angle = (i / 24) * Math.PI * 2;
+      this.particles.push({
+        x: originX + Math.cos(angle) * 15,
+        y: originY + Math.sin(angle) * 15,
+        vx: Math.cos(angle) * 180,
+        vy: Math.sin(angle) * 180,
+        color: '#C0392B',
+        size: 3.5,
+        life: 0.45,
+        maxLife: 0.45,
+        type: 'DUST',
+      });
     }
 
-    // Find safe spawn location within bowl
-    for (let attempt = 0; attempt < 8; attempt++) {
+    const rivalFruit = this.fruits.find((f) => f.team === 'RIVAL' && f.state === 'IN_RING');
+    if (rivalFruit) {
+      const d = Math.hypot(rivalFruit.x - originX, rivalFruit.y - originY);
+      if (d < pulseRadius + 30) {
+        const countered = this.rivalController.counterBossAttack('TAIKO_PULSE');
+        if (countered) {
+          this.techniqueRibbons.addRibbon('Taiko Pulse Counter!', 'Attack flurry interrupted! +35% knockback', '#C0392B');
+          this.triggerRefereeCall('太鼓砕き', 'FLURRY INTERRUPTED!', '+35% KNOCKBACK!', '#C0392B', 'nokotta');
+          this.spawnSparks(rivalFruit.x, rivalFruit.y, '#C0392B', 25);
+          this.triggerCameraTrauma(0.25);
+        }
+      }
+    }
+
+    for (const h of this.hazards) {
+      if (h.ringOut) continue;
+      const d = Math.hypot(h.x - originX, h.y - originY);
+      if (d < pulseRadius + h.radius) {
+        const nx = (h.x - originX) / (d || 1);
+        const ny = (h.y - originY) / (d || 1);
+        if (h.kind === 'WASABI') {
+          h.ringOut = true;
+          h.hp = 0;
+          this.score += h.scoreValue;
+          sound.playHazardClear();
+          this.spawnSparks(h.x, h.y, '#2ECC71', 25);
+          this.techniqueRibbons.addRibbon('Taiko Dispersal!', 'Wasabi sludge dispersed by drum pulse!', '#2ECC71');
+          if (this.gameMode === 'CAREER') {
+            this.careerManager.recordHazardRemoval('WASABI', 'DESTROYED', this.score, this.lives);
+          }
+        } else if (h.kind === 'GINKO_MAGNET') {
+          h.ringOut = true;
+          this.score += h.scoreValue;
+          sound.playHazardClear();
+          this.spawnSparks(h.x, h.y, '#F1C40F', 25);
+          this.techniqueRibbons.addRibbon('Pulse Cleared!', 'Ginkgo trickster dispersed!', '#F1C40F');
+          if (this.gameMode === 'CAREER') {
+            this.careerManager.recordHazardRemoval('GINKO_MAGNET', 'DESTROYED', this.score, this.lives);
+          }
+        } else {
+          const impulse = 260 * (1 - d / (pulseRadius + h.radius));
+          h.vx += nx * impulse;
+          h.vy += ny * impulse;
+          this.spawnSparks(h.x, h.y, '#E74C3C', 10);
+        }
+      }
+    }
+
+    for (const f of this.fruits) {
+      if (f.state !== 'IN_RING') continue;
+      const d = Math.hypot(f.x - originX, f.y - originY);
+      if (d < pulseRadius + 20 && d > 1) {
+        const nx = (f.x - originX) / d;
+        const ny = (f.y - originY) / d;
+        const prop = this.getFruitPhysicalProperties(f);
+        const push = (220 / prop.mass) * (1 - d / (pulseRadius + 20));
+        f.vx += nx * push;
+        f.vy += ny * push;
+      }
+    }
+  }
+
+  private updateHazardDirector(dt: number) {
+    if (this.gameMode === 'VERSUS' || this.gameMode === 'CAREER') return;
+  }
+
+  private evaluateShotBasedArrivals() {
+    if (this.gameMode === 'VERSUS' || this.gameMode === 'CAREER') return;
+    const shot = this.totalShots;
+    if (shot < 4) return;
+
+    let maxEnemies = 1;
+    let allowedKinds: HazardKind[] = ['BUG'];
+
+    if (shot >= 40) {
+      maxEnemies = 4;
+      allowedKinds = ['BUG', 'ICE', 'WASABI', 'ARMOR_BUG', 'GINKO_MAGNET', 'CHILI'];
+    } else if (shot >= 28) {
+      maxEnemies = 3;
+      allowedKinds = ['BUG', 'ICE', 'WASABI', 'ARMOR_BUG', 'CHILI'];
+    } else if (shot >= 18) {
+      maxEnemies = 3;
+      allowedKinds = ['BUG', 'ICE', 'WASABI', 'CHILI'];
+    } else if (shot >= 10) {
+      maxEnemies = 2;
+      allowedKinds = ['BUG', 'ICE'];
+    } else if (shot >= 4) {
+      maxEnemies = 1;
+      allowedKinds = ['BUG'];
+    }
+
+    const activeHazards = this.hazards.filter((h) => !h.ringOut);
+    const hasRival = activeHazards.some((h) => h.kind === 'RIVAL');
+
+    const isRivalShot = [24, 36, 48, 60].includes(shot);
+    if (isRivalShot && !hasRival) {
+      this.spawnRival();
+      return;
+    }
+
+    if ((shot - 4) % 3 === 0 && activeHazards.length < maxEnemies) {
+      const kind = allowedKinds[Math.floor(this.gameplayRandom() * allowedKinds.length)];
+      this.spawnHazardOfKind(kind);
+    }
+  }
+
+  private spawnHazardOfKind(kind: HazardKind) {
+    const def = ENEMY_DEFINITIONS[kind];
+    const radius = def?.radius ?? 20;
+    const mass = def?.mass ?? 3.5;
+    const damp = def?.damp ?? 0.7;
+    const rest = def?.restitution ?? 0.85;
+    const scoreVal = def?.scoreValue ?? 120;
+    const name = def?.displayName ?? 'Sumo Pest';
+
+    for (let attempt = 0; attempt < 12; attempt++) {
       const angle = this.gameplayRandom() * Math.PI * 2;
-      const r = this.gameplayRandom() * (this.arena.radius * 0.65);
+      const r = this.gameplayRandom() * (this.arena.radius * 0.62);
       const x = this.arena.centerX + Math.cos(angle) * r;
       const y = this.arena.centerY + Math.sin(angle) * r;
 
       let safe = true;
       for (const f of this.fruits) {
         const cat = FRUIT_CATALOG[f.tier - 1];
-        if (Math.hypot(f.x - x, f.y - y) < cat.radius + 30) {
+        if (Math.hypot(f.x - x, f.y - y) < cat.radius + radius + 15) {
           safe = false;
           break;
+        }
+      }
+      if (safe) {
+        for (const h of this.hazards) {
+          if (h.ringOut) continue;
+          if (Math.hypot(h.x - x, h.y - y) < h.radius + radius + 15) {
+            safe = false;
+            break;
+          }
         }
       }
 
@@ -2385,6 +2689,8 @@ export class GameEngine {
           rotation: 0,
           hp: kind === 'WASABI' ? 3 : undefined,
           maxHp: kind === 'WASABI' ? 3 : undefined,
+          guardMarks: kind === 'ARMOR_BUG' ? 2 : undefined,
+          maxGuardMarks: kind === 'ARMOR_BUG' ? 2 : undefined,
           hitFlashTimer: 0,
         };
 
@@ -2398,13 +2704,15 @@ export class GameEngine {
             ? '#3498DB'
             : kind === 'GINKO_MAGNET'
             ? '#F1C40F'
+            : kind === 'ARMOR_BUG'
+            ? '#5D6D7E'
             : '#D35400';
         this.spawnSparks(x, y, sparkColor, 12);
 
         if (kind === 'WASABI') {
           this.techniqueRibbons.addRibbon(
             'Wasabi Appeared!',
-            'Sticky sludge on Dohyō! Hit 3x, Push Out, or use Salt [S]',
+            'Sticky sludge on Dohyō! Hit 3x, Push Out, or use Taiko/Salt',
             '#2ECC71',
             3.0,
             '山葵',
@@ -2422,10 +2730,24 @@ export class GameEngine {
             'HAZARD'
           );
           sound.playGinkoMagnet();
+        } else if (kind === 'ARMOR_BUG') {
+          this.techniqueRibbons.addRibbon(
+            'Armored Beetle!',
+            'Heavy pest with carapace shields! Palm Strike or push out!',
+            '#5D6D7E',
+            3.0,
+            '甲虫',
+            '🪲',
+            'HAZARD'
+          );
         }
         break;
       }
     }
+  }
+
+  private spawnHazard() {
+    this.spawnHazardOfKind('BUG');
   }
 
   // Particle systems
@@ -2595,6 +2917,7 @@ export class GameEngine {
       maxSaltCharges: this.maxSaltCharges,
       saltLaunchCount: this.saltLaunchCount,
       isSaltTargeting: this.isSaltTargeting,
+      skillState: this.skillManager.getSnapshot(),
       comboCount: this.comboCount,
       comboMultiplier: this.comboMultiplier,
       crowdHype: this.crowdHype,

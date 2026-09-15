@@ -103,12 +103,12 @@ const TUTORIAL_STEPS: TutorialStep[] = [
     bodyJa: '外周の16個の勝負俵が力士の転落を防ぎます。強打で俵が壊れると転落の危険に！ライバル力士を土俵外へ押し出せば「金星」勝利となります。',
     keyPointsEn: [
       'Ring-out triggers strictly when a fruit exits over the boundary rim',
-      'Staging and launching through the bottom area is 100% safe',
-      'In 2P Versus, pushing out an opponent score bonus points & bout wins'
+      'Regain a lost life (+1 Rikishi) by scoring 5,000 pts, synthesizing Yokozuna, or defeating a Rival!',
+      'In 2P Versus, pushing out an opponent scores bonus points & bout wins'
     ],
     keyPointsJa: [
       '土俵内から外へ押し出された時のみ転落（リングアウト）判定',
-      '手前の発射台エリアでは転落しません',
+      '5,000点到達・横綱合体・ライバル撃破で失った命（力士）が復活！',
       '2P対戦では相手の力士を押し出すと大量得点獲得'
     ]
   }

@@ -204,6 +204,15 @@ export default function App() {
       }
       if (e.key === 's' || e.key === 'S') {
         engine.throwSalt();
+      } else if (e.key === ' ' || e.code === 'Space') {
+        e.preventDefault();
+        engine.triggerActiveSkill();
+      } else if (e.key === '1') {
+        engine.equipSkill('SALT');
+      } else if (e.key === '2') {
+        engine.equipSkill('PALM_STRIKE');
+      } else if (e.key === '3') {
+        engine.equipSkill('TAIKO_PULSE');
       } else if (e.key === 'p' || e.key === 'P') {
         engine.togglePause();
       } else if (e.key === 'r' || e.key === 'R') {
@@ -232,6 +241,9 @@ export default function App() {
         onOpenKimarite={() => setIsKimariteOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onThrowSalt={handleThrowSalt}
+        onTriggerSkill={() => engine.triggerActiveSkill()}
+        onEquipSkill={(sk) => engine.equipSkill(sk)}
+        onCycleSkill={() => engine.cycleEquippedSkill()}
         onCycleArenaMode={handleCycleArenaMode}
         onSelectGameMode={handleSelectGameMode}
         onToggleTabletop={() => engine.toggleVersusTabletopInversion()}
@@ -310,6 +322,7 @@ export default function App() {
         onOpenKimarite={() => setIsKimariteOpen(true)}
         onOpenTutorial={() => setIsTutorialOpen(true)}
         onOpenCredits={() => setIsCreditsOpen(true)}
+        onToggleVersusPassAndPlay={() => engine.toggleVersusPassAndPlay()}
       />
 
       <GameOverModal
@@ -351,6 +364,7 @@ export default function App() {
           stats={stats}
           onConfirmReady={() => engine.confirmVersusHandoverReady()}
           onToggleTabletop={() => engine.toggleVersusTabletopInversion()}
+          onTogglePassAndPlay={() => engine.toggleVersusPassAndPlay()}
         />
       )}
 

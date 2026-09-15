@@ -18,6 +18,7 @@ import { GameStats } from '../game/GameEngine';
 import { FRUIT_CATALOG, GameModeType } from '../types/game';
 import { VersusHUD } from './VersusHUD';
 import { CONDITION_METADATA } from '../game/ArenaConditionManager';
+import { SKILL_DEFINITIONS, SkillType } from '../types/skills';
 
 interface HUDProps {
   stats: GameStats;
@@ -27,6 +28,9 @@ interface HUDProps {
   onOpenKimarite: () => void;
   onOpenSettings: () => void;
   onThrowSalt: () => void;
+  onTriggerSkill?: () => void;
+  onEquipSkill?: (skill: SkillType) => void;
+  onCycleSkill?: () => void;
   onCycleArenaMode: () => void;
   onSelectGameMode?: (mode: GameModeType, challengeId?: string) => void;
   onToggleTabletop?: () => void;
@@ -42,6 +46,9 @@ export const HUD: React.FC<HUDProps> = ({
   onOpenKimarite,
   onOpenSettings,
   onThrowSalt,
+  onTriggerSkill,
+  onEquipSkill,
+  onCycleSkill,
   onCycleArenaMode,
   onSelectGameMode,
   onToggleTabletop,
@@ -55,13 +62,36 @@ export const HUD: React.FC<HUDProps> = ({
   const isFever = stats.isFever;
   const isVersus = stats.gameMode === 'VERSUS';
 
+  const skillState = stats.skillState;
+  const currentSkill = skillState?.equipped ?? 'SALT';
+  const currentDef = SKILL_DEFINITIONS[currentSkill] ?? SKILL_DEFINITIONS.SALT;
+  const isArmed = skillState?.isArmed ?? false;
+  const hasCharge = skillState ? skillState.charge > 0 : stats.saltCharges > 0;
+  const rechargeProgress = skillState ? skillState.rechargeProgress : stats.saltLaunchCount;
+  const unlockedSkills = skillState?.unlockedSkills ?? ['SALT'];
+
+  if (isVersus) {
+    return (
+      <header className="absolute inset-x-0 top-0 min-w-0 pointer-events-none pt-[max(env(safe-area-inset-top,0px),8px)] sm:pt-3 px-1.5 sm:px-4 z-20">
+        <VersusHUD
+          stats={stats}
+          onThrowSalt={onThrowSalt}
+          onToggleTabletop={onToggleTabletop}
+          onOpenSettings={onOpenSettings}
+          soundEnabled={soundEnabled}
+          onToggleSound={onToggleSound}
+          onRestart={onRestart}
+        />
+      </header>
+    );
+  }
+
   return (
     <header className="absolute inset-x-0 top-0 min-w-0 pointer-events-none pt-[max(env(safe-area-inset-top,0px),44px)] sm:pt-4 px-1.5 sm:px-4 flex flex-col gap-1.5 sm:gap-2 z-20">
       {/* Top Bar: Primary Stats, Hype / Fever, and Combat Salt + Settings */}
       <div className="flex min-w-0 items-center gap-1.5 sm:gap-3 w-full">
-        {!isVersus ? (
-          /* Score, High Score & Lives Box */
-          <div className="flex min-w-0 flex-1 sm:flex-none items-center justify-between gap-1.5 sm:gap-3 bg-[#1C1814]/90 backdrop-blur-md border border-[#3E342B] px-2 py-1.5 sm:px-3.5 sm:py-2 rounded-xl shadow-lg pointer-events-auto">
+        {/* Score, High Score & Lives Box */}
+        <div className="flex min-w-0 flex-1 sm:flex-none items-center justify-between gap-1.5 sm:gap-3 bg-[#1C1814]/90 backdrop-blur-md border border-[#3E342B] px-2 py-1.5 sm:px-3.5 sm:py-2 rounded-xl shadow-lg pointer-events-auto">
             <div className="min-w-0">
               <div className="flex items-center gap-1">
                 <span className="text-[8px] sm:text-[10px] uppercase font-bold tracking-wide sm:tracking-wider text-[#A89886]">
@@ -109,21 +139,9 @@ export const HUD: React.FC<HUDProps> = ({
               </div>
             </div>
           </div>
-        ) : (
-          <div className="flex items-center gap-2 bg-[#1C1814]/90 backdrop-blur-md border border-[#E74C3C]/60 px-3 py-1.5 rounded-xl shadow-lg pointer-events-auto shrink-0">
-            <span className="text-base">🥋</span>
-            <div>
-              <div className="text-[9px] font-black uppercase tracking-wider text-[#E74C3C]">
-                2P Local Showdown
-              </div>
-              <div className="text-xs font-black text-white">East (P1) vs West (P2)</div>
-            </div>
-          </div>
-        )}
 
-        {/* Center: Crowd Hype & Fever Meter (Solo Mode only) */}
-        {!isVersus ? (
-          <div className="flex h-10 w-[76px] sm:h-auto sm:w-auto items-center justify-center overflow-hidden bg-[#1C1814]/90 backdrop-blur-md border border-[#3E342B] px-2 py-1.5 sm:px-4 sm:py-2 rounded-xl shadow-lg pointer-events-auto shrink-0">
+        {/* Center: Crowd Hype & Fever Meter (Solo Mode) */}
+        <div className="flex h-10 w-[76px] sm:h-auto sm:w-auto items-center justify-center overflow-hidden bg-[#1C1814]/90 backdrop-blur-md border border-[#3E342B] px-2 py-1.5 sm:px-4 sm:py-2 rounded-xl shadow-lg pointer-events-auto shrink-0">
             {stats.festivalReadyShots > 0 ? (
               <div className="flex items-center gap-1 sm:gap-2 animate-pulse text-[#FFD700]">
                 <Sparkles size={13} className="text-[#FFD700] animate-spin sm:w-[18px] sm:h-[18px]" />
@@ -170,33 +188,76 @@ export const HUD: React.FC<HUDProps> = ({
               </div>
             )}
           </div>
-        ) : null}
 
-        {/* Right: Salt Button + Settings / Desktop Menu */}
+        {/* Right: Shared Skill Slot + Settings / Desktop Menu */}
         <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto shrink-0">
-          {/* Salt Throw Button (Solo Mode) */}
+          {/* Shared Skill Slot (Solo Mode) */}
           {!isVersus && (
-            <button
-              id="hud-salt-btn"
-              onClick={onThrowSalt}
-              disabled={stats.saltCharges <= 0}
-              title={
-                stats.saltCharges > 0
-                  ? 'Throw Kiyome-no-Shio Salt [S] (Brakes fruits & purifies hazards)'
-                  : `Kiyome-no-Shio Recharging (${stats.saltLaunchCount}/6 shots or ring-out knockout)`
-              }
-              className={`flex h-10 w-12 sm:h-auto sm:w-auto items-center justify-center gap-0.5 sm:gap-1.5 px-1 sm:px-3 sm:py-1.5 rounded-xl text-xs font-bold shadow-md transition-all active:scale-95 cursor-pointer border ${
-                stats.saltCharges > 0
-                  ? 'bg-[#1F2937] hover:bg-[#374151] text-white border-[#4B5563]'
-                  : 'bg-[#181512] text-[#6B7280] border-[#2C241C] cursor-not-allowed opacity-75'
-              }`}
-            >
-              <Sparkles size={14} className={stats.saltCharges > 0 ? 'text-[#60A5FA]' : 'text-gray-500'} />
-              <span className="hidden sm:inline text-xs">Salt</span>
-              <span className="text-[10px] font-mono font-black bg-[#111827] px-1 py-0.5 rounded text-[#93C5FD]">
-                {stats.saltCharges > 0 ? stats.saltCharges : `${stats.saltLaunchCount}/6`}
-              </span>
-            </button>
+            <div className="flex items-center gap-1 bg-[#14120E]/90 border border-[#2D241C] p-1 rounded-xl shadow-md">
+              {/* Skill Switcher (if more than 1 unlocked) */}
+              {unlockedSkills.length > 1 && (
+                <div className="flex items-center gap-0.5">
+                  {unlockedSkills.map((sk) => {
+                    const def = SKILL_DEFINITIONS[sk];
+                    const isSelected = sk === currentSkill;
+                    return (
+                      <button
+                        key={sk}
+                        id={`hud-skill-select-${sk.toLowerCase()}`}
+                        onClick={() => onEquipSkill?.(sk)}
+                        title={`Switch to ${def.name}: ${def.description}`}
+                        className={`h-7 px-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          isSelected
+                            ? 'bg-[#E67E22] text-white shadow'
+                            : 'bg-[#1F1B16] text-[#A89886] hover:text-white hover:bg-[#2A231C]'
+                        }`}
+                      >
+                        <span>{def.icon}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Main Skill Action Button */}
+              <button
+                id="hud-skill-btn"
+                onClick={() => {
+                  if (currentSkill === 'SALT') {
+                    onThrowSalt();
+                  } else {
+                    onTriggerSkill ? onTriggerSkill() : onThrowSalt();
+                  }
+                }}
+                disabled={!hasCharge && !isArmed}
+                title={
+                  hasCharge
+                    ? currentSkill === 'SALT'
+                      ? 'Throw Kiyome-no-Shio Salt [S] (Brakes fruits & purifies hazards)'
+                      : `${currentDef.name} [Space]: ${currentDef.description} (Click to ${isArmed ? 'disarm' : 'arm next launch'})`
+                    : `${currentDef.name} Recharging (${rechargeProgress}/6 shots or ring-out knockout)`
+                }
+                className={`flex h-8 sm:h-auto items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 sm:py-1 rounded-lg text-xs font-bold transition-all active:scale-95 cursor-pointer border ${
+                  isArmed
+                    ? 'bg-[#E67E22] text-white border-[#F39C12] animate-pulse shadow-lg'
+                    : hasCharge
+                    ? 'bg-[#1F2937] hover:bg-[#374151] text-white border-[#4B5563]'
+                    : 'bg-[#181512] text-[#6B7280] border-[#2C241C] cursor-not-allowed opacity-75'
+                }`}
+              >
+                <span>{currentDef.icon}</span>
+                <span className="hidden sm:inline text-xs">{currentDef.name}</span>
+                {isArmed ? (
+                  <span className="text-[10px] font-mono font-black bg-[#935116] px-1 py-0.5 rounded text-white">
+                    ARMED
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-mono font-black bg-[#111827] px-1 py-0.5 rounded text-[#93C5FD]">
+                    {hasCharge ? 'READY' : `${rechargeProgress}/6`}
+                  </span>
+                )}
+              </button>
+            </div>
           )}
 
           {/* Desktop-only action items in top row */}
@@ -310,93 +371,84 @@ export const HUD: React.FC<HUDProps> = ({
         </div>
       </div>
 
-      {/* Row 2: compact versus status or the solo upcoming-fruit queue. */}
-      {isVersus ? (
-        <VersusHUD
-          stats={stats}
-          onThrowSalt={onThrowSalt}
-          onToggleTabletop={onToggleTabletop}
-        />
-      ) : (
-        <div className="flex min-w-0 items-center gap-1.5 sm:gap-2 w-full">
-          {/* Upcoming Wrestlers Queue */}
-          <div className="flex min-w-0 flex-1 items-center gap-1.5 bg-[#1C1814]/90 backdrop-blur-md border border-[#3E342B] px-1.5 sm:px-3 py-1 rounded-xl shadow-lg pointer-events-auto">
-            <div className="hidden min-[360px]:block text-[9px] sm:text-[10px] uppercase font-bold text-[#A89886] tracking-wider shrink-0">
-              Next:
-            </div>
-            <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2">
-              {/* Next 1 */}
-              <div
-                className="flex min-w-0 flex-1 items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 rounded-lg border border-[#44382E]"
-                style={{ backgroundColor: `${next1.color}25` }}
-              >
-                <div
-                  className="w-3.5 h-3.5 rounded-full border border-black/50 shadow-sm flex items-center justify-center text-[8px] font-black text-white"
-                  style={{ backgroundColor: next1.color }}
-                >
-                  {next1.tier}
-                </div>
-                <span className="truncate text-[10px] sm:text-xs font-bold text-[#EDE2D4]">
-                  {next1.name}
-                </span>
-              </div>
-
-              {/* Next 2 */}
-              <div
-                className="flex shrink-0 items-center gap-1 sm:gap-1.5 px-1 sm:px-2 py-0.5 rounded-lg border border-[#44382E] opacity-80"
-                style={{ backgroundColor: `${next2.color}20` }}
-              >
-                <div
-                  className="w-3 h-3 rounded-full border border-black/50 shadow-sm flex items-center justify-center text-[7px] font-black text-white"
-                  style={{ backgroundColor: next2.color }}
-                >
-                  {next2.tier}
-                </div>
-                <span className="hidden sm:inline text-[11px] font-medium text-[#D1C3B2]">
-                  {next2.name}
-                </span>
-              </div>
-            </div>
+      {/* Row 2: Solo upcoming-fruit queue */}
+      <div className="flex min-w-0 items-center gap-1.5 sm:gap-2 w-full">
+        {/* Upcoming Wrestlers Queue */}
+        <div className="flex min-w-0 flex-1 items-center gap-1.5 bg-[#1C1814]/90 backdrop-blur-md border border-[#3E342B] px-1.5 sm:px-3 py-1 rounded-xl shadow-lg pointer-events-auto">
+          <div className="hidden min-[360px]:block text-[9px] sm:text-[10px] uppercase font-bold text-[#A89886] tracking-wider shrink-0">
+            Next:
           </div>
-
-          {/* Context badges; advanced controls live in Settings on compact screens. */}
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 pointer-events-auto">
-            {/* Daily Basho Badge */}
-            {stats.gameMode === 'DAILY' && stats.dailyBasho && (
-              <div className="hidden sm:flex items-center gap-1.5 bg-[#1C1814]/90 backdrop-blur-md border border-[#10B981] px-2.5 py-1 rounded-xl shadow-lg">
-                <span className="text-xs">📅</span>
-                <span className="text-[10px] font-black text-[#10B981] tracking-wider">
-                  Day #{stats.dailyBasho.dayNumber}
-                </span>
+          <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2">
+            {/* Next 1 */}
+            <div
+              className="flex min-w-0 flex-1 items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2 py-0.5 rounded-lg border border-[#44382E]"
+              style={{ backgroundColor: `${next1.color}25` }}
+            >
+              <div
+                className="w-3.5 h-3.5 rounded-full border border-black/50 shadow-sm flex items-center justify-center text-[8px] font-black text-white"
+                style={{ backgroundColor: next1.color }}
+              >
+                {next1.tier}
               </div>
-            )}
+              <span className="truncate text-[10px] sm:text-xs font-bold text-[#EDE2D4]">
+                {next1.name}
+              </span>
+            </div>
 
-            {/* Arena Condition Pill (if condition active) */}
-            {stats.arenaCondition && stats.arenaCondition.type !== 'NONE' && (
-              <div className="hidden sm:flex items-center gap-1.5 bg-[#1C1814]/90 backdrop-blur-md border border-[#E67E22] px-2.5 py-1 rounded-xl shadow-lg">
-                <span className="text-xs">{CONDITION_METADATA[stats.arenaCondition.type].icon}</span>
-                <span className="text-[10px] font-black text-[#FFD700] tracking-wider">
-                  {CONDITION_METADATA[stats.arenaCondition.type].nameJp}
-                </span>
+            {/* Next 2 */}
+            <div
+              className="flex shrink-0 items-center gap-1 sm:gap-1.5 px-1 sm:px-2 py-0.5 rounded-lg border border-[#44382E] opacity-80"
+              style={{ backgroundColor: `${next2.color}20` }}
+            >
+              <div
+                className="w-3 h-3 rounded-full border border-black/50 shadow-sm flex items-center justify-center text-[7px] font-black text-white"
+                style={{ backgroundColor: next2.color }}
+              >
+                {next2.tier}
               </div>
-            )}
-
-            {/* Career Stage & Rival Banner (if Career Mode) */}
-            {stats.gameMode === 'CAREER' && stats.currentRivalProfile && (
-              <div className="hidden sm:flex items-center gap-1.5 sm:gap-2 bg-[#1C1814]/90 backdrop-blur-md border border-[#E67E22] px-2.5 py-1 rounded-xl shadow-lg">
-                <div
-                  className="w-2.5 h-2.5 rounded-full border border-black/40 shadow-sm shrink-0"
-                  style={{ backgroundColor: stats.currentRivalProfile.color }}
-                />
-                <span className="text-[10px] font-black text-[#F39C12] tracking-wider">
-                  Bout {stats.careerStageIndex + 1}/{stats.careerStageCount}
-                </span>
-              </div>
-            )}
-
+              <span className="hidden sm:inline text-[11px] font-medium text-[#D1C3B2]">
+                {next2.name}
+              </span>
+            </div>
           </div>
         </div>
-      )}
+
+        {/* Context badges; advanced controls live in Settings on compact screens. */}
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 pointer-events-auto">
+          {/* Daily Basho Badge */}
+          {stats.gameMode === 'DAILY' && stats.dailyBasho && (
+            <div className="hidden sm:flex items-center gap-1.5 bg-[#1C1814]/90 backdrop-blur-md border border-[#10B981] px-2.5 py-1 rounded-xl shadow-lg">
+              <span className="text-xs">📅</span>
+              <span className="text-[10px] font-black text-[#10B981] tracking-wider">
+                Day #{stats.dailyBasho.dayNumber}
+              </span>
+            </div>
+          )}
+
+          {/* Arena Condition Pill (if condition active) */}
+          {stats.arenaCondition && stats.arenaCondition.type !== 'NONE' && (
+            <div className="hidden sm:flex items-center gap-1.5 bg-[#1C1814]/90 backdrop-blur-md border border-[#E67E22] px-2.5 py-1 rounded-xl shadow-lg">
+              <span className="text-xs">{CONDITION_METADATA[stats.arenaCondition.type].icon}</span>
+              <span className="text-[10px] font-black text-[#FFD700] tracking-wider">
+                {CONDITION_METADATA[stats.arenaCondition.type].nameJp}
+              </span>
+            </div>
+          )}
+
+          {/* Career Stage & Rival Banner (if Career Mode) */}
+          {stats.gameMode === 'CAREER' && stats.currentRivalProfile && (
+            <div className="hidden sm:flex items-center gap-1.5 sm:gap-2 bg-[#1C1814]/90 backdrop-blur-md border border-[#E67E22] px-2.5 py-1 rounded-xl shadow-lg">
+              <div
+                className="w-2.5 h-2.5 rounded-full border border-black/40 shadow-sm shrink-0"
+                style={{ backgroundColor: stats.currentRivalProfile.color }}
+              />
+              <span className="text-[10px] font-black text-[#F39C12] tracking-wider">
+                Bout {stats.careerStageIndex + 1}/{stats.careerStageCount}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
 
       {stats.gameMode === 'CAREER' && stats.campaign.activeLevelId && !stats.campaign.result && (
         <div className="pointer-events-auto flex w-full items-center gap-2 rounded-xl border border-[#D4AF37]/70 bg-[#1C1814]/95 px-2.5 py-1.5 shadow-lg">
@@ -414,7 +466,7 @@ export const HUD: React.FC<HUDProps> = ({
       )}
 
       {/* Overflow Alarm Banner (when bowl capacity exceeded & protruding) */}
-      {!isVersus && isOverflowWarning && (
+      {isOverflowWarning && (
         <div className="self-center flex items-center gap-2.5 bg-[#E74C3C] text-white px-4 py-1.5 rounded-full font-bold text-xs sm:text-sm shadow-xl animate-pulse pointer-events-auto border-2 border-white mt-1">
           <AlertTriangle size={18} />
           <span>

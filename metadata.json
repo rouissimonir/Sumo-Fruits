@@ -2,5 +2,7 @@
   "name": "Sumo Fruits: The Bumper Bowl",
   "description": "A physics-driven iOS bumper bowl arcade game with sumo fruits, transactional merging, and Tsuppari clashes.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

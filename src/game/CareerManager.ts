@@ -79,7 +79,20 @@ export class CareerManager {
     if (this.activeLevel.objective.type === 'SURVIVE_SHOTS') {
       this.objectiveProgress = Math.min(this.shotsUsed, this.activeLevel.objective.count);
     }
-    this.evaluate(score, lives);
+    const level = this.activeLevel;
+    // Final-life loss takes precedence over victory within the same resolving shot
+    if (lives <= 0) {
+      this.fail('All of your rikishi were pushed out.');
+      return;
+    }
+    if (this.objectiveProgress >= this.getTarget(level)) {
+      this.complete(score, lives);
+      return;
+    }
+    if (this.shotsUsed >= level.shotLimit) {
+      this.fail(`No shots left — ${level.objectiveText.toLowerCase()} is still incomplete.`);
+      return;
+    }
   }
 
   public recordFusion(tier: number, combo: number, score: number, lives: number): void {
@@ -172,9 +185,8 @@ export class CareerManager {
   private evaluate(score: number, lives: number): void {
     const level = this.activeLevel;
     if (!level || this.result) return;
-    if (this.objectiveProgress >= this.getTarget(level)) { this.complete(score, lives); return; }
     if (lives <= 0) { this.fail('All of your rikishi were pushed out.'); return; }
-    if (this.shotsUsed >= level.shotLimit) this.fail(`No shots left — ${level.objectiveText.toLowerCase()} is still incomplete.`);
+    if (this.objectiveProgress >= this.getTarget(level)) { this.complete(score, lives); return; }
   }
 
   private complete(score: number, lives: number): void {

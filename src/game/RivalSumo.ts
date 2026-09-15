@@ -76,6 +76,9 @@ export class RivalSumoController {
   public isRecovering: boolean = false;
   public recoveryTimer: number = 0;
   public attackCanceledByYokozuna: boolean = false;
+  public isCounteredThisShot: boolean = false;
+  public knockbackMultiplier: number = 1.0;
+  public dragonfruitAlternator: boolean = false; // true = rush, false = slap
 
   constructor(profile: RivalProfile = RIVAL_PROFILES.TENGU_ORANGE) {
     this.profile = profile;
@@ -96,6 +99,9 @@ export class RivalSumoController {
     this.isRecovering = false;
     this.recoveryTimer = 0;
     this.attackCanceledByYokozuna = false;
+    this.isCounteredThisShot = false;
+    this.knockbackMultiplier = 1.0;
+    this.dragonfruitAlternator = false;
   }
 
   public spawnRival(
@@ -166,16 +172,21 @@ export class RivalSumoController {
     const dirX = dx / len;
     const dirY = dy / len;
 
+    let moveType = this.profile.moveType;
+    if (this.profile.id === 'DRAGONFRUIT_YOKOZUNA') {
+      moveType = this.dragonfruitAlternator ? 'OSHIDASHI_PUSH' : 'TSUPPARI_SLAP';
+    }
+
     const shotsUntil = Math.max(1, this.profile.attackIntervalShots - (this.shotCounter % this.profile.attackIntervalShots));
 
     this.intent = {
-      type: this.profile.moveType,
+      type: moveType,
       dirX,
       dirY,
       targetX,
       targetY,
-      length: this.profile.moveType === 'OSHIDASHI_PUSH' ? Math.min(260, len + 50) : 130,
-      coneAngle: this.profile.moveType === 'TSUPPARI_SLAP' ? Math.PI / 4 : undefined,
+      length: moveType === 'OSHIDASHI_PUSH' ? Math.min(260, len + 50) : 130,
+      coneAngle: moveType === 'TSUPPARI_SLAP' ? Math.PI / 4 : undefined,
       shotsUntilAttack: shotsUntil,
       locked: true,
     };
@@ -305,5 +316,43 @@ export class RivalSumoController {
     this.isExecuting = false;
     this.isRecovering = true;
     this.recoveryTimer = 1.2;
+  }
+
+  public counterBossAttack(skill: 'PALM_STRIKE' | 'TAIKO_PULSE'): boolean {
+    const id = this.profile.id;
+    let effective = false;
+
+    // Palm Strike counters Tengu Orange (rush) and Coconut Tank (brace/rush)
+    if (skill === 'PALM_STRIKE' && (id === 'TENGU_ORANGE' || id === 'COCONUT_TANK')) {
+      effective = true;
+    }
+    // Taiko Pulse counters Cherry Slapper (slaps) and Dragonfruit Yokozuna (current attack)
+    if (skill === 'TAIKO_PULSE' && (id === 'CHERRY_SLAPPER' || id === 'DRAGONFRUIT_YOKOZUNA')) {
+      effective = true;
+    }
+
+    if (!effective) return false;
+
+    // Interrupt active execution or upcoming attack
+    this.isExecuting = false;
+    this.isRecovering = true;
+    this.recoveryTimer = 1.4; // Dazed recovery
+    this.attackCanceledByYokozuna = true; // Prevents retaliation for remainder of this shot
+
+    // Apply knockback modifier once; repeated contact must not stack it
+    if (!this.isCounteredThisShot) {
+      this.isCounteredThisShot = true;
+      this.knockbackMultiplier = 1.35;
+    }
+
+    return true;
+  }
+
+  public onShotResolved() {
+    this.isCounteredThisShot = false;
+    this.knockbackMultiplier = 1.0;
+    if (this.profile.id === 'DRAGONFRUIT_YOKOZUNA') {
+      this.dragonfruitAlternator = !this.dragonfruitAlternator;
+    }
   }
 }
