@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { CAMPAIGN_CHAPTERS, CAMPAIGN_LEVELS, getCampaignTechniqueText } from '../../content/campaign';
 import { CampaignSnapshot } from '../../types/campaign';
 import { REWARD_DEFINITIONS, RewardId } from '../../types/rewards';
+import { CONDITION_METADATA } from '../../game/ArenaConditionManager';
 
 interface Props {
   isOpen: boolean;
@@ -24,6 +25,7 @@ export const CampaignMap: React.FC<Props> = ({ isOpen, campaign, onClose, onStar
   const unlocked = selected.index <= campaign.highestUnlockedIndex;
   const nextPrizeLevel = CAMPAIGN_LEVELS.find((level) => level.rewardId && !campaign.unlockedRewardIds.includes(level.rewardId));
   const nextPrize = nextPrizeLevel?.rewardId ? REWARD_DEFINITIONS[nextPrizeLevel.rewardId] : null;
+  const selectedCondition = CONDITION_METADATA[selected.arenaCondition];
 
   return (
     <AnimatePresence>
@@ -121,6 +123,17 @@ export const CampaignMap: React.FC<Props> = ({ isOpen, campaign, onClose, onStar
                   💡 {selected.encounterHint}
                 </div>
               )}
+              {selected.arenaCondition !== 'NONE' && (
+                <div className="mt-2 flex items-center gap-2 rounded-lg border bg-[#111820] px-2.5 py-2" style={{ borderColor: selectedCondition.badgeColor }}>
+                  <span className="text-lg">{selectedCondition.icon}</span>
+                  <div className="min-w-0">
+                    <div className="text-[9px] font-black uppercase tracking-wider" style={{ color: selectedCondition.badgeColor }}>
+                      Arena condition · {selectedCondition.nameRomaji}
+                    </div>
+                    <div className="text-[11px] text-white">{selectedCondition.shortEffect}</div>
+                  </div>
+                </div>
+              )}
             </div>
 
             <motion.button
@@ -170,7 +183,6 @@ export const CampaignMap: React.FC<Props> = ({ isOpen, campaign, onClose, onStar
               </div>
             </section>
           )}
-
           {/* Chapters & Levels Grid */}
           {CAMPAIGN_CHAPTERS.map((chapterTitle, chapterIndex) => (
             <section key={chapterTitle} className="mt-4">
@@ -201,7 +213,14 @@ export const CampaignMap: React.FC<Props> = ({ isOpen, campaign, onClose, onStar
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-black text-white">{level.index + 1}</span>
+                        <span className="flex items-center gap-1 text-xs font-black text-white">
+                          {level.index + 1}
+                          {level.arenaCondition !== 'NONE' && (
+                            <span title={CONDITION_METADATA[level.arenaCondition].nameRomaji}>
+                              {CONDITION_METADATA[level.arenaCondition].icon}
+                            </span>
+                          )}
+                        </span>
                         {isUnlocked ? (
                           <span className="text-[9px] text-[#FFD700]">
                             {'★'.repeat(stamps)}

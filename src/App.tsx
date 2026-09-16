@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { GameEngine, GameStats } from './game/GameEngine';
 import { GameCanvas } from './components/GameCanvas';
 import { HUD } from './components/HUD';
@@ -80,7 +80,7 @@ export default function App() {
     versus: null,
     arenaCondition: {
       type: 'NONE',
-      nameJp: '清浄土俵',
+      nameJp: '通常土俵',
       nameRomaji: 'Standard Clay',
       description: 'Traditional sun-dried sacred clay surface.',
       badgeColor: '#A0522D',
@@ -109,11 +109,17 @@ export default function App() {
     return !localStorage.getItem('sumo_tutorial_completed_v1');
   });
   const [showBottomTip, setShowBottomTip] = useState(true);
+  const backgroundPausedGameRef = useRef(false);
+  const isBackgroundedRef = useRef(false);
+  const settingsPausedGameRef = useRef(false);
 
   // Sync settings with audio and haptics managers
   useEffect(() => {
     sound.setVolume(settings.sfxVolume);
     sound.setEnabled(!settings.sfxMuted);
+    sound.setMusicVolume(settings.bgmVolume);
+    sound.setMusicEnabled(!settings.bgmMuted);
+    sound.startMusic();
     haptics.setEnabled(settings.hapticsEnabled);
     engine.reducedMotion = settings.reducedMotion;
     engine.showTrajectoryGuide = settings.showTrajectoryGuide;
@@ -122,17 +128,24 @@ export default function App() {
 
   useEffect(() => {
     const handleBackground = () => {
+      if (isBackgroundedRef.current) return;
+      isBackgroundedRef.current = true;
       engine.cancelDrag();
       sound.suspend();
       if (!engine.isGameOver && !engine.isPaused) {
+        backgroundPausedGameRef.current = true;
         engine.pause();
+      } else {
+        backgroundPausedGameRef.current = false;
       }
     };
 
     const handleForeground = () => {
-      if (!settings.sfxMuted) {
-        sound.resume();
-      }
+      if (!isBackgroundedRef.current || document.hidden) return;
+      isBackgroundedRef.current = false;
+      sound.resume();
+      if (backgroundPausedGameRef.current && !engine.isGameOver) engine.resume();
+      backgroundPausedGameRef.current = false;
     };
 
     const handleVisibility = () => {
@@ -170,7 +183,7 @@ export default function App() {
         void capacitorListener.then((handle) => handle?.remove?.());
       }
     };
-  }, [engine, settings.sfxMuted]);
+  }, [engine]);
 
   const updateSettings = useCallback((partial: Partial<GameSettings>) => {
     setSettings((prev) => {
@@ -202,12 +215,28 @@ export default function App() {
   }, [engine]);
 
   const handleTogglePause = useCallback(() => {
+    if (isSettingsOpen) settingsPausedGameRef.current = false;
     engine.togglePause();
+  }, [engine, isSettingsOpen]);
+
+  const handleOpenSettings = useCallback(() => {
+    settingsPausedGameRef.current = !engine.isPaused && !engine.isGameOver;
+    if (settingsPausedGameRef.current) engine.pause();
+    setIsSettingsOpen(true);
+  }, [engine]);
+
+  const handleCloseSettings = useCallback(() => {
+    setIsSettingsOpen(false);
+    if (settingsPausedGameRef.current && !engine.isGameOver && !isBackgroundedRef.current) {
+      engine.resume();
+    }
+    settingsPausedGameRef.current = false;
   }, [engine]);
 
   const handleToggleSound = useCallback(() => {
-    updateSettings({ sfxMuted: !settings.sfxMuted });
-  }, [settings.sfxMuted, updateSettings]);
+    const muteAll = !settings.sfxMuted || !settings.bgmMuted;
+    updateSettings({ sfxMuted: muteAll, bgmMuted: muteAll });
+  }, [settings.sfxMuted, settings.bgmMuted, updateSettings]);
 
   const handleThrowSalt = useCallback(() => {
     if (engine.isSaltTargeting) {
@@ -233,6 +262,7 @@ export default function App() {
   }, [engine]);
 
   const handleStartCareerLevel = useCallback((levelId: string) => {
+    settingsPausedGameRef.current = false;
     engine.startCareerLevel(levelId);
     setIsCampaignMapOpen(false);
     setIsSettingsOpen(false);
@@ -290,7 +320,7 @@ export default function App() {
         onTogglePause={handleTogglePause}
         onOpenTierList={() => setIsTierListOpen(true)}
         onOpenKimarite={() => setIsKimariteOpen(true)}
-        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenSettings={handleOpenSettings}
         onThrowSalt={handleThrowSalt}
         onTriggerSkill={() => engine.triggerActiveSkill()}
         onEquipSkill={(sk) => engine.equipSkill(sk)}
@@ -298,7 +328,7 @@ export default function App() {
         onCycleArenaMode={handleCycleArenaMode}
         onSelectGameMode={handleSelectGameMode}
         onToggleTabletop={() => engine.toggleVersusTabletopInversion()}
-        soundEnabled={!settings.sfxMuted}
+        soundEnabled={!settings.sfxMuted || !settings.bgmMuted}
         onToggleSound={handleToggleSound}
       />
 
@@ -313,7 +343,7 @@ export default function App() {
         >
           <Sparkles size={16} className="text-[#FFD700] shrink-0" />
           <span className="truncate">
-            Pull & slingshot fruits. Match weights to fuse! Tap <b>[S]</b> for Kiyome-no-Shio salt.
+            Pull and release to launch. Match equal fruits to fuse; use the Salt skill to purify hazards.
           </span>
           <button
             onClick={() => setIsTutorialOpen(true)}
@@ -360,7 +390,7 @@ export default function App() {
 
       <SettingsModal
         isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
+        onClose={handleCloseSettings}
         stats={stats}
         settings={settings}
         onUpdateSettings={updateSettings}

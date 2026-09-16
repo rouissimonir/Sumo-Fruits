@@ -1056,7 +1056,7 @@ export class GameEngine {
         this.triggerRefereeCall(turnName, 'HAKKEYOI!', turnSub, turnColor, 'hakkeyoi', 'TACHIAI');
       } else {
         // Gyōji callout: HAKKEYOI!
-        this.triggerRefereeCall('発気揚々', 'HAKKEYOI!', 'TACHIAI CHARGE!', '#2ECC71', 'hakkeyoi', 'TACHIAI');
+        this.triggerRefereeCall('はっけよい！', 'HAKKEYOI!', 'TACHIAI CHARGE!', '#2ECC71', 'hakkeyoi', 'TACHIAI');
       }
 
       // Consume armed skill empowerment and advance recharge counter
@@ -1508,7 +1508,7 @@ export class GameEngine {
       fruit.x += fruit.vx * dt;
       fruit.y += fruit.vy * dt;
 
-      // Arena condition: Kamikaze Wind and Grippy Clay
+      // Arena condition: Shrine Breeze and Grippy Clay
       const windAcc = this.arenaConditionManager.getWindAcceleration(cat.mass);
       const extraDamping = this.arenaConditionManager.getExtraDamping();
       const totalDamp = cat.damp + extraDamping;
@@ -1667,7 +1667,7 @@ export class GameEngine {
         if (metrics.dSurface <= this.arena.radius * 0.08 && (vOut > 10 || Math.hypot(fruit.vx, fruit.vy) > 25)) {
           if (this.refereeDirector.canTriggerEdgeDanger(fruit.id, this.totalSimTime)) {
             this.refereeDirector.triggerCall(
-              '残った',
+              'のこった！',
               'NOKOTTA! NOKOTTA!',
               'RIM DANGER STRUGGLE!',
               '#E67E22',
@@ -2337,7 +2337,7 @@ export class GameEngine {
       this.kimariteManager.reportAction('ozeki_power');
       haptics.trigger('HEAVY');
     } else if (this.comboCount >= 3) {
-      this.refereeDirector.triggerCall('残った', 'NOKOTTA!', `${this.comboCount}x COMBO STREAK!`, '#3498DB', 'COMBO');
+      this.refereeDirector.triggerCall('連続合体！', 'FUSION CHAIN!', `${this.comboCount}x COMBO STREAK!`, '#3498DB', 'COMBO');
       this.activeRefereeCall = this.refereeDirector.getActiveCall();
       haptics.trigger('FUSION');
     } else {
@@ -2459,7 +2459,7 @@ export class GameEngine {
 
       if (boutOutcome.isMatchOver) {
         this.refereeDirector.triggerCall(
-          '天下統一',
+          '勝負あり',
           'MATCH DECIDED!',
           `${winnerName} WINS EMPEROR'S CUP!`,
           '#FFD700',

@@ -7,26 +7,35 @@ import {
 
 export const CONDITION_METADATA: Record<
   ArenaConditionType,
-  { nameJp: string; nameRomaji: string; description: string; badgeColor: string; icon: string }
+  { nameJp: string; nameRomaji: string; description: string; descriptionJa: string; shortEffect: string; shortEffectJa: string; badgeColor: string; icon: string }
 > = {
   NONE: {
-    nameJp: '清浄土俵',
+    nameJp: '通常土俵',
     nameRomaji: 'Standard Clay',
     description: 'Traditional sun-dried sacred clay surface.',
+    descriptionJa: '乾いた土を使った標準的な土俵です。',
+    shortEffect: 'Balanced physics',
+    shortEffectJa: '標準の動き',
     badgeColor: '#A0522D',
     icon: '🌾',
   },
   GRIPPY_CLAY: {
-    nameJp: '濡れ土俵',
+    nameJp: '湿り土俵',
     nameRomaji: 'Grippy Clay',
     description: 'Sacred wet clay increases rolling friction (+0.85 damping). Fruits stop faster!',
+    descriptionJa: '湿った土で摩擦が増し、フルーツが早く止まります。',
+    shortEffect: 'High grip · shorter slides',
+    shortEffectJa: '高摩擦・滑走距離短縮',
     badgeColor: '#27AE60',
     icon: '💧',
   },
   KAMIKAZE_WIND: {
-    nameJp: '神風',
-    nameRomaji: 'Kamikaze Breeze',
+    nameJp: '神社の風',
+    nameRomaji: 'Shrine Breeze',
     description: 'Courtyard gusts gently push wrestlers (up to 35 px/s² acceleration).',
+    descriptionJa: '境内から吹く風が力士を押し、軽いフルーツほど流されます。',
+    shortEffect: 'Wind moves lighter fruits',
+    shortEffectJa: '軽いフルーツほど流される',
     badgeColor: '#2980B9',
     icon: '🍃',
   },
@@ -34,6 +43,9 @@ export const CONDITION_METADATA: Record<
     nameJp: '縮小土俵',
     nameRomaji: 'Closing Ring',
     description: 'Every 5 shots the legal boundary contracts by 3%. 2.0s grace period if outside!',
+    descriptionJa: '5投ごとに有効範囲が3%縮小。外側に出ても2秒の猶予があります。',
+    shortEffect: 'Ring shrinks every 5 shots',
+    shortEffectJa: '5投ごとに土俵が縮小',
     badgeColor: '#C0392B',
     icon: '⚡',
   },

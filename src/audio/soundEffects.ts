@@ -6,8 +6,15 @@
 class SoundEngine {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
+  private musicGain: GainNode | null = null;
   private voiceGain: GainNode | null = null;
   private activeVoiceOscillators: OscillatorNode[] = [];
+  private activeMusicOscillators = new Set<OscillatorNode>();
+  private musicTimer: number | null = null;
+  private musicStep = 0;
+  private musicRequested = false;
+  private musicEnabled = true;
+  private musicVolume = 0.6;
   public enabled: boolean = true;
   public volume: number = 0.7;
 
@@ -19,6 +26,10 @@ class SoundEngine {
       this.masterGain = this.ctx.createGain();
       this.masterGain.gain.setValueAtTime(this.volume, this.ctx.currentTime);
       this.masterGain.connect(this.ctx.destination);
+
+      this.musicGain = this.ctx.createGain();
+      this.musicGain.gain.setValueAtTime(this.getMusicGain(), this.ctx.currentTime);
+      this.musicGain.connect(this.ctx.destination);
 
       this.voiceGain = this.ctx.createGain();
       this.voiceGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
@@ -65,12 +76,109 @@ class SoundEngine {
     }
   }
 
+  private getMusicGain(): number {
+    return this.musicEnabled ? this.musicVolume * 0.14 : 0;
+  }
+
+  public setMusicVolume(vol: number): void {
+    this.musicVolume = Math.max(0, Math.min(1, vol));
+    if (this.musicGain && this.ctx) {
+      this.musicGain.gain.setTargetAtTime(this.getMusicGain(), this.ctx.currentTime, 0.04);
+    }
+  }
+
+  public setMusicEnabled(enabled: boolean): void {
+    this.musicEnabled = enabled;
+    if (this.musicGain && this.ctx) {
+      this.musicGain.gain.setTargetAtTime(this.getMusicGain(), this.ctx.currentTime, 0.04);
+    }
+    if (enabled) this.ensureMusicLoop();
+  }
+
+  /** Starts a quiet, original pentatonic dohyō ambience after the first user gesture. */
+  public startMusic(): void {
+    this.musicRequested = true;
+    this.init();
+    this.ensureMusicLoop();
+  }
+
+  private ensureMusicLoop(): void {
+    if (
+      !this.musicRequested ||
+      !this.musicEnabled ||
+      !this.ctx ||
+      !this.musicGain ||
+      this.ctx.state !== 'running' ||
+      this.musicTimer !== null ||
+      (typeof document !== 'undefined' && document.hidden)
+    ) return;
+
+    this.scheduleMusicPhrase();
+    this.musicTimer = window.setInterval(() => this.scheduleMusicPhrase(), 4800);
+  }
+
+  private scheduleMusicPhrase(): void {
+    if (!this.ctx || !this.musicGain || this.ctx.state !== 'running' || !this.musicEnabled) return;
+
+    // A sparse in-sen-inspired pentatonic phrase. It stays deliberately quiet so impacts and callouts lead.
+    const phrases = [
+      [220.0, 261.63, 329.63, 293.66],
+      [196.0, 246.94, 293.66, 261.63],
+      [220.0, 293.66, 329.63, 392.0],
+      [196.0, 220.0, 293.66, 246.94],
+    ];
+    const notes = phrases[this.musicStep % phrases.length];
+    this.musicStep++;
+    const start = this.ctx.currentTime + 0.03;
+
+    notes.forEach((frequency, index) => {
+      const osc = this.ctx!.createOscillator();
+      const filter = this.ctx!.createBiquadFilter();
+      const gain = this.ctx!.createGain();
+      const noteStart = start + index * 1.08;
+
+      osc.type = index % 2 === 0 ? 'sine' : 'triangle';
+      osc.frequency.setValueAtTime(frequency, noteStart);
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(1050, noteStart);
+      filter.Q.setValueAtTime(0.7, noteStart);
+      gain.gain.setValueAtTime(0.0001, noteStart);
+      gain.gain.exponentialRampToValueAtTime(index === 0 ? 0.32 : 0.22, noteStart + 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.0001, noteStart + 1.35);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.musicGain!);
+      this.activeMusicOscillators.add(osc);
+      osc.onended = () => this.activeMusicOscillators.delete(osc);
+      osc.start(noteStart);
+      osc.stop(noteStart + 1.4);
+    });
+  }
+
+  private pauseMusicLoop(): void {
+    if (this.musicTimer !== null) {
+      window.clearInterval(this.musicTimer);
+      this.musicTimer = null;
+    }
+    for (const osc of this.activeMusicOscillators) {
+      try {
+        osc.stop();
+        osc.disconnect();
+      } catch {
+        // The note may have already ended.
+      }
+    }
+    this.activeMusicOscillators.clear();
+  }
+
   public toggleMute(): boolean {
     this.setEnabled(!this.enabled);
     return this.enabled;
   }
 
   public suspend() {
+    this.pauseMusicLoop();
     if (this.ctx?.state === 'running') {
       void this.ctx.suspend().catch(() => {
         // The platform may already be suspending audio while backgrounded.
@@ -80,7 +188,9 @@ class SoundEngine {
 
   public resume() {
     if (this.ctx?.state === 'suspended') {
-      void this.ctx.resume().catch(() => {});
+      void this.ctx.resume().then(() => this.ensureMusicLoop()).catch(() => {});
+    } else {
+      this.ensureMusicLoop();
     }
   }
 
@@ -92,7 +202,9 @@ class SoundEngine {
     this.init();
     if (!this.ctx) return;
     if (this.ctx.state === 'suspended') {
-      void this.ctx.resume().catch(() => {});
+      void this.ctx.resume().then(() => this.ensureMusicLoop()).catch(() => {});
+    } else {
+      this.ensureMusicLoop();
     }
     try {
       const buffer = this.ctx.createBuffer(1, 1, 22050);

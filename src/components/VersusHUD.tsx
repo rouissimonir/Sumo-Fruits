@@ -162,7 +162,7 @@ export const VersusHUD: React.FC<VersusHUDProps> = ({
                   !isP1Turn
                     ? "Player 1's turn required to throw salt"
                     : p1SaltCharges > 0
-                    ? 'Throw Kiyome Salt [S]'
+                    ? 'Throw Kiyome Salt'
                     : `Recharging salt (${p1SaltLaunchCount}/5 shots)`
                 }
                 className={`h-6 sm:h-7 px-2 rounded-lg text-[9px] sm:text-[10px] font-black transition-all flex items-center gap-1 ${
@@ -330,7 +330,7 @@ export const VersusHUD: React.FC<VersusHUDProps> = ({
                   !isP2Turn
                     ? "Player 2's turn required to throw salt"
                     : p2SaltCharges > 0
-                    ? 'Throw Kiyome Salt [S]'
+                    ? 'Throw Kiyome Salt'
                     : `Recharging salt (${p2SaltLaunchCount}/5 shots)`
                 }
                 className={`h-6 sm:h-7 px-2 rounded-lg text-[9px] sm:text-[10px] font-black transition-all flex items-center gap-1 ${

@@ -36,7 +36,15 @@ workflows:
       - name: Install dependencies
         script: |
           set -e
-          npm ci --include=optional
+          node --version
+          npm --version
+          # npm occasionally drops platform-specific optional packages when a cache was
+          # created on another host. Keep the lockfile-first path, then recover cleanly.
+          if ! npm ci --include=optional --no-audit --no-fund; then
+            echo "npm ci failed; retrying a clean optional-dependency install"
+            rm -rf node_modules
+            npm install --include=optional --no-audit --no-fund
+          fi
           node -e "for (const packageName of ['@rollup/rollup-darwin-arm64', 'lightningcss-darwin-arm64', '@tailwindcss/oxide-darwin-arm64']) require.resolve(packageName)"
 
       - name: Verify committed Capacitor iOS project

@@ -192,6 +192,8 @@ test('default settings contain valid volume, audio, haptics and accessibility ke
   const settings = loadGameSettings();
   assert.equal(typeof settings.sfxVolume, 'number');
   assert.equal(typeof settings.sfxMuted, 'boolean');
+  assert.equal(typeof settings.bgmVolume, 'number');
+  assert.equal(typeof settings.bgmMuted, 'boolean');
   assert.equal(typeof settings.hapticsEnabled, 'boolean');
   assert.equal(typeof settings.highContrast, 'boolean');
   assert.equal(typeof settings.reducedMotion, 'boolean');

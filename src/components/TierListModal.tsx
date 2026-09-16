@@ -201,7 +201,7 @@ export const TierListModal: React.FC<TierListModalProps> = ({
                         <strong>Yorikiri (Push Out):</strong> Ram the sludge toward the straw rim to push it out of the Dohyō bowl for bonus points!
                       </li>
                       <li>
-                        <strong>Kiyome-no-Shio Salt [S]:</strong> Press the Salt button or [S] key to cast purifying sacred salt and instantly dissolve it.
+                        <strong>Kiyome-no-Shio Salt:</strong> Tap the Salt button, then choose a point on the Dohyō to dissolve it instantly.
                       </li>
                     </ul>
                   </div>

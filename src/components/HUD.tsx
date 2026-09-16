@@ -70,6 +70,16 @@ export const HUD: React.FC<HUDProps> = ({
   const hasCharge = skillState ? skillState.charge > 0 : stats.saltCharges > 0;
   const rechargeProgress = skillState ? skillState.rechargeProgress : stats.saltLaunchCount;
   const unlockedSkills = skillState?.unlockedSkills ?? ['SALT'];
+  const conditionMeta = CONDITION_METADATA[stats.arenaCondition.type];
+  const windArrows = ['→', '↘', '↓', '↙', '←', '↖', '↑', '↗'];
+  const windArrow = windArrows[Math.round(stats.arenaCondition.windAngle / (Math.PI / 4)) % windArrows.length];
+  const conditionStatus = stats.arenaCondition.type === 'GRIPPY_CLAY'
+    ? 'HIGH GRIP · FRUITS STOP SOONER'
+    : stats.arenaCondition.type === 'KAMIKAZE_WIND'
+      ? `${windArrow} WIND ${Math.round(stats.arenaCondition.windSpeed)} · LIGHT FRUITS DRIFT`
+      : stats.arenaCondition.type === 'CLOSING_RING'
+        ? `${stats.arenaCondition.shotsUntilShrink} SHOTS TO SHRINK · ${Math.round(stats.arenaCondition.legalRadiusRatio * 100)}% RING`
+        : '';
 
   if (isVersus) {
     return (
@@ -256,11 +266,11 @@ export const HUD: React.FC<HUDProps> = ({
                 disabled={!hasCharge && !isArmed}
                 title={
                   currentSkill === 'SALT' && stats.isSaltTargeting
-                    ? 'Salt Targeting Active: Click on Dohyō to cast, click here or press [S] to confirm, or press [Esc] to cancel'
+                    ? 'Salt targeting active: tap the Dohyō to cast or tap here to confirm'
                     : hasCharge
                     ? currentSkill === 'SALT'
-                      ? 'Throw Kiyome-no-Shio Salt [S] (Brakes fruits & purifies hazards)'
-                      : `${currentDef.name} [Space]: ${currentDef.description} (Click to ${isArmed ? 'disarm' : 'arm next launch'})`
+                      ? 'Throw Kiyome-no-Shio Salt (brakes fruits and purifies hazards)'
+                      : `${currentDef.name}: ${currentDef.description} (Tap to ${isArmed ? 'disarm' : 'arm next launch'})`
                     : `${currentDef.name} Recharging (${rechargeProgress}/6 shots or ring-out knockout)`
                 }
                 className={`flex h-8 sm:h-auto items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 sm:py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
@@ -277,7 +287,7 @@ export const HUD: React.FC<HUDProps> = ({
                 <span className="hidden sm:inline text-xs">{currentDef.name}</span>
                 {currentSkill === 'SALT' && stats.isSaltTargeting ? (
                   <span className="text-[10px] font-mono font-black bg-[#2563EB] px-1 py-0.5 rounded text-white animate-pulse">
-                    AIMING [S]
+                    AIMING
                   </span>
                 ) : isArmed ? (
                   <span className="text-[10px] font-mono font-black bg-[#935116] px-1 py-0.5 rounded text-white">
@@ -466,16 +476,6 @@ export const HUD: React.FC<HUDProps> = ({
             </div>
           )}
 
-          {/* Arena Condition Pill (if condition active) */}
-          {stats.arenaCondition && stats.arenaCondition.type !== 'NONE' && (
-            <div className="hidden sm:flex items-center gap-1.5 bg-[#1C1814]/90 backdrop-blur-md border border-[#E67E22] px-2.5 py-1 rounded-xl shadow-lg">
-              <span className="text-xs">{CONDITION_METADATA[stats.arenaCondition.type].icon}</span>
-              <span className="text-[10px] font-black text-[#FFD700] tracking-wider">
-                {CONDITION_METADATA[stats.arenaCondition.type].nameJp}
-              </span>
-            </div>
-          )}
-
           {/* Career Stage & Rival Banner (if Career Mode) */}
           {stats.gameMode === 'CAREER' && stats.currentRivalProfile && (
             <div className="hidden sm:flex items-center gap-1.5 sm:gap-2 bg-[#1C1814]/90 backdrop-blur-md border border-[#E67E22] px-2.5 py-1 rounded-xl shadow-lg">
@@ -502,6 +502,23 @@ export const HUD: React.FC<HUDProps> = ({
           <div className="shrink-0 text-right font-mono text-[10px] font-black text-[#FFD700]">
             <div>{stats.campaign.progress}/{stats.campaign.target}</div>
             <div className="text-[9px] text-[#B9A996]">SHOT {stats.campaign.shotsUsed}/{stats.campaign.shotLimit}</div>
+          </div>
+        </div>
+      )}
+
+      {stats.arenaCondition.type !== 'NONE' && (
+        <div
+          className="pointer-events-none flex w-full items-center gap-2 rounded-xl border bg-[#141C25]/95 px-2.5 py-1.5 shadow-lg backdrop-blur-md"
+          style={{ borderColor: conditionMeta.badgeColor }}
+          role="status"
+          aria-label={`${conditionMeta.nameRomaji}: ${conditionMeta.shortEffect}`}
+        >
+          <span className="text-base" aria-hidden="true">{conditionMeta.icon}</span>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[9px] font-black uppercase tracking-[0.16em]" style={{ color: conditionMeta.badgeColor }}>
+              ARENA CONDITION · {conditionMeta.nameJp} / {conditionMeta.nameRomaji}
+            </div>
+            <div className="truncate text-[10px] font-bold text-white">{conditionStatus}</div>
           </div>
         </div>
       )}

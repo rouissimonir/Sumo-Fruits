@@ -358,10 +358,10 @@ function drawBackground(
     ctx.fillStyle = 'rgba(255, 255, 255, 0.06)';
     ctx.font = 'bold 12px serif';
     ctx.textAlign = 'center';
-    ctx.fillText('濡れ土俵 • GRIPPY WET CLAY', cX, cY - radius * 0.52);
+    ctx.fillText('湿り土俵 • HIGH-GRIP CLAY', cX, cY - radius * 0.52);
   }
 
-  // Kamikaze Wind visual streaks & wind vector indicator
+  // Shrine Breeze visual streaks & wind vector indicator
   if (condition.type === 'KAMIKAZE_WIND' && condition.windSpeed > 0) {
     const time = performance.now() * 0.001;
     const angle = condition.windAngle;
@@ -646,7 +646,7 @@ function drawSaltTargetingReticle(ctx: CanvasRenderingContext2D, engine: GameEng
 
   // Floating prompt badge
   ctx.font = 'bold 12px sans-serif';
-  const badgeText = '🧂 CLICK DOHYŌ TO PURIFY [S] • [ESC] CANCEL';
+  const badgeText = '🧂 TAP THE DOHYŌ TO PURIFY';
   const textW = ctx.measureText(badgeText).width;
   const badgeY = radius + 22;
 
@@ -1908,7 +1908,7 @@ function drawHazards(ctx: CanvasRenderingContext2D, hazards: HazardInstance[]) {
       ctx.font = '7.5px sans-serif';
       ctx.fillStyle = '#E5E7E9';
       ctx.textAlign = 'center';
-      ctx.fillText('Palm Strike [Space] • Push Out', 0, badgeY + 17.5);
+      ctx.fillText('Palm Strike • Push Out', 0, badgeY + 17.5);
     } else if (!h.ringOut && h.kind === 'ICE') {
       const badgeY = -h.radius - 23;
       const bWidth = 100;
@@ -1930,7 +1930,7 @@ function drawHazards(ctx: CanvasRenderingContext2D, hazards: HazardInstance[]) {
 
       ctx.font = '7.5px sans-serif';
       ctx.fillStyle = '#D4E6F1';
-      ctx.fillText('Palm Strike [Space] • Push Out', 0, badgeY + 17.5);
+      ctx.fillText('Palm Strike • Push Out', 0, badgeY + 17.5);
     } else if (!h.ringOut && h.kind === 'WASABI') {
       const currentHp = h.hp ?? 3;
       const badgeY = -h.radius - 23;

@@ -7,6 +7,7 @@ import { FRUIT_CATALOG } from '../src/types/game';
 import { DEFAULT_ARENA } from '../src/physics/bowlMotion';
 import { RIVAL_PROFILES, RivalSumoController } from '../src/game/RivalSumo';
 import { REWARD_DEFINITIONS } from '../src/types/rewards';
+import { CONDITION_METADATA } from '../src/game/ArenaConditionManager';
 
 test('campaign defines 24 sequential, valid levels in four chapters', () => {
   assert.equal(CAMPAIGN_LEVELS.length, 24);
@@ -80,6 +81,27 @@ test('bouts 3 through 6 form the intended enemy and skill tutorial sequence', ()
   assert.equal(tengu.rivalId, 'TENGU_ORANGE');
   assert.equal(tengu.rewardId, 'TRAINING_MAWASHI');
   assert.ok(REWARD_DEFINITIONS[tengu.rewardId].mawashiColor);
+});
+
+test('career introduces each arena condition before its late-game mastery bout', () => {
+  assert.equal(CAMPAIGN_LEVELS[7].arenaCondition, 'GRIPPY_CLAY');
+  assert.equal(CAMPAIGN_LEVELS[13].arenaCondition, 'KAMIKAZE_WIND');
+  assert.equal(CAMPAIGN_LEVELS[19].arenaCondition, 'CLOSING_RING');
+  assert.ok(CAMPAIGN_LEVELS[7].encounterHint);
+  assert.ok(CAMPAIGN_LEVELS[13].encounterHint);
+  assert.ok(CAMPAIGN_LEVELS[19].encounterHint);
+});
+
+test('arena conditions provide reviewed Japanese and English player-facing copy', () => {
+  for (const metadata of Object.values(CONDITION_METADATA)) {
+    assert.ok(metadata.nameJp.length > 0);
+    assert.ok(metadata.nameRomaji.length > 0);
+    assert.ok(metadata.descriptionJa.length > 0);
+    assert.ok(metadata.shortEffect.length > 0);
+  }
+  assert.equal(CONDITION_METADATA.NONE.nameJp, '通常土俵');
+  assert.equal(CONDITION_METADATA.GRIPPY_CLAY.nameJp, '湿り土俵');
+  assert.equal(CONDITION_METADATA.KAMIKAZE_WIND.nameJp, '神社の風');
 });
 
 test('Palm Strike is available, equipped, and demonstrated when bout 5 starts', () => {

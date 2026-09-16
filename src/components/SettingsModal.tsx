@@ -16,7 +16,6 @@ import {
   ShieldCheck,
   Music,
   Swords,
-  Keyboard,
   Compass,
   Trash2,
   Download,
@@ -247,7 +246,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <p className="text-[11px] text-[#A89886]">
                 {isJa
                   ? 'サウンド・操作・画面表示・ゲームモード'
-                  : 'Audio, keyboard controls, visual comfort & game modes'}
+                  : 'Audio, touch controls, visual comfort & game modes'}
               </p>
             </div>
           </div>
@@ -275,7 +274,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             }`}
           >
             {stats.isPaused ? <Play size={15} className="text-[#FFD700]" /> : <Pause size={15} />}
-            <span>{stats.isPaused ? (isJa ? '再開 [P]' : 'Resume [P]') : (isJa ? '一時停止 [P]' : 'Pause [P]')}</span>
+            <span>{stats.isPaused ? (isJa ? '再開' : 'Resume') : (isJa ? '一時停止' : 'Pause')}</span>
           </button>
 
           <button
@@ -300,7 +299,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             className="flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg bg-[#241D17] hover:bg-[#3D2E24] border border-[#3E3025] text-[#E0D4C5] hover:text-white text-xs font-bold transition-all cursor-pointer"
           >
             <RotateCcw size={15} className="text-[#E67E22]" />
-            <span>{isJa ? 'やり直す [R]' : 'Restart [R]'}</span>
+            <span>{isJa ? 'やり直す' : 'Restart'}</span>
           </button>
         </div>
 
@@ -315,7 +314,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 : 'border-transparent text-[#A89886] hover:text-white'
             }`}
           >
-            <Keyboard size={14} />
+            <Smartphone size={14} />
             <span>{isJa ? '音・操作案内' : 'Audio & Controls'}</span>
           </button>
 
@@ -390,6 +389,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   />
                 </div>
 
+                {/* Background Music */}
+                <div className="space-y-1 border-t border-[#3D2E24] pt-2.5">
+                  <div className="flex items-center justify-between gap-3 text-xs text-[#C8B8A6]">
+                    <span>{isJa ? '土俵の音楽' : 'Dohyō Background Music'}</span>
+                    <button
+                      type="button"
+                      onClick={() => onUpdateSettings({ bgmMuted: !settings.bgmMuted })}
+                      className={`rounded-md border px-2 py-1 text-[10px] font-black ${settings.bgmMuted ? 'border-[#E74C3C]/60 text-[#E74C3C]' : 'border-[#2ECC71]/60 text-[#2ECC71]'}`}
+                    >
+                      {settings.bgmMuted ? (isJa ? '消音' : 'MUTED') : 'ON'}
+                    </button>
+                  </div>
+                  <input
+                    aria-label={isJa ? '音楽の音量' : 'Music volume'}
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={settings.bgmVolume}
+                    onChange={(e) => onUpdateSettings({ bgmVolume: parseFloat(e.target.value), bgmMuted: false })}
+                    className="w-full accent-[#D4AF37] cursor-pointer"
+                  />
+                </div>
+
                 {/* Haptic Vibration & Language Toggles */}
                 <div className="grid grid-cols-2 gap-2 pt-1">
                   <button
@@ -422,14 +445,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
 
-              {/* Complete Controls Reference Card */}
+              {/* Mobile-first touch controls */}
               <div className="bg-[#241E19] border border-[#3D2E24] rounded-xl p-3.5 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#FFD700]">
-                    <Keyboard size={14} />
-                    <span>{isJa ? '操作一覧 & ショートカット' : 'Controls & Shortcuts Reference'}</span>
+                    <Smartphone size={14} />
+                    <span>{isJa ? 'タッチ操作' : 'Touch Controls'}</span>
                   </div>
-                  <span className="text-[10px] text-[#A89886] font-mono">Keyboard & Touch</span>
+                  <span className="text-[10px] text-[#A89886] font-mono">iPhone & iPad</span>
                 </div>
 
                 <div className="space-y-1.5 text-xs">
@@ -447,7 +470,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </div>
                     </div>
                     <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-[#2D231B] text-[#FFD700] font-bold shrink-0">
-                      Mouse / Touch
+                      {isJa ? 'ドラッグして離す' : 'Drag & release'}
                     </span>
                   </div>
 
@@ -459,13 +482,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <div className="font-bold text-white">{isJa ? '清めの塩 (Kiyome-no-Shio)' : 'Sacred Salt (Purify)'}</div>
                         <div className="text-[11px] text-[#A89886]">
                           {isJa
-                            ? '土俵クリックで清めゾーン展開。果物を制動し、ワサビ・氷・甲虫・磁石を消滅浄化'
-                            : 'Click Dohyō to purify hazards (wasabi, ice, bugs) & brake near rim'}
+                            ? '塩ボタンを押し、土俵をタップして障害物を清めます'
+                            : 'Tap Salt, then tap the Dohyō to purify hazards and brake fruits'}
                         </div>
                       </div>
                     </div>
                     <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-[#2D231B] text-[#60A5FA] font-bold shrink-0">
-                      [S] or Click
+                      {isJa ? 'タップして狙う' : 'Tap to target'}
                     </span>
                   </div>
 
@@ -483,7 +506,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </div>
                     </div>
                     <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-[#2D231B] text-[#E67E22] font-bold shrink-0">
-                      [Space]
+                      {isJa ? 'タップして装備' : 'Tap to arm'}
                     </span>
                   </div>
 
@@ -501,7 +524,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </div>
                     </div>
                     <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-[#2D231B] text-[#D2B4DE] font-bold shrink-0">
-                      [Space]
+                      {isJa ? 'タップして装備' : 'Tap to arm'}
                     </span>
                   </div>
 
@@ -512,12 +535,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       <div>
                         <div className="font-bold text-white">{isJa ? '技の切り替え' : 'Switch Active Skill'}</div>
                         <div className="text-[11px] text-[#A89886]">
-                          {isJa ? '1: 清めの塩 • 2: 突っ張り • 3: 太鼓波動' : '1: Sacred Salt • 2: Palm Strike • 3: Taiko Pulse'}
+                          {isJa ? '技アイコンをタップして、使える技を切り替えます' : 'Tap the current skill icon to cycle through unlocked techniques'}
                         </div>
                       </div>
                     </div>
                     <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-[#2D231B] text-[#A89886] font-bold shrink-0">
-                      [1] [2] [3]
+                      {isJa ? 'アイコンをタップ' : 'Tap skill icon'}
                     </span>
                   </div>
 
@@ -533,7 +556,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </div>
                     </div>
                     <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-[#2D231B] text-[#E74C3C] font-bold shrink-0">
-                      [Esc] / Right-Click
+                      {isJa ? '指を離す' : 'Lift finger'}
                     </span>
                   </div>
                 </div>
@@ -832,7 +855,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                             <span className="truncate">{isJa ? meta.nameJp : meta.nameRomaji}</span>
                           </div>
                           <div className="text-[9px] text-[#8A7B6D] line-clamp-2 mt-0.5">
-                            {meta.description}
+                            {isJa ? meta.descriptionJa : meta.description}
                           </div>
                         </button>
                       );
