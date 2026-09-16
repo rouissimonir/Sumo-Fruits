@@ -73,12 +73,12 @@ export const VersusHUD: React.FC<VersusHUDProps> = ({
       className="w-full max-w-4xl mx-auto pointer-events-auto select-none font-sans"
       aria-label="Two-Player Local Sumo Showdown"
     >
-      <div className="bg-[#14100D]/95 border border-[#443325] rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.7)] backdrop-blur-md p-1.5 sm:p-2.5 transition-all">
-        {/* Main 3-Column Grid: P1 Card | Match Dominance & Controls | P2 Card */}
-        <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-1.5 sm:gap-3">
+      <div className="min-w-0 overflow-hidden bg-[#14100D]/95 border border-[#443325] rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.7)] backdrop-blur-md p-1.5 sm:p-2.5 transition-all">
+        {/* Mobile: status row above two equal player cards. Desktop: one 3-column row. */}
+        <div className="grid min-w-0 grid-cols-2 items-stretch gap-1.5 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center sm:gap-3">
           {/* ================= PLAYER 1 (EAST 東) ================= */}
           <div
-            className={`relative rounded-xl p-2 sm:p-2.5 transition-all duration-300 ${
+            className={`relative order-2 min-w-0 rounded-xl p-2 transition-all duration-300 sm:order-1 sm:p-2.5 ${
               isP1Turn
                 ? 'bg-gradient-to-r from-[#381411] to-[#201210] border-2 border-[#E74C3C] shadow-[0_0_18px_rgba(231,76,60,0.35)]'
                 : 'bg-[#181310]/70 border border-[#302118] opacity-75'
@@ -169,9 +169,9 @@ export const VersusHUD: React.FC<VersusHUDProps> = ({
           </div>
 
           {/* ================= CENTER MATCH STATUS & CONTROLS ================= */}
-          <div className="flex flex-col items-center justify-center gap-1 sm:gap-1.5 px-0.5 sm:px-2 text-center min-w-[100px] sm:min-w-[130px]">
+          <div className="order-1 col-span-2 flex min-w-0 items-center justify-between gap-2 px-1 py-0.5 text-center sm:order-2 sm:col-span-1 sm:min-w-[130px] sm:flex-col sm:justify-center sm:gap-1.5 sm:px-2 sm:py-0">
             {/* Bout tracker badge */}
-            <div className="inline-flex flex-col items-center">
+            <div className="inline-flex shrink-0 flex-col items-center">
               <div className="text-[10px] sm:text-xs font-black uppercase tracking-wider text-[#FFD700]">
                 Bout {currentBout}/{maxRounds}
               </div>
@@ -181,7 +181,7 @@ export const VersusHUD: React.FC<VersusHUDProps> = ({
             </div>
 
             {/* Live Ring Dominance Tug-of-War Bar */}
-            <div className="w-full space-y-0.5" title="Dohyō ring mass balance">
+            <div className="min-w-0 flex-1 space-y-0.5 sm:w-full sm:flex-none" title="Dohyō ring mass balance">
               <div className="flex justify-between text-[8px] font-black text-[#8A7B6D]">
                 <span className="text-[#E74C3C]">{p1Ratio}% 東</span>
                 <span className="text-[#3498DB]">西 {p2Ratio}%</span>
@@ -199,7 +199,7 @@ export const VersusHUD: React.FC<VersusHUDProps> = ({
             </div>
 
             {/* Action Buttons: Tabletop 180° Flip, Sound, Settings */}
-            <div className="flex items-center gap-1 pt-0.5">
+            <div className="flex shrink-0 items-center gap-1 pt-0.5">
               {onToggleTabletop && (
                 <button
                   id="versus-tabletop-btn"
@@ -252,7 +252,7 @@ export const VersusHUD: React.FC<VersusHUDProps> = ({
 
           {/* ================= PLAYER 2 (WEST 西) ================= */}
           <div
-            className={`relative rounded-xl p-2 sm:p-2.5 transition-all duration-300 ${
+            className={`relative order-3 min-w-0 rounded-xl p-2 transition-all duration-300 sm:p-2.5 ${
               isP2Turn
                 ? 'bg-gradient-to-l from-[#122438] to-[#121920] border-2 border-[#3498DB] shadow-[0_0_18px_rgba(52,152,219,0.35)]'
                 : 'bg-[#12161D]/70 border border-[#1C2630] opacity-75'
