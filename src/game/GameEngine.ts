@@ -1356,7 +1356,10 @@ export class GameEngine {
 
         if (this.gameMode === 'VERSUS') {
           if (!this.versusManager.state.isMatchOver) {
-            this.versusManager.advanceTurn();
+            this.versusManager.advanceTurn(true);
+            if (!this.versusManager.state.isHandoverPending) {
+              this.loadNextFruit();
+            }
             this.emitStats();
           }
         } else if (this.gameMode === 'CAREER') {

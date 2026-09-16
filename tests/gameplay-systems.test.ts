@@ -56,6 +56,34 @@ test('versus gives both players the same ordered fruit stream', () => {
   assert.deepEqual(manager.state.p1NextTiers, manager.state.p2NextTiers);
 });
 
+test('fast-flow versus loads the next player fruit after shot settlement', () => {
+  const engine = new GameEngine();
+  engine.setGameMode('VERSUS');
+  engine.setArenaSize(390, 844);
+  assert.equal(engine.loadedFruit?.team, 'PLAYER_1');
+
+  const { x, y } = engine.launcherPos;
+  assert.equal(engine.handlePointerDown(x, y), true);
+  engine.handlePointerMove(x, y + 70);
+  assert.equal(engine.handlePointerUp(), true);
+  assert.equal(engine.loadedFruit, null);
+
+  for (const launched of engine.fruits) {
+    launched.x = engine.arena.centerX;
+    launched.y = engine.arena.centerY;
+    launched.vx = 0;
+    launched.vy = 0;
+    launched.entryPending = false;
+    launched.hasEnteredRing = true;
+  }
+  engine.update(0.5);
+
+  assert.equal(engine.versusManager.state.playerTurn, 2);
+  assert.equal(engine.versusManager.state.isHandoverPending, false);
+  assert.equal(engine.loadedFruit?.team, 'PLAYER_2');
+  assert.equal(engine.loadedFruit?.state, 'IDLE');
+});
+
 test('opposing owners collide but cannot fuse', () => {
   const manager = new MergeClashManager();
   assert.equal(manager.evaluatePair(fruit(1, 'PLAYER_1'), fruit(2, 'PLAYER_2')), null);
