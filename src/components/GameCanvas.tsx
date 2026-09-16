@@ -692,6 +692,7 @@ function drawLauncher(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   const playerTurn = isVersus ? engine.versusManager.state.playerTurn : 1;
   const teamThemeColor = !isVersus ? '#E67E22' : playerTurn === 1 ? '#E74C3C' : '#3498DB';
   const teamBaseBg = !isVersus ? '#4A3525' : playerTurn === 1 ? '#4A1C18' : '#182C4A';
+  const hasFruitReady = !!engine.loadedFruit && engine.loadedFruit.state !== 'IN_RING';
 
   ctx.save();
 
@@ -718,7 +719,7 @@ function drawLauncher(ctx: CanvasRenderingContext2D, engine: GameEngine) {
   // Launcher active turn tag
   if (isVersus) {
     ctx.save();
-    const tagW = 96;
+    const tagW = hasFruitReady ? 96 : 118;
     const tagH = 18;
     const tagX = x - tagW / 2;
     const tagY = y + 36;
@@ -734,7 +735,8 @@ function drawLauncher(ctx: CanvasRenderingContext2D, engine: GameEngine) {
     ctx.font = '900 9px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(playerTurn === 1 ? '東 P1 TURN' : '西 P2 TURN', x, tagY + tagH / 2);
+    const side = playerTurn === 1 ? '東 P1' : '西 P2';
+    ctx.fillText(hasFruitReady ? `${side} TURN` : `${side} SHOT IN PLAY`, x, tagY + tagH / 2);
     ctx.restore();
   }
 

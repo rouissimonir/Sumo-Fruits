@@ -62,6 +62,14 @@ test('opposing owners collide but cannot fuse', () => {
   assert.equal(manager.evaluatePair(fruit(3, 'PLAYER_1'), fruit(4, 'PLAYER_1'))?.type, 'MERGE');
 });
 
+test('mobile launcher stays visually connected to the bowl with pull-back room below', () => {
+  const engine = new GameEngine();
+  engine.setArenaSize(390, 844);
+  const bowlBottom = engine.arena.centerY + engine.arena.radius;
+  assert.equal(engine.launcherPos.y - bowlBottom, 42);
+  assert.ok(844 - engine.launcherPos.y >= 70);
+});
+
 test('closing ring contracts every five shots and enforces a two-second grace', () => {
   const manager = new ArenaConditionManager('CLOSING_RING', 100);
   for (let shot = 1; shot < 5; shot++) assert.equal(manager.onShotCommitted(shot, 100).shrunk, false);

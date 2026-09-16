@@ -269,9 +269,10 @@ export class GameEngine {
 
     // Provide safe bottom clearance for mobile screens and iOS Home Indicator
     const bottomClearance = Math.min(95, Math.max(70, height * 0.12));
+    const launcherGap = width < 640 ? 42 : 70;
     this.launcherPos = {
       x: centerX,
-      y: Math.min(height - bottomClearance, centerY + radius + 70),
+      y: Math.min(height - bottomClearance, centerY + radius + launcherGap),
     };
 
     if (this.saltTargetPos.x === 0 && this.saltTargetPos.y === 0) {
