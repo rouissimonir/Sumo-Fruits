@@ -16,7 +16,28 @@ export interface FusionResult {
     baseImpulse: number;
   };
   isYokozuna: boolean;
+  reason?: 'SAME_OWNER' | 'ATTACKER_CLAIM';
+  stolenVictimTier?: number;
 }
+
+export interface VersusMergeContext {
+  activeTurnPlayer: 1 | 2;
+  stealUsedThisShot: boolean;
+}
+
+export type MergeDecision =
+  | {
+      type: 'MERGE';
+      owner: SumoFruitInstance['team'];
+      reason: 'SAME_OWNER' | 'ATTACKER_CLAIM';
+      relativeSpeed: number;
+    }
+  | {
+      type: 'CLASH';
+      owner: SumoFruitInstance['team'];
+      reason: 'SAME_OWNER' | 'ATTACKER_CLAIM';
+      relativeSpeed: number;
+    };
 
 export class MergeClashManager {
   private activeClashes: Map<number, ClashRecord> = new Map();
@@ -40,19 +61,47 @@ export class MergeClashManager {
   }
 
   /**
-   * Evaluates collision between two fruits. Returns 'CLASH' | 'MERGE' | null
+   * Evaluates collision between two fruits. Returns MergeDecision | null
    */
   public evaluatePair(
     fruitA: SumoFruitInstance,
-    fruitB: SumoFruitInstance
-  ): { type: 'CLASH' | 'MERGE'; relativeSpeed: number } | null {
-    // Merge eligibility explicitly requires matching teams/owners, and no rival participation
+    fruitB: SumoFruitInstance,
+    versusContext?: VersusMergeContext
+  ): MergeDecision | null {
+    // Rivals do not merge with anyone
     if (fruitA.team === 'RIVAL' || fruitB.team === 'RIVAL') return null;
-    if (fruitA.team !== fruitB.team) return null;
     if (fruitA.tier !== fruitB.tier) return null;
     if (fruitA.tier >= 11) return null; // Tier 11 has no higher tier
     if (fruitA.state !== 'IN_RING' || fruitB.state !== 'IN_RING') return null;
     if (this.isFruitClashing(fruitA.id) || this.isFruitClashing(fruitB.id)) return null;
+
+    let decisionOwner: SumoFruitInstance['team'] = fruitA.team;
+    let mergeReason: 'SAME_OWNER' | 'ATTACKER_CLAIM' = 'SAME_OWNER';
+
+    if (fruitA.team !== fruitB.team) {
+      // Cross-team collision: only permitted under Attacker Claims in Versus mode
+      if (!versusContext || versusContext.stealUsedThisShot) {
+        return null;
+      }
+
+      const activeTurn = versusContext.activeTurnPlayer;
+      const activeTeam = activeTurn === 1 ? 'PLAYER_1' : 'PLAYER_2';
+
+      // One participant must have a valid claim token from the active player's launch/descendant
+      const tokenA = fruitA.versusClaimToken;
+      const tokenB = fruitB.versusClaimToken;
+
+      const aCanClaim = tokenA && tokenA.player === activeTurn && !tokenA.stealUsed;
+      const bCanClaim = tokenB && tokenB.player === activeTurn && !tokenB.stealUsed;
+
+      if (!aCanClaim && !bCanClaim) {
+        // Neither fruit possesses an active claim token: ordinary elastic collision
+        return null;
+      }
+
+      decisionOwner = activeTeam;
+      mergeReason = 'ATTACKER_CLAIM';
+    }
 
     const relVx = fruitA.vx - fruitB.vx;
     const relVy = fruitA.vy - fruitB.vy;
@@ -60,9 +109,9 @@ export class MergeClashManager {
 
     // Spec: >= 150 px/s starts 0.5s Tsuppari clash. Below 150 px/s fuses directly.
     if (relativeSpeed >= 150) {
-      return { type: 'CLASH', relativeSpeed };
+      return { type: 'CLASH', owner: decisionOwner, reason: mergeReason, relativeSpeed };
     } else {
-      return { type: 'MERGE', relativeSpeed };
+      return { type: 'MERGE', owner: decisionOwner, reason: mergeReason, relativeSpeed };
     }
   }
 
@@ -71,7 +120,9 @@ export class MergeClashManager {
    */
   public startClash(
     fruitA: SumoFruitInstance,
-    fruitB: SumoFruitInstance
+    fruitB: SumoFruitInstance,
+    intendedOwner?: SumoFruitInstance['team'],
+    isClaimClash?: boolean
   ): ClashRecord {
     const clashId = this.nextClashId++;
 
@@ -112,6 +163,8 @@ export class MergeClashManager {
       deferredImpulseY: 0,
       normalX: nx,
       normalY: ny,
+      intendedOwner: intendedOwner || fruitA.team,
+      isClaimClash: !!isClaimClash,
     };
 
     fruitA.state = 'CLASHING';
@@ -180,7 +233,9 @@ export class MergeClashManager {
           clash.incomingVxB,
           clash.incomingVyB,
           clash.deferredImpulseX,
-          clash.deferredImpulseY
+          clash.deferredImpulseY,
+          clash.intendedOwner,
+          clash.isClaimClash ? 'ATTACKER_CLAIM' : 'SAME_OWNER'
         );
         readyFusions.push(fusion);
       }
@@ -204,7 +259,9 @@ export class MergeClashManager {
     incomingVxB?: number,
     incomingVyB?: number,
     deferredIx = 0,
-    deferredIy = 0
+    deferredIy = 0,
+    designatedOwner?: SumoFruitInstance['team'],
+    designatedReason: 'SAME_OWNER' | 'ATTACKER_CLAIM' = 'SAME_OWNER'
   ): FusionResult {
     const nextTier = fruitA.tier + 1;
     const catA = FRUIT_CATALOG[fruitA.tier - 1];
@@ -240,6 +297,9 @@ export class MergeClashManager {
     const shockRadius = 240 + 12 * nextTier;
     const shockImpulse = 600 + 150 * nextTier;
 
+    const finalOwner = designatedOwner || fruitA.team;
+    const isYokozuna = nextTier >= 11;
+
     return {
       newTier: nextTier,
       spawnX,
@@ -247,7 +307,7 @@ export class MergeClashManager {
       spawnVx,
       spawnVy,
       consumedIds: [fruitA.id, fruitB.id],
-      owner: fruitA.team,
+      owner: finalOwner,
       score,
       shockwave: {
         x: spawnX,
@@ -255,7 +315,9 @@ export class MergeClashManager {
         radius: shockRadius,
         baseImpulse: shockImpulse,
       },
-      isYokozuna: nextTier === 11,
+      isYokozuna,
+      reason: designatedReason,
+      stolenVictimTier: designatedReason === 'ATTACKER_CLAIM' ? fruitA.tier : undefined,
     };
   }
 

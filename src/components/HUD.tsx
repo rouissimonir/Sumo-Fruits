@@ -14,6 +14,7 @@ import {
   Trophy,
   Settings,
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { GameStats } from '../game/GameEngine';
 import { FRUIT_CATALOG, GameModeType } from '../types/game';
 import { VersusHUD } from './VersusHUD';
@@ -105,11 +106,24 @@ export const HUD: React.FC<HUDProps> = ({
                 )}
               </div>
               <div className="text-lg sm:text-2xl font-black leading-none tracking-tight text-[#FFD700] flex items-center gap-1">
-                <span className="truncate">{stats.score.toLocaleString()}</span>
+                <motion.span
+                  key={stats.score}
+                  initial={{ scale: 1.18 }}
+                  animate={{ scale: 1 }}
+                  transition={{ type: 'spring', stiffness: 450, damping: 20 }}
+                  className="truncate inline-block"
+                >
+                  {stats.score.toLocaleString()}
+                </motion.span>
                 {stats.isNewHighScore && stats.score > 0 && (
-                  <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider bg-[#FFD700] text-black px-1 py-0.2 rounded font-mono shadow-sm animate-pulse">
+                  <motion.span
+                    initial={{ scale: 0.8 }}
+                    animate={{ scale: [1, 1.15, 1] }}
+                    transition={{ repeat: Infinity, duration: 1.2 }}
+                    className="text-[8px] sm:text-[9px] font-black uppercase tracking-wider bg-[#FFD700] text-black px-1 py-0.2 rounded font-mono shadow-sm"
+                  >
                     NEW
-                  </span>
+                  </motion.span>
                 )}
               </div>
             </div>
@@ -125,15 +139,20 @@ export const HUD: React.FC<HUDProps> = ({
                 {[0, 1, 2].map((idx) => {
                   const active = idx < stats.lives;
                   return (
-                    <Heart
+                    <motion.div
                       key={idx}
-                      size={12}
-                      className={`transition-all duration-300 sm:w-4 sm:h-4 ${
-                        active
-                          ? 'text-[#E74C3C] fill-[#E74C3C] drop-shadow-[0_0_6px_rgba(231,76,60,0.6)]'
-                          : 'text-[#4A3D31] fill-transparent'
-                      }`}
-                    />
+                      animate={active ? { scale: [1, 1.15, 1] } : { scale: 0.85, opacity: 0.4 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <Heart
+                        size={12}
+                        className={`transition-colors duration-300 sm:w-4 sm:h-4 ${
+                          active
+                            ? 'text-[#E74C3C] fill-[#E74C3C] drop-shadow-[0_0_6px_rgba(231,76,60,0.6)]'
+                            : 'text-[#4A3D31] fill-transparent'
+                        }`}
+                      />
+                    </motion.div>
                   );
                 })}
               </div>
@@ -180,9 +199,11 @@ export const HUD: React.FC<HUDProps> = ({
                   </span>
                 </div>
                 <div className="w-full h-1.5 sm:h-2 bg-[#2D241C] rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-[#F39C12] to-[#E74C3C] transition-all duration-200 rounded-full"
-                    style={{ width: `${Math.min(100, stats.crowdHype)}%` }}
+                  <motion.div
+                    className="h-full bg-gradient-to-r from-[#F39C12] to-[#E74C3C] rounded-full"
+                    initial={false}
+                    animate={{ width: `${Math.min(100, stats.crowdHype)}%` }}
+                    transition={{ type: 'spring', stiffness: 260, damping: 24 }}
                   />
                 </div>
               </div>
@@ -201,27 +222,30 @@ export const HUD: React.FC<HUDProps> = ({
                     const def = SKILL_DEFINITIONS[sk];
                     const isSelected = sk === currentSkill;
                     return (
-                      <button
+                      <motion.button
                         key={sk}
                         id={`hud-skill-select-${sk.toLowerCase()}`}
+                        whileTap={{ scale: 0.9 }}
                         onClick={() => onEquipSkill?.(sk)}
                         title={`Switch to ${def.name}: ${def.description}`}
-                        className={`h-7 px-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                        className={`h-7 px-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
                           isSelected
                             ? 'bg-[#E67E22] text-white shadow'
                             : 'bg-[#1F1B16] text-[#A89886] hover:text-white hover:bg-[#2A231C]'
                         }`}
                       >
                         <span>{def.icon}</span>
-                      </button>
+                      </motion.button>
                     );
                   })}
                 </div>
               )}
 
               {/* Main Skill Action Button */}
-              <button
+              <motion.button
                 id="hud-skill-btn"
+                whileTap={{ scale: 0.94 }}
+                whileHover={{ scale: 1.02 }}
                 onClick={() => {
                   if (currentSkill === 'SALT') {
                     onThrowSalt();
@@ -239,7 +263,7 @@ export const HUD: React.FC<HUDProps> = ({
                       : `${currentDef.name} [Space]: ${currentDef.description} (Click to ${isArmed ? 'disarm' : 'arm next launch'})`
                     : `${currentDef.name} Recharging (${rechargeProgress}/6 shots or ring-out knockout)`
                 }
-                className={`flex h-8 sm:h-auto items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 sm:py-1 rounded-lg text-xs font-bold transition-all active:scale-95 cursor-pointer border ${
+                className={`flex h-8 sm:h-auto items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-2.5 sm:py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
                   currentSkill === 'SALT' && stats.isSaltTargeting
                     ? 'bg-[#1E3A8A] text-white border-[#60A5FA] ring-2 ring-[#93C5FD] shadow-lg animate-pulse'
                     : isArmed
@@ -264,7 +288,7 @@ export const HUD: React.FC<HUDProps> = ({
                     {hasCharge ? 'READY' : `${rechargeProgress}/6`}
                   </span>
                 )}
-              </button>
+              </motion.button>
             </div>
           )}
 
@@ -272,8 +296,9 @@ export const HUD: React.FC<HUDProps> = ({
           <div className="hidden sm:flex items-center gap-1.5">
             {/* Game Mode Selector */}
             {onSelectGameMode && (
-              <button
+              <motion.button
                 id="hud-game-mode-btn"
+                whileTap={{ scale: 0.94 }}
                 onClick={() => {
                   const modes: GameModeType[] = ['CLASSIC', 'VERSUS', 'CAREER', 'CHALLENGE', 'DAILY'];
                   const nextIdx = (modes.indexOf(stats.gameMode) + 1) % modes.length;
@@ -281,7 +306,7 @@ export const HUD: React.FC<HUDProps> = ({
                   onSelectGameMode(nextMode, nextMode === 'CHALLENGE' ? 'BROKEN_TAWARA' : undefined);
                 }}
                 title={`Game Mode: ${stats.gameMode}. Click to switch between Classic, Versus, Career, Challenges, and Daily Basho.`}
-                className={`flex items-center gap-1 border px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-semibold shadow-md transition-all active:scale-95 cursor-pointer ${
+                className={`flex items-center gap-1 border px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-semibold shadow-md transition-all cursor-pointer ${
                   stats.gameMode === 'VERSUS'
                     ? 'bg-[#E74C3C]/30 hover:bg-[#E74C3C]/50 text-[#FF9988] border-[#E74C3C]'
                     : stats.gameMode === 'CAREER'
@@ -297,85 +322,93 @@ export const HUD: React.FC<HUDProps> = ({
                 <span className="text-[10px] uppercase font-bold">
                   {stats.gameMode === 'VERSUS' ? '2P Versus' : stats.gameMode === 'CAREER' ? `Banzuke ${stats.careerStageIndex + 1}/${stats.careerStageCount}` : stats.gameMode === 'CHALLENGE' ? 'Challenge' : stats.gameMode === 'DAILY' ? 'Daily Basho' : 'Classic'}
                 </span>
-              </button>
+              </motion.button>
             )}
 
             {/* Arena Mode Toggle */}
-            <button
+            <motion.button
               id="hud-arena-mode-btn"
+              whileTap={{ scale: 0.94 }}
               onClick={onCycleArenaMode}
               title="Toggle Dohyō Arena Mode (Circular, Elliptical, Wobble)"
-              className="flex items-center gap-1 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] border border-[#3E342B] px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-semibold shadow-md transition-all active:scale-95 cursor-pointer"
+              className="flex items-center gap-1 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] border border-[#3E342B] px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-semibold shadow-md transition-all cursor-pointer"
             >
               <Compass size={14} className="text-[#3498DB]" />
               <span className="text-[10px] uppercase font-bold text-white">
                 {stats.arenaMode}
               </span>
-            </button>
+            </motion.button>
 
             {/* Kimarite Techniques Collection Button */}
-            <button
+            <motion.button
               id="hud-kimarite-btn"
+              whileTap={{ scale: 0.94 }}
               onClick={onOpenKimarite}
               title="Kimarite Techniques Collection (Winning Sumo Throws & Combos)"
-              className="flex items-center gap-1.5 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#FFD700] border border-[#5A4535] px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-semibold shadow-md transition-all active:scale-95 cursor-pointer"
+              className="flex items-center gap-1.5 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#FFD700] border border-[#5A4535] px-2 sm:px-2.5 py-1.5 rounded-lg text-xs font-semibold shadow-md transition-all cursor-pointer"
             >
               <span className="text-sm">🥋</span>
               <span className="text-[10px] uppercase font-bold tracking-wider">
                 {stats.unlockedKimariteCount ?? 0}/{stats.totalKimariteCount ?? 8}
               </span>
-            </button>
+            </motion.button>
 
             {/* Roster Catalog */}
-            <button
+            <motion.button
               id="hud-tier-btn"
+              whileTap={{ scale: 0.94 }}
               onClick={onOpenTierList}
               title="11 Fruit Tiers Catalog"
-              className="p-1.5 sm:p-2 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] border border-[#3E342B] rounded-lg shadow-md transition-all active:scale-95 cursor-pointer"
+              className="p-1.5 sm:p-2 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] border border-[#3E342B] rounded-lg shadow-md transition-all cursor-pointer"
             >
               <BookOpen size={16} />
-            </button>
+            </motion.button>
 
             {/* Sound Toggle */}
-            <button
+            <motion.button
               id="hud-sound-btn"
+              whileTap={{ scale: 0.94 }}
               onClick={onToggleSound}
               title={soundEnabled ? 'Mute Audio' : 'Unmute Audio'}
-              className="p-1.5 sm:p-2 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] border border-[#3E342B] rounded-lg shadow-md transition-all active:scale-95 cursor-pointer"
+              className="p-1.5 sm:p-2 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] border border-[#3E342B] rounded-lg shadow-md transition-all cursor-pointer"
             >
               {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} className="text-[#E74C3C]" />}
-            </button>
+            </motion.button>
 
             {/* Pause Toggle */}
-            <button
+            <motion.button
               id="hud-pause-btn"
+              whileTap={{ scale: 0.94 }}
               onClick={onTogglePause}
               title={stats.isPaused ? 'Resume' : 'Pause'}
-              className="p-1.5 sm:p-2 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] border border-[#3E342B] rounded-lg shadow-md transition-all active:scale-95 cursor-pointer"
+              className="p-1.5 sm:p-2 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] border border-[#3E342B] rounded-lg shadow-md transition-all cursor-pointer"
             >
               {stats.isPaused ? <Play size={16} /> : <Pause size={16} />}
-            </button>
+            </motion.button>
 
             {/* Restart */}
-            <button
+            <motion.button
               id="hud-restart-btn"
+              whileTap={{ scale: 0.94 }}
               onClick={onRestart}
               title="Restart Match"
-              className="p-1.5 sm:p-2 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] border border-[#3E342B] rounded-lg shadow-md transition-all active:scale-95 cursor-pointer"
+              className="p-1.5 sm:p-2 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] border border-[#3E342B] rounded-lg shadow-md transition-all cursor-pointer"
             >
               <RotateCcw size={16} />
-            </button>
+            </motion.button>
           </div>
 
           {/* Dedicated Settings Button (Always visible on mobile, also available on desktop) */}
-          <button
+          <motion.button
             id="hud-settings-btn"
+            whileTap={{ scale: 0.92 }}
+            whileHover={{ scale: 1.05 }}
             onClick={onOpenSettings}
             title="Settings & Match Menu"
-            className="h-10 w-10 sm:h-auto sm:w-auto p-0 sm:p-2 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] hover:text-[#FFD700] border border-[#5A4535] rounded-xl shadow-lg transition-all active:scale-95 cursor-pointer flex items-center justify-center shrink-0"
+            className="h-10 w-10 sm:h-auto sm:w-auto p-0 sm:p-2 bg-[#1C1814]/90 hover:bg-[#2D241C] text-[#E0D4C5] hover:text-[#FFD700] border border-[#5A4535] rounded-xl shadow-lg transition-colors cursor-pointer flex items-center justify-center shrink-0"
           >
             <Settings size={18} className="transition-transform duration-300 hover:rotate-45" />
-          </button>
+          </motion.button>
         </div>
       </div>
 
@@ -474,14 +507,22 @@ export const HUD: React.FC<HUDProps> = ({
       )}
 
       {/* Overflow Alarm Banner (when bowl capacity exceeded & protruding) */}
-      {isOverflowWarning && (
-        <div className="self-center flex items-center gap-2.5 bg-[#E74C3C] text-white px-4 py-1.5 rounded-full font-bold text-xs sm:text-sm shadow-xl animate-pulse pointer-events-auto border-2 border-white mt-1">
-          <AlertTriangle size={18} />
-          <span>
-            CAPACITY OVERFLOW! Warning: {Math.max(0, 2.0 - stats.overflowTimer).toFixed(1)}s
-          </span>
-        </div>
-      )}
+      <AnimatePresence>
+        {isOverflowWarning && (
+          <motion.div
+            initial={{ opacity: 0, y: -12, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: [1, 1.04, 1] }}
+            exit={{ opacity: 0, y: -10, scale: 0.9 }}
+            transition={{ duration: 0.3 }}
+            className="self-center flex items-center gap-2.5 bg-[#E74C3C] text-white px-4 py-1.5 rounded-full font-bold text-xs sm:text-sm shadow-xl pointer-events-auto border-2 border-white mt-1"
+          >
+            <AlertTriangle size={18} className="animate-bounce" />
+            <span>
+              CAPACITY OVERFLOW! Warning: {Math.max(0, 2.0 - stats.overflowTimer).toFixed(1)}s
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </header>
   );
 };

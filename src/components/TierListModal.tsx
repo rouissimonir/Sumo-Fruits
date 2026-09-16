@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, Award, Shield, Weight, Sparkles, AlertTriangle, Flame, Snowflake, Skull } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { FRUIT_CATALOG } from '../types/game';
 
 interface TierListModalProps {
@@ -18,17 +19,25 @@ export const TierListModal: React.FC<TierListModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div
-      id="tier-list-modal-backdrop"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4 animate-in fade-in duration-200"
-    >
-      <div
-        id="tier-list-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="tier-list-modal-title"
-        className="relative w-full max-w-3xl max-h-[85vh] bg-[#1C1814] border border-[#3E342B] rounded-2xl shadow-2xl flex flex-col overflow-hidden text-[#EDE2D4]"
+    <AnimatePresence>
+      <motion.div
+        id="tier-list-modal-backdrop"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4"
       >
+        <motion.div
+          id="tier-list-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="tier-list-modal-title"
+          initial={{ scale: 0.93, opacity: 0, y: 16 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.93, opacity: 0, y: 16 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+          className="relative w-full max-w-3xl max-h-[85vh] bg-[#1C1814] border border-[#3E342B] rounded-2xl shadow-2xl flex flex-col overflow-hidden text-[#EDE2D4]"
+        >
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#3E342B] bg-[#241E19]">
           <div className="flex items-center gap-2.5">
@@ -44,20 +53,23 @@ export const TierListModal: React.FC<TierListModalProps> = ({
               </p>
             </div>
           </div>
-          <button
+          <motion.button
             id="tier-modal-close-btn"
+            whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.05 }}
             onClick={onClose}
             aria-label="Close roster and hazard guide"
             className="p-1.5 rounded-lg text-[#A89886] hover:text-white hover:bg-[#3E342B] transition-colors cursor-pointer"
           >
             <X size={20} />
-          </button>
+          </motion.button>
         </div>
 
         {/* Tab Switcher */}
         <div className="flex border-b border-[#3E342B] bg-[#181512] px-6 pt-2 gap-2">
-          <button
+          <motion.button
             id="tab-roster-btn"
+            whileTap={{ scale: 0.96 }}
             onClick={() => setActiveTab('ROSTER')}
             className={`px-4 py-2 text-xs font-bold rounded-t-lg transition-colors cursor-pointer border-b-2 ${
               activeTab === 'ROSTER'
@@ -66,9 +78,10 @@ export const TierListModal: React.FC<TierListModalProps> = ({
             }`}
           >
             Sumo Roster (11 Tiers)
-          </button>
-          <button
+          </motion.button>
+          <motion.button
             id="tab-hazards-btn"
+            whileTap={{ scale: 0.96 }}
             onClick={() => setActiveTab('HAZARDS')}
             className={`px-4 py-2 text-xs font-bold rounded-t-lg transition-colors cursor-pointer border-b-2 flex items-center gap-1.5 ${
               activeTab === 'HAZARDS'
@@ -78,7 +91,7 @@ export const TierListModal: React.FC<TierListModalProps> = ({
           >
             <AlertTriangle size={13} className="text-[#2ECC71]" />
             Hazards & Defeat Guide
-          </button>
+          </motion.button>
         </div>
 
         {/* Tab Content */}
@@ -256,7 +269,8 @@ export const TierListModal: React.FC<TierListModalProps> = ({
             Tier 11 Yokozuna triggers Hazard Cleansing!
           </span>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
+  </AnimatePresence>
   );
 };

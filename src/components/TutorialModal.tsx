@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { X, ChevronRight, ChevronLeft, Check, Sparkles } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface TutorialModalProps {
   isOpen: boolean;
@@ -147,17 +148,25 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({
   };
 
   return (
-    <div
-      id="tutorial-modal-backdrop"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-fade-in"
-    >
-      <div
-        id="tutorial-modal-card"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="tutorial-modal-title"
-        className="relative w-full max-w-lg flex flex-col bg-[#1C1814] border-2 border-[#5A4535] rounded-2xl shadow-2xl overflow-hidden text-[#EDE2D4]"
+    <AnimatePresence>
+      <motion.div
+        id="tutorial-modal-backdrop"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md"
       >
+        <motion.div
+          id="tutorial-modal-card"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="tutorial-modal-title"
+          initial={{ scale: 0.92, opacity: 0, y: 18 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.92, opacity: 0, y: 18 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+          className="relative w-full max-w-lg flex flex-col bg-[#1C1814] border-2 border-[#5A4535] rounded-2xl shadow-2xl overflow-hidden text-[#EDE2D4]"
+        >
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#3D2E24] bg-[#241E19]">
           <div className="flex items-center gap-3">
@@ -247,8 +256,9 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({
 
         {/* Footer Navigation */}
         <div className="px-5 py-3.5 border-t border-[#3D2E24] bg-[#241E19] flex items-center justify-between">
-          <button
+          <motion.button
             id="tutorial-prev-btn"
+            whileTap={{ scale: 0.94 }}
             onClick={handlePrev}
             disabled={currentStepIndex === 0}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
@@ -259,7 +269,7 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({
           >
             <ChevronLeft size={16} />
             <span>{isJa ? '前へ' : 'Previous'}</span>
-          </button>
+          </motion.button>
 
           <button
             id="tutorial-skip-btn"
@@ -269,16 +279,19 @@ export const TutorialModal: React.FC<TutorialModalProps> = ({
             {isJa ? 'スキップして開始' : 'Skip Tutorial'}
           </button>
 
-          <button
+          <motion.button
             id="tutorial-next-btn"
+            whileTap={{ scale: 0.94 }}
+            whileHover={{ scale: 1.03 }}
             onClick={handleNext}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#E67E22] hover:bg-[#F39C12] text-white text-xs font-bold transition-all shadow-md cursor-pointer"
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#E67E22] hover:bg-[#F39C12] text-white text-xs font-bold transition-colors shadow-md cursor-pointer"
           >
             <span>{isLast ? (isJa ? '稽古完了！' : 'Start Playing!') : (isJa ? '次へ' : 'Next Step')}</span>
             {isLast ? <Check size={16} /> : <ChevronRight size={16} />}
-          </button>
+          </motion.button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
+  </AnimatePresence>
   );
 };

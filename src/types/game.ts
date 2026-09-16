@@ -225,6 +225,14 @@ export interface SumoFruitInstance {
   wasInRimDanger?: boolean;
   outOfBoundsTimer?: number;
   empoweredSkill?: 'SALT' | 'PALM_STRIKE' | 'TAIKO_PULSE' | null;
+  // Versus mode claim token & tracking
+  versusClaimToken?: {
+    player: 1 | 2;
+    turnId: number;
+    originatedFromLaunch: boolean;
+    stealUsed: boolean;
+  } | null;
+  justStolenTimer?: number;
 }
 
 export type HazardKind = 'BUG' | 'ICE' | 'WASABI' | 'CHILI' | 'RIVAL' | 'GINKO_MAGNET' | 'ARMOR_BUG';
@@ -378,6 +386,19 @@ export interface VersusState {
   isHandoverPending: boolean;
   tabletopInversion: boolean;
   passAndPlayPauseEnabled?: boolean;
+  // Shot limit & round enhancements
+  shotsPerPlayer: number; // default 5 (10 completed shots per bout)
+  p1ShotsUsed: number;
+  p2ShotsUsed: number;
+  p1RingOutsThisBout: number;
+  p2RingOutsThisBout: number;
+  hasP1Yokozuna: boolean;
+  hasP2Yokozuna: boolean;
+  isSuddenDeath: boolean;
+  suddenDeathPairCount: number;
+  turnPhase: 'PREPARE' | 'AIMING' | 'SHOT_IN_PLAY' | 'RESOLVING' | 'RESULT' | 'NEXT_PLAYER';
+  activeObjective: import('./versusEvents').VersusTurnObjective | null;
+  latestTurnSummary: import('./versusEvents').VersusTurnSummary | null;
 }
 
 export type RivalActionType = 'OSHIDASHI_PUSH' | 'TSUPPARI_SLAP' | 'RECOVERY' | 'IDLE';
@@ -464,6 +485,8 @@ export interface ClashRecord {
   deferredImpulseY: number;
   normalX: number;
   normalY: number;
+  intendedOwner?: 'PLAYER' | 'RIVAL' | 'PLAYER_1' | 'PLAYER_2';
+  isClaimClash?: boolean;
 }
 
 export interface Particle {

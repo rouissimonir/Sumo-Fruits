@@ -377,7 +377,7 @@ export default function App() {
       />
 
       <GameOverModal
-        isOpen={stats.isGameOver && stats.gameMode !== 'VERSUS' && stats.gameMode !== 'CAREER'}
+        isOpen={stats.isGameOver && stats.gameMode !== 'VERSUS' && (stats.gameMode !== 'CAREER' || !stats.campaign.result)}
         score={stats.score}
         highScore={stats.highScore}
         isNewHighScore={stats.isNewHighScore}

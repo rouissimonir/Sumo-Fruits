@@ -1,5 +1,6 @@
 import React from 'react';
 import { RotateCw, Volume2, VolumeX, Settings, RotateCcw, Sparkles } from 'lucide-react';
+import { motion } from 'motion/react';
 import { GameStats } from '../game/GameEngine';
 import { FRUIT_CATALOG } from '../types/game';
 
@@ -77,7 +78,9 @@ export const VersusHUD: React.FC<VersusHUDProps> = ({
         {/* Mobile: status row above two equal player cards. Desktop: one 3-column row. */}
         <div className="grid min-w-0 grid-cols-2 items-stretch gap-1.5 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] sm:items-center sm:gap-3">
           {/* ================= PLAYER 1 (EAST 東) ================= */}
-          <div
+          <motion.div
+            animate={isP1Turn ? { scale: [1, 1.01, 1] } : { scale: 1 }}
+            transition={{ duration: 0.3 }}
             className={`relative order-2 min-w-0 rounded-xl p-2 transition-all duration-300 sm:order-1 sm:p-2.5 ${
               isP1Turn
                 ? 'bg-gradient-to-r from-[#381411] to-[#201210] border-2 border-[#E74C3C] shadow-[0_0_18px_rgba(231,76,60,0.35)]'
@@ -114,9 +117,14 @@ export const VersusHUD: React.FC<VersusHUDProps> = ({
 
             {/* Score */}
             <div className="mt-1 flex items-baseline justify-between">
-              <div className="text-base sm:text-2xl font-black text-[#FFD700] tracking-tight truncate leading-none">
+              <motion.div
+                key={p1Score}
+                initial={{ scale: 1.15 }}
+                animate={{ scale: 1 }}
+                className="text-base sm:text-2xl font-black text-[#FFD700] tracking-tight truncate leading-none"
+              >
                 {p1Score.toLocaleString()}
-              </div>
+              </motion.div>
               <span className="text-[9px] sm:text-[10px] uppercase font-bold text-[#8A7B6D]">PTS</span>
             </div>
 
@@ -145,8 +153,9 @@ export const VersusHUD: React.FC<VersusHUDProps> = ({
               </div>
 
               {/* P1 Salt Button */}
-              <button
+              <motion.button
                 id="p1-salt-btn"
+                whileTap={isP1Turn && p1SaltCharges > 0 ? { scale: 0.94 } : undefined}
                 onClick={isP1Turn ? onThrowSalt : undefined}
                 disabled={!isP1Turn || p1SaltCharges < 1}
                 title={
@@ -158,15 +167,15 @@ export const VersusHUD: React.FC<VersusHUDProps> = ({
                 }
                 className={`h-6 sm:h-7 px-2 rounded-lg text-[9px] sm:text-[10px] font-black transition-all flex items-center gap-1 ${
                   isP1Turn && p1SaltCharges > 0
-                    ? 'bg-[#E74C3C] text-white shadow-[0_0_8px_rgba(231,76,60,0.6)] cursor-pointer active:scale-95 border border-white/40'
+                    ? 'bg-[#E74C3C] text-white shadow-[0_0_8px_rgba(231,76,60,0.6)] cursor-pointer border border-white/40'
                     : 'bg-[#201712] text-[#6E6053] border border-[#36271D] cursor-not-allowed opacity-60'
                 }`}
               >
                 <span>🧂</span>
                 <span>{p1SaltCharges > 0 ? 'SALT' : `${p1SaltLaunchCount}/5`}</span>
-              </button>
+              </motion.button>
             </div>
-          </div>
+          </motion.div>
 
           {/* ================= CENTER MATCH STATUS & CONTROLS ================= */}
           <div className="order-1 col-span-2 flex min-w-0 items-center justify-between gap-2 px-1 py-0.5 text-center sm:order-2 sm:col-span-1 sm:min-w-[130px] sm:flex-col sm:justify-center sm:gap-1.5 sm:px-2 sm:py-0">
@@ -180,20 +189,24 @@ export const VersusHUD: React.FC<VersusHUDProps> = ({
               </div>
             </div>
 
-            {/* Live Ring Dominance Tug-of-War Bar */}
+            {/* Live Ring Dominance Tug-of-War Bar with Spring Transitions */}
             <div className="min-w-0 flex-1 space-y-0.5 sm:w-full sm:flex-none" title="Dohyō ring mass balance">
               <div className="flex justify-between text-[8px] font-black text-[#8A7B6D]">
                 <span className="text-[#E74C3C]">{p1Ratio}% 東</span>
                 <span className="text-[#3498DB]">西 {p2Ratio}%</span>
               </div>
               <div className="h-1.5 sm:h-2 w-full bg-[#1A120D] rounded-full overflow-hidden flex border border-[#3E2D20]">
-                <div
-                  className="h-full bg-gradient-to-r from-[#C0392B] to-[#E74C3C] transition-all duration-300"
-                  style={{ width: `${p1Ratio}%` }}
+                <motion.div
+                  className="h-full bg-gradient-to-r from-[#C0392B] to-[#E74C3C]"
+                  initial={false}
+                  animate={{ width: `${p1Ratio}%` }}
+                  transition={{ type: 'spring', stiffness: 220, damping: 26 }}
                 />
-                <div
-                  className="h-full bg-gradient-to-r from-[#2980B9] to-[#3498DB] transition-all duration-300"
-                  style={{ width: `${p2Ratio}%` }}
+                <motion.div
+                  className="h-full bg-gradient-to-r from-[#2980B9] to-[#3498DB]"
+                  initial={false}
+                  animate={{ width: `${p2Ratio}%` }}
+                  transition={{ type: 'spring', stiffness: 220, damping: 26 }}
                 />
               </div>
             </div>
@@ -201,57 +214,63 @@ export const VersusHUD: React.FC<VersusHUDProps> = ({
             {/* Action Buttons: Tabletop 180° Flip, Sound, Settings */}
             <div className="flex shrink-0 items-center gap-1 pt-0.5">
               {onToggleTabletop && (
-                <button
+                <motion.button
                   id="versus-tabletop-btn"
+                  whileTap={{ scale: 0.92 }}
                   onClick={onToggleTabletop}
                   title={`Tabletop 180° Flip: ${tabletopInversion ? 'ACTIVE' : 'OFF'}`}
-                  className={`h-6 w-6 sm:h-7 sm:w-7 flex items-center justify-center rounded-lg border transition-all cursor-pointer active:scale-95 ${
+                  className={`h-6 w-6 sm:h-7 sm:w-7 flex items-center justify-center rounded-lg border transition-all cursor-pointer ${
                     tabletopInversion
                       ? 'bg-[#3498DB] text-white border-white/60 shadow-[0_0_8px_rgba(52,152,219,0.7)]'
                       : 'bg-[#1C1612] text-[#8A7B6D] hover:text-white border-[#3A2A1E]'
                   }`}
                 >
                   <RotateCw size={12} className={tabletopInversion ? 'rotate-180' : ''} />
-                </button>
+                </motion.button>
               )}
 
               {onToggleSound && (
-                <button
+                <motion.button
                   id="versus-sound-btn"
+                  whileTap={{ scale: 0.92 }}
                   onClick={onToggleSound}
                   title={soundEnabled ? 'Mute Sound' : 'Unmute Sound'}
-                  className="h-6 w-6 sm:h-7 sm:w-7 flex items-center justify-center rounded-lg bg-[#1C1612] text-[#8A7B6D] hover:text-white border border-[#3A2A1E] transition-all cursor-pointer active:scale-95"
+                  className="h-6 w-6 sm:h-7 sm:w-7 flex items-center justify-center rounded-lg bg-[#1C1612] text-[#8A7B6D] hover:text-white border border-[#3A2A1E] transition-all cursor-pointer"
                 >
                   {soundEnabled ? <Volume2 size={12} /> : <VolumeX size={12} className="text-[#E74C3C]" />}
-                </button>
+                </motion.button>
               )}
 
               {onRestart && (
-                <button
+                <motion.button
                   id="versus-restart-btn"
+                  whileTap={{ scale: 0.92 }}
                   onClick={onRestart}
                   title="Restart 1v1 Showdown"
-                  className="h-6 w-6 sm:h-7 sm:w-7 flex items-center justify-center rounded-lg bg-[#1C1612] text-[#8A7B6D] hover:text-[#FFD700] border border-[#3A2A1E] transition-all cursor-pointer active:scale-95"
+                  className="h-6 w-6 sm:h-7 sm:w-7 flex items-center justify-center rounded-lg bg-[#1C1612] text-[#8A7B6D] hover:text-[#FFD700] border border-[#3A2A1E] transition-all cursor-pointer"
                 >
                   <RotateCcw size={12} />
-                </button>
+                </motion.button>
               )}
 
               {onOpenSettings && (
-                <button
+                <motion.button
                   id="versus-settings-btn"
+                  whileTap={{ scale: 0.92 }}
                   onClick={onOpenSettings}
                   title="Match Settings & Rules"
-                  className="h-6 w-6 sm:h-7 sm:w-7 flex items-center justify-center rounded-lg bg-[#1C1612] text-[#8A7B6D] hover:text-[#FFD700] border border-[#3A2A1E] transition-all cursor-pointer active:scale-95"
+                  className="h-6 w-6 sm:h-7 sm:w-7 flex items-center justify-center rounded-lg bg-[#1C1612] text-[#8A7B6D] hover:text-[#FFD700] border border-[#3A2A1E] transition-all cursor-pointer"
                 >
                   <Settings size={12} />
-                </button>
+                </motion.button>
               )}
             </div>
           </div>
 
           {/* ================= PLAYER 2 (WEST 西) ================= */}
-          <div
+          <motion.div
+            animate={isP2Turn ? { scale: [1, 1.01, 1] } : { scale: 1 }}
+            transition={{ duration: 0.3 }}
             className={`relative order-3 min-w-0 rounded-xl p-2 transition-all duration-300 sm:p-2.5 ${
               isP2Turn
                 ? 'bg-gradient-to-l from-[#122438] to-[#121920] border-2 border-[#3498DB] shadow-[0_0_18px_rgba(52,152,219,0.35)]'
@@ -289,16 +308,22 @@ export const VersusHUD: React.FC<VersusHUDProps> = ({
             {/* Score */}
             <div className="mt-1 flex items-baseline justify-between">
               <span className="text-[9px] sm:text-[10px] uppercase font-bold text-[#8A7B6D]">PTS</span>
-              <div className="text-base sm:text-2xl font-black text-[#FFD700] tracking-tight truncate leading-none">
+              <motion.div
+                key={p2Score}
+                initial={{ scale: 1.15 }}
+                animate={{ scale: 1 }}
+                className="text-base sm:text-2xl font-black text-[#FFD700] tracking-tight truncate leading-none"
+              >
                 {p2Score.toLocaleString()}
-              </div>
+              </motion.div>
             </div>
 
             {/* Queue & Salt Footer */}
             <div className="mt-2 pt-1.5 border-t border-[#1C2B3A]/70 flex items-center justify-between gap-1">
               {/* P2 Salt Button */}
-              <button
+              <motion.button
                 id="p2-salt-btn"
+                whileTap={isP2Turn && p2SaltCharges > 0 ? { scale: 0.94 } : undefined}
                 onClick={isP2Turn ? onThrowSalt : undefined}
                 disabled={!isP2Turn || p2SaltCharges < 1}
                 title={
@@ -310,13 +335,13 @@ export const VersusHUD: React.FC<VersusHUDProps> = ({
                 }
                 className={`h-6 sm:h-7 px-2 rounded-lg text-[9px] sm:text-[10px] font-black transition-all flex items-center gap-1 ${
                   isP2Turn && p2SaltCharges > 0
-                    ? 'bg-[#3498DB] text-white shadow-[0_0_8px_rgba(52,152,219,0.6)] cursor-pointer active:scale-95 border border-white/40'
+                    ? 'bg-[#3498DB] text-white shadow-[0_0_8px_rgba(52,152,219,0.6)] cursor-pointer border border-white/40'
                     : 'bg-[#141A22] text-[#556372] border border-[#222E3A] cursor-not-allowed opacity-60'
                 }`}
               >
                 <span>🧂</span>
                 <span>{p2SaltCharges > 0 ? 'SALT' : `${p2SaltLaunchCount}/5`}</span>
-              </button>
+              </motion.button>
 
               {/* Loaded & Next Rikishi Preview */}
               <div className="flex items-center gap-1">
@@ -340,7 +365,7 @@ export const VersusHUD: React.FC<VersusHUDProps> = ({
                 </div>
               </div>
             </div>
-          </div>
+          </motion.div>
         </div>
       </div>
     </section>

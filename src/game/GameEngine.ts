@@ -1187,11 +1187,32 @@ export class GameEngine {
    * Main simulation step. Called at 60-120Hz.
    */
   public update(realDt: number) {
-    if (this.isPaused || this.isGameOver) return;
+    if (this.isPaused) return;
     if (
       this.gameMode === 'VERSUS' &&
       (this.versusManager.state.isHandoverPending || this.versusManager.state.isMatchOver)
     ) return;
+
+    if (this.isGameOver) {
+      // Allow visual effects and animations (particles, ribbons, camera shake decay, referee calls) to gracefully settle
+      if (this.cameraTrauma > 0) {
+        this.cameraTrauma = Math.max(0, this.cameraTrauma - realDt * 1.5);
+        const shake = this.cameraTrauma * this.cameraTrauma;
+        const angle = Math.random() * Math.PI * 2;
+        const dist = shake * 16;
+        this.cameraOffset = {
+          x: Math.cos(angle) * dist,
+          y: Math.sin(angle) * dist,
+        };
+      } else {
+        this.cameraOffset = { x: 0, y: 0 };
+      }
+      this.updateParticles(realDt);
+      this.refereeDirector.update(realDt);
+      this.activeRefereeCall = this.refereeDirector.getActiveCall();
+      this.techniqueRibbons.update(realDt);
+      return;
+    }
 
     // Handle hit-stop (Engine.time_scale = 0.05 during hit-stop)
     let timeScale = 1.0;
@@ -2490,6 +2511,9 @@ export class GameEngine {
     if (this.lives <= 0) {
       this.isGameOver = true;
       this.gameOverReason = 'All 3 wrestlers were pushed out of the dohyō!';
+      if (this.gameMode === 'CAREER') {
+        this.careerManager.fail(this.gameOverReason);
+      }
       this.refereeDirector.triggerCall(
         '勝負あり',
         'SHŌBU ARI!',
@@ -2500,6 +2524,7 @@ export class GameEngine {
         'shobu'
       );
       this.activeRefereeCall = this.refereeDirector.getActiveCall();
+      this.emitStats();
     }
   }
 
@@ -2541,7 +2566,9 @@ export class GameEngine {
       if (this.overflowTimer >= 2.0) {
         this.isGameOver = true;
         this.gameOverReason = 'Dohyō capacity exceeded! The bowl overflowed!';
-        if (this.gameMode === 'CAREER') this.careerManager.fail(this.gameOverReason);
+        if (this.gameMode === 'CAREER') {
+          this.careerManager.fail(this.gameOverReason);
+        }
         this.refereeDirector.triggerCall(
           '勝負あり',
           'SHŌBU ARI!',
@@ -2552,6 +2579,7 @@ export class GameEngine {
           'shobu'
         );
         this.activeRefereeCall = this.refereeDirector.getActiveCall();
+        this.emitStats();
       }
     } else {
       this.isOverflowing = false;

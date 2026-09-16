@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import {
   X,
   Volume2,
@@ -209,17 +210,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   return (
-    <div
-      id="settings-modal-backdrop"
-      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md animate-fade-in"
-    >
-      <div
-        id="settings-modal-card"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="settings-modal-title"
-        className="relative w-full max-w-xl max-h-[92vh] flex flex-col bg-[#1C1814] border-2 border-[#5A4535] rounded-2xl shadow-2xl overflow-hidden text-[#EDE2D4]"
+    <AnimatePresence>
+      <motion.div
+        id="settings-modal-backdrop"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-black/85 backdrop-blur-md"
       >
+        <motion.div
+          id="settings-modal-card"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="settings-modal-title"
+          initial={{ scale: 0.93, opacity: 0, y: 16 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.93, opacity: 0, y: 16 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+          className="relative w-full max-w-xl max-h-[92vh] flex flex-col bg-[#1C1814] border-2 border-[#5A4535] rounded-2xl shadow-2xl overflow-hidden text-[#EDE2D4]"
+        >
         {/* Header */}
         <div className="flex items-center justify-between px-4 sm:px-5 py-3.5 border-b border-[#3D2E24] bg-[#241E19]">
           <div className="flex items-center gap-3">
@@ -242,14 +251,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </p>
             </div>
           </div>
-          <button
+          <motion.button
             id="settings-close-btn"
+            whileTap={{ scale: 0.9 }}
+            whileHover={{ scale: 1.05 }}
             onClick={onClose}
             className="p-2 rounded-xl bg-[#2E241D] hover:bg-[#3D2E24] text-[#A89886] hover:text-white transition-colors cursor-pointer"
             aria-label="Close settings"
           >
             <X size={18} />
-          </button>
+          </motion.button>
         </div>
 
         {/* Quick Match Actions Strip */}
@@ -1110,15 +1121,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse"></span>
             <span className="font-medium text-[11px]">{isJa ? 'ゲーム稼働中' : 'Engine Ready'}</span>
           </div>
-          <button
+          <motion.button
             id="settings-resume-play-btn"
+            whileTap={{ scale: 0.94 }}
+            whileHover={{ scale: 1.03 }}
             onClick={onClose}
-            className="px-5 py-2 rounded-xl bg-[#E67E22] hover:bg-[#D35400] text-white font-bold shadow-md transition-all cursor-pointer"
+            className="px-5 py-2 rounded-xl bg-[#E67E22] hover:bg-[#D35400] text-white font-bold shadow-md transition-colors cursor-pointer"
           >
             {isJa ? 'ゲームに戻る' : 'Resume Play'}
-          </button>
+          </motion.button>
         </div>
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
+  </AnimatePresence>
   );
 };
