@@ -14,12 +14,12 @@ interface Props {
   onMap: () => void;
 }
 
-function MawashiMedallion(): React.ReactElement {
+function MawashiMedallion({ mawashiColor, accentColor }: { mawashiColor: string; accentColor: string }): React.ReactElement {
   return (
-    <div className="relative mx-auto flex h-24 w-24 items-center justify-center rounded-full border-2 border-[#FFE09A] bg-[#0C1727] shadow-[0_0_30px_rgba(246,196,83,0.48)]">
-      <div className="absolute inset-2 rounded-full border border-[#F6C453]/45" />
-      <div className="relative h-9 w-16 rounded-[45%] border-[5px] border-[#F6E6C6] bg-[#102A4C] shadow-inner">
-        <div className="absolute left-1/2 top-5 h-8 w-5 -translate-x-1/2 rounded-b-md border-x-2 border-b-2 border-[#F6E6C6] bg-[#102A4C]" />
+    <div className="relative mx-auto flex h-24 w-24 items-center justify-center rounded-full border-2 bg-[#0C1727] shadow-[0_0_30px_rgba(246,196,83,0.48)]" style={{ borderColor: accentColor }}>
+      <div className="absolute inset-2 rounded-full border" style={{ borderColor: accentColor }} />
+      <div className="relative h-9 w-16 rounded-[45%] border-[5px] shadow-inner" style={{ borderColor: accentColor, backgroundColor: mawashiColor }}>
+        <div className="absolute left-1/2 top-5 h-8 w-5 -translate-x-1/2 rounded-b-md border-x-2 border-b-2" style={{ borderColor: accentColor, backgroundColor: mawashiColor }} />
       </div>
     </div>
   );
@@ -64,7 +64,7 @@ export const CampaignResultModal: React.FC<Props> = ({ campaign, score, onRetry,
                   <div className="mt-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#D6C3A9]">Bout {campaign.activeLevelIndex + 1} cleared</div>
                   <h2 className="mt-1 text-2xl font-black tracking-tight text-[#FFF5DF]">Climb to Yokozuna</h2>
                   <p className="mt-1 text-xs text-[#CDBDAA]">{level.title} · {score.toLocaleString()} pts</p>
-                  <motion.div initial={{ scale: 0.55, opacity: 0, rotate: -10 }} animate={{ scale: 1, opacity: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 330, damping: 18, delay: 0.14 }} className="mt-4"><MawashiMedallion /></motion.div>
+                  <motion.div initial={{ scale: 0.55, opacity: 0, rotate: -10 }} animate={{ scale: 1, opacity: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 330, damping: 18, delay: 0.14 }} className="mt-4"><MawashiMedallion mawashiColor={reward.mawashiColor ?? reward.previewColor} accentColor={reward.accentColor} /></motion.div>
                 </div>
                 <div className="p-4">
                   <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.26 }} className="rounded-2xl border border-[#D4AF37]/55 bg-[#15110E] p-3">
