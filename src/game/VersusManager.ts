@@ -2,6 +2,7 @@ import { SumoFruitInstance, VersusBoutRecord, VersusState, FRUIT_CATALOG } from 
 import { VersusTurnObjective, VersusTurnSummary } from '../types/versusEvents';
 
 export class VersusManager {
+  private boutResolved = false;
   private pairedTierStream: number[] = [1, 2];
   private p1TierIndex = 0;
   private p2TierIndex = 0;
@@ -44,6 +45,7 @@ export class VersusManager {
   };
 
   public reset(maxRounds = 3) {
+    this.boutResolved = false;
     const keepPassAndPlay = this.state.passAndPlayPauseEnabled ?? false;
     const keepTabletop = this.state.tabletopInversion;
     this.pairedTierStream = [this.rollTier(), this.rollTier()];
@@ -88,6 +90,14 @@ export class VersusManager {
   }
 
   public resetForNextBout() {
+    this.boutResolved = false;
+    this.state.p1Score = 0;
+    this.state.p2Score = 0;
+    this.state.p1SaltCharges = 1;
+    this.state.p2SaltCharges = 1;
+    this.state.p1SaltLaunchCount = 0;
+    this.state.p2SaltLaunchCount = 0;
+    this.state.isHandoverPending = false;
     this.pairedTierStream = [this.rollTier(), this.rollTier()];
     this.p1TierIndex = 0;
     this.p2TierIndex = 0;
@@ -346,6 +356,10 @@ export class VersusManager {
     methodJp: string,
     decisiveFruitTier: number
   ): { isMatchOver: boolean; matchWinner: 1 | 2 | null } {
+    if (this.boutResolved || this.state.isMatchOver) {
+      return { isMatchOver: this.state.isMatchOver, matchWinner: this.state.matchWinner };
+    }
+    this.boutResolved = true;
     if (winner === 1) {
       this.state.p1RoundsWon++;
     } else {

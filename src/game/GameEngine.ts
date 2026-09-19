@@ -1349,51 +1349,6 @@ export class GameEngine {
       }
     }
 
-    // Bounded Shot Settlement Check
-    if (this.shotState === 'LAUNCHED' || this.shotState === 'CHAIN_RESOLVING') {
-      this.shotSettlementTimer += dt;
-      let allSettled = true;
-      for (const f of this.fruits) {
-        if (f.state === 'IN_RING' && !f.entryPending) {
-          if (Math.hypot(f.vx, f.vy) > 24) {
-            allSettled = false;
-            break;
-          }
-        }
-      }
-      const hasActiveClashes = this.mergeManager.getActiveClashes().length > 0;
-      if ((allSettled && !hasActiveClashes && this.shotSettlementTimer > 0.45) || this.shotSettlementTimer > 3.2) {
-        this.shotState = 'IDLE';
-        this.bonusRechargeGrantedThisShot = false;
-        this.rivalController.onShotResolved();
-        this.skillManager.onShotResolved();
-        for (const f of this.fruits) {
-          f.empoweredSkill = null;
-        }
-        this.rivalController.planNextIntent(this.arena, this.fruits);
-        if (this.arenaConditionManager.state.type === 'KAMIKAZE_WIND') {
-          this.arenaConditionManager.scheduleNewWind();
-        }
-
-        if (this.gameMode === 'VERSUS') {
-          if (!this.versusManager.state.isMatchOver) {
-            this.versusManager.advanceTurn(true);
-            if (!this.versusManager.state.isHandoverPending) {
-              this.loadNextFruit();
-            }
-            this.emitStats();
-          }
-        } else if (this.gameMode === 'CAREER') {
-          this.careerManager.recordShotResolved(this.score, this.lives);
-          if (!this.isGameOver && !this.loadedFruit && !this.careerManager.result) {
-            this.loadNextFruit();
-          }
-        } else {
-          this.evaluateShotBasedArrivals();
-        }
-        this.emitStats();
-      }
-    }
 
     // Step 1: Advance Clashes
     const fruitMap = new Map<number, SumoFruitInstance>();
@@ -1428,6 +1383,75 @@ export class GameEngine {
           this.commitRingOut(fruit);
           this.techniqueRibbons.addRibbon('Ring Out!', 'Eliminated by closing ring boundary!', '#E74C3C', 2.5, '場外', '⚡');
         }
+      }
+    }
+
+    // Bounded Shot Settlement Check
+    if (this.shotState === 'LAUNCHED' || this.shotState === 'CHAIN_RESOLVING') {
+      this.shotSettlementTimer += dt;
+      let allSettled = true;
+      for (const f of this.fruits) {
+        if (f.state === 'IN_RING' && !f.entryPending) {
+          if (Math.hypot(f.vx, f.vy) > 24) {
+            allSettled = false;
+            break;
+          }
+        }
+      }
+      const hasActiveClashes = this.mergeManager.getActiveClashes().length > 0;
+      if ((allSettled && !hasActiveClashes && this.shotSettlementTimer > 0.45) || this.shotSettlementTimer > 3.2) {
+        this.shotState = 'IDLE';
+        this.bonusRechargeGrantedThisShot = false;
+        this.rivalController.onShotResolved();
+        this.skillManager.onShotResolved();
+        for (const f of this.fruits) {
+          f.empoweredSkill = null;
+        }
+        this.rivalController.planNextIntent(this.arena, this.fruits);
+        if (this.arenaConditionManager.state.type === 'KAMIKAZE_WIND') {
+          this.arenaConditionManager.scheduleNewWind();
+        }
+
+        if (this.gameMode === 'VERSUS') {
+          const versus = this.versusManager.state;
+          const hasRingOutAdvantage = versus.p1RingOutsThisBout !== versus.p2RingOutsThisBout;
+          if (hasRingOutAdvantage || this.versusManager.hasCompletedShotLimit()) {
+            const outcome = this.versusManager.evaluateShotLimitBoutOutcome(this.fruits);
+            if (outcome.winner !== null) {
+              this.versusManager.recordBoutVictory(outcome.winner, outcome.method, outcome.methodJp, 0);
+              this.triggerRefereeCall('勝負あり', 'BOUT DECIDED!',
+                `Player ${outcome.winner} wins: ${outcome.method}`, '#FFD700', 'shobu', 'MATCH_RESULT');
+              if (!versus.isMatchOver) {
+                this.fruits = [];
+                this.hazards = [];
+                this.saltZones = [];
+                this.loadedFruit = null;
+                this.mergeManager.clear();
+                this.strawBales = createStrawBales(16, this.tuning.baleMaxHealth);
+                this.versusManager.resetForNextBout();
+                this.score = 0;
+                this.loadNextFruit();
+              }
+              this.emitStats();
+              return;
+            }
+          }
+          if (!this.versusManager.state.isMatchOver) {
+            this.versusManager.advanceTurn(true);
+            if (!this.versusManager.state.isHandoverPending) {
+              this.loadNextFruit();
+            }
+            this.emitStats();
+          }
+        } else if (this.gameMode === 'CAREER') {
+          this.careerManager.recordShotResolved(this.score, this.lives);
+          if (!this.isGameOver && !this.loadedFruit && !this.careerManager.result) {
+            this.loadNextFruit();
+          }
+        } else {
+          this.evaluateShotBasedArrivals();
+        }
+        this.emitStats();
       }
     }
 
@@ -2432,7 +2456,8 @@ export class GameEngine {
       const winnerName = isP1 ? 'Player 2 (West 西)' : 'Player 1 (East 東)';
       const winColor = winner === 1 ? '#E74C3C' : '#3498DB';
 
-      this.versusManager.addScore(winner, 350);
+      if (this.versusManager.state.isMatchOver) return;
+      this.versusManager.addScore(winner, 300 * fruit.tier);
       this.score = this.versusManager.state.p1Score + this.versusManager.state.p2Score;
       this.ringOutFlashTimer = 0.45;
       this.triggerHitStop(0.12);
@@ -2450,41 +2475,7 @@ export class GameEngine {
         'KIMARITE'
       );
 
-      const boutOutcome = this.versusManager.recordBoutVictory(
-        winner,
-        'Oshidashi Push-Out',
-        '押し出し',
-        fruit.tier
-      );
-
-      if (boutOutcome.isMatchOver) {
-        this.refereeDirector.triggerCall(
-          '勝負あり',
-          'MATCH DECIDED!',
-          `${winnerName} WINS EMPEROR'S CUP!`,
-          '#FFD700',
-          'MATCH_RESULT',
-          3.5,
-          'shobu'
-        );
-        this.activeRefereeCall = this.refereeDirector.getActiveCall();
-        sound.playTaikoRoll();
-        this.spawnConfetti(this.arena.centerX, this.arena.centerY, 80);
-        this.triggerCameraTrauma(0.5);
-      } else {
-        this.refereeDirector.triggerCall(
-          '勝負あり',
-          'SHŌBU ARI!',
-          `${winnerName} WINS BOUT ${this.versusManager.state.currentBout - 1}!`,
-          winColor,
-          'MATCH_RESULT',
-          2.5,
-          'shobu'
-        );
-        this.activeRefereeCall = this.refereeDirector.getActiveCall();
-        sound.playTaikoFlourish();
-        this.spawnConfetti(this.arena.centerX, this.arena.centerY, 40);
-      }
+      this.versusManager.recordRingOutOccurred(isP1 ? 1 : 2);
       return;
     }
 
