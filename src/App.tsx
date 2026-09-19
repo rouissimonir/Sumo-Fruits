@@ -15,6 +15,7 @@ import { TutorialModal } from './components/TutorialModal';
 import { LegalCreditsModal } from './components/LegalCreditsModal';
 import { VersusVictoryModal } from './components/VersusVictoryModal';
 import { VersusHandoverModal } from './components/VersusHandoverModal';
+import { VersusBoutTransitionModal } from './components/VersusBoutTransitionModal';
 import { CampaignMap } from './components/campaign/CampaignMap';
 import { CampaignResultModal } from './components/campaign/CampaignResultModal';
 import { CAMPAIGN_LEVELS } from './content/campaign';
@@ -446,6 +447,13 @@ export default function App() {
       )}
 
       {/* Versus Handover Transition Barrier */}
+      {stats.versus && (
+        <VersusBoutTransitionModal
+          versus={stats.versus}
+          onContinue={() => engine.confirmNextVersusBout()}
+        />
+      )}
+
       {stats.versus && (
         <VersusHandoverModal
           stats={stats}

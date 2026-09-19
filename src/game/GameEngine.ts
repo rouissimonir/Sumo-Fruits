@@ -1190,7 +1190,9 @@ export class GameEngine {
     if (this.isPaused) return;
     if (
       this.gameMode === 'VERSUS' &&
-      (this.versusManager.state.isHandoverPending || this.versusManager.state.isMatchOver)
+      (this.versusManager.state.isHandoverPending ||
+        this.versusManager.state.boutTransitionPending ||
+        this.versusManager.state.isMatchOver)
     ) return;
 
     if (this.isGameOver) {
@@ -1421,17 +1423,6 @@ export class GameEngine {
               this.versusManager.recordBoutVictory(outcome.winner, outcome.method, outcome.methodJp, 0);
               this.triggerRefereeCall('勝負あり', 'BOUT DECIDED!',
                 `Player ${outcome.winner} wins: ${outcome.method}`, '#FFD700', 'shobu', 'MATCH_RESULT');
-              if (!versus.isMatchOver) {
-                this.fruits = [];
-                this.hazards = [];
-                this.saltZones = [];
-                this.loadedFruit = null;
-                this.mergeManager.clear();
-                this.strawBales = createStrawBales(16, this.tuning.baleMaxHealth);
-                this.versusManager.resetForNextBout();
-                this.score = 0;
-                this.loadNextFruit();
-              }
               this.emitStats();
               return;
             }
@@ -3061,6 +3052,27 @@ export class GameEngine {
       const turnColor = activeTurn === 1 ? '#E74C3C' : '#3498DB';
       this.triggerRefereeCall(turnName, 'KAMAE!', turnSub, turnColor, 'hakkeyoi', 'TACHIAI');
     }
+    this.emitStats();
+  }
+
+  public confirmNextVersusBout() {
+    if (
+      this.gameMode !== 'VERSUS' ||
+      !this.versusManager.state.boutTransitionPending ||
+      this.versusManager.state.isMatchOver
+    ) return;
+
+    this.fruits = [];
+    this.hazards = [];
+    this.saltZones = [];
+    this.loadedFruit = null;
+    this.mergeManager.clear();
+    this.strawBales = createStrawBales(16, this.tuning.baleMaxHealth);
+    this.versusManager.resetForNextBout();
+    this.score = 0;
+    this.loadNextFruit();
+    this.triggerRefereeCall('仕切り直し', `BOUT ${this.versusManager.state.currentBout}`,
+      'NEW BOUT — EAST READY!', '#E74C3C', 'hakkeyoi', 'TACHIAI');
     this.emitStats();
   }
 

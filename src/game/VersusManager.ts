@@ -27,6 +27,7 @@ export class VersusManager {
     boutHistory: [],
     isMatchOver: false,
     matchWinner: null,
+    boutTransitionPending: false,
     isHandoverPending: false,
     tabletopInversion: false,
     passAndPlayPauseEnabled: false,
@@ -71,6 +72,7 @@ export class VersusManager {
       boutHistory: [],
       isMatchOver: false,
       matchWinner: null,
+      boutTransitionPending: false,
       isHandoverPending: false,
       tabletopInversion: keepTabletop,
       passAndPlayPauseEnabled: keepPassAndPlay,
@@ -91,6 +93,7 @@ export class VersusManager {
 
   public resetForNextBout() {
     this.boutResolved = false;
+    this.state.boutTransitionPending = false;
     this.state.p1Score = 0;
     this.state.p2Score = 0;
     this.state.p1SaltCharges = 1;
@@ -388,6 +391,7 @@ export class VersusManager {
       this.state.matchWinner = 2;
     } else {
       this.state.currentBout++;
+      this.state.boutTransitionPending = true;
     }
 
     return {

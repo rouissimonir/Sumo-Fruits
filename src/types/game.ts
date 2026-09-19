@@ -383,6 +383,7 @@ export interface VersusState {
   boutHistory: VersusBoutRecord[];
   isMatchOver: boolean;
   matchWinner: 1 | 2 | null;
+  boutTransitionPending: boolean;
   isHandoverPending: boolean;
   tabletopInversion: boolean;
   passAndPlayPauseEnabled?: boolean;
