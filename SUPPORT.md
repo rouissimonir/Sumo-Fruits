@@ -1,6 +1,6 @@
 # Sumo Fruits Support
 
-Sumo Fruits: The Bumper Bowl supports iPhone and iPad devices running iOS 15 or later.
+Sumo Fruits: The Bumper Bowl supports iPhone devices running iOS 15 or later.
 
 ## Quick troubleshooting
 

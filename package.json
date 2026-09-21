@@ -10,6 +10,7 @@
     "ios:sync": "npm run build && cap sync ios",
     "ios:open": "npm run ios:sync && cap open ios",
     "ios:doctor": "cap doctor ios",
+    "verify:ios-release": "node scripts/verify-ios-release.mjs",
     "test": "tsx --test tests/**/*.test.ts",
     "preview": "vite preview",
     "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",

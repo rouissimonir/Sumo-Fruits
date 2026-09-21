@@ -124,6 +124,14 @@ export const LegalCreditsModal: React.FC<LegalCreditsModalProps> = ({
                   ? '【機内モード・完全オフライン対応】すべての物理演算、サウンド合成、巡業AIは端末ローカルで完結します。機内モードやネットワーク未接続環境でも全ての機能を制限なく楽しめます。'
                   : '【100% Offline / Airplane Mode Ready】All physics calculations, procedural audio synthesis, and career AI run completely on-device with zero backend dependencies. Fully playable in Airplane Mode.'}
               </p>
+              <a
+                href="https://github.com/rouissimonir/Sumo-Fruits/blob/main/PRIVACY.md"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex min-h-11 items-center rounded-lg border border-[#2ECC71]/50 bg-[#17251C] px-3 py-2 font-bold text-[#7EE2A8] underline decoration-[#2ECC71]/50 underline-offset-2 hover:text-white"
+              >
+                {isJa ? 'プライバシーポリシー全文を表示' : 'Read the full Privacy Policy'}
+              </a>
             </div>
           </div>
 
@@ -144,6 +152,14 @@ export const LegalCreditsModal: React.FC<LegalCreditsModalProps> = ({
                 mounirrouissi2@gmail.com
               </a>
             </div>
+            <a
+              href="https://github.com/rouissimonir/Sumo-Fruits/blob/main/SUPPORT.md"
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-11 items-center rounded-lg border border-[#F39C12]/50 bg-[#2A2117] px-3 py-2 text-xs font-bold text-[#F6C453] underline decoration-[#F39C12]/50 underline-offset-2 hover:text-white"
+            >
+              {isJa ? 'サポートページを表示' : 'Open the Support Page'}
+            </a>
           </div>
         </div>
 

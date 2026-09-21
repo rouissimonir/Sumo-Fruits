@@ -452,7 +452,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     <Smartphone size={14} />
                     <span>{isJa ? 'タッチ操作' : 'Touch Controls'}</span>
                   </div>
-                  <span className="text-[10px] text-[#A89886] font-mono">iPhone & iPad</span>
+                  <span className="text-[10px] text-[#A89886] font-mono">iPhone</span>
                 </div>
 
                 <div className="space-y-1.5 text-xs">
