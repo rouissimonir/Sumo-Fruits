@@ -113,6 +113,8 @@ export default function App() {
   const backgroundPausedGameRef = useRef(false);
   const isBackgroundedRef = useRef(false);
   const settingsPausedGameRef = useRef(false);
+  const lastCampaignFanfareRef = useRef<string | null>(null);
+  const versusFanfarePlayedRef = useRef(false);
 
   // Sync settings with audio and haptics managers
   useEffect(() => {
@@ -126,6 +128,44 @@ export default function App() {
     engine.showTrajectoryGuide = settings.showTrajectoryGuide;
     saveGameSettings(settings);
   }, [engine, settings]);
+
+  // Music follows the player's current context without restarting on routine stat updates.
+  useEffect(() => {
+    if (isCampaignMapOpen) {
+      sound.setMusicScene('MENU');
+      sound.setHypeLevel(0);
+      return;
+    }
+    if (stats.gameMode === 'VERSUS') {
+      sound.setMusicScene('VERSUS');
+      sound.setHypeLevel(0);
+      return;
+    }
+    if (stats.hasActiveRival) {
+      sound.setMusicScene('BOSS');
+      sound.setHypeLevel(0);
+      return;
+    }
+    sound.setMusicScene('GAMEPLAY');
+    sound.setHypeLevel(stats.isFever ? 1 : stats.crowdHype / 100);
+  }, [isCampaignMapOpen, stats.crowdHype, stats.gameMode, stats.hasActiveRival, stats.isFever]);
+
+  // Result fanfares are edge-triggered so re-renders cannot replay them.
+  useEffect(() => {
+    const result = stats.campaign.result;
+    const resultKey = result?.status === 'WON'
+      ? `${stats.campaign.activeLevelId ?? 'career'}:${result.unlockedRewardId ?? 'win'}`
+      : null;
+    if (resultKey && resultKey !== lastCampaignFanfareRef.current) {
+      lastCampaignFanfareRef.current = resultKey;
+      sound.playRewardFanfare();
+    }
+    if (!result) lastCampaignFanfareRef.current = null;
+
+    const versusWon = !!(stats.versus?.isMatchOver && stats.versus.matchWinner);
+    if (versusWon && !versusFanfarePlayedRef.current) sound.playRewardFanfare();
+    versusFanfarePlayedRef.current = versusWon;
+  }, [stats.campaign.activeLevelId, stats.campaign.result, stats.versus]);
 
   useEffect(() => {
     const handleBackground = () => {

@@ -63,8 +63,8 @@ export const LegalCreditsModal: React.FC<LegalCreditsModalProps> = ({
             </div>
             <p className="text-xs text-[#C8B8A6] leading-relaxed">
               {isJa
-                  ? '太鼓、拍子木、衝突音、行司の掛け声はリアルタイムで合成しています。BGM：Shamisen music III収録「New spring」（ループ版）、作者：Shamisen music。ゲーム用BGMとしてライセンスに基づき使用しています。'
-                  : 'Taiko, wooden clappers, impacts and referee calls are synthesized in real time. Background music: New spring (loop), from Shamisen music III by Shamisen music, used as licensed game background music.'}
+                  ? '太鼓レイヤー、拍子木、衝突音、ファンファーレ、行司の掛け声はリアルタイムで合成しています。BGM：「New spring」Shamisen music、「Natsu-Matsuri」HarumachiMusic、「Japan Taiko」「Ancient Japan」Alec_Koff。ゲーム用BGMとしてライセンスに基づき使用しています。'
+                  : 'Taiko layers, wooden clappers, impacts, fanfares and referee calls are synthesized in real time. Music: New spring by Shamisen music; Natsu-Matsuri by HarumachiMusic; Japan Taiko and Ancient Japan by Alec_Koff. Licensed for use as game background music.'}
             </p>
           </div>
 

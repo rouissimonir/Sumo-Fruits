@@ -3,15 +3,30 @@
  * Bundled Shamisen music with procedural, responsive impact effects.
  */
 
+export type MusicScene = 'MENU' | 'GAMEPLAY' | 'BOSS' | 'VERSUS';
+
+const MUSIC_TRACKS: Record<MusicScene, string> = {
+  MENU: '/audio/natsu-matsuri.mp3',
+  GAMEPLAY: '/audio/new-spring-loop.mp3',
+  BOSS: '/audio/ancient-japan.mp3',
+  VERSUS: '/audio/japan-taiko.mp3',
+};
+
 class SoundEngine {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   private musicGain: GainNode | null = null;
+  private musicSceneGain: GainNode | null = null;
   private musicDuckGain: GainNode | null = null;
-  private musicBuffer: AudioBuffer | null = null;
+  private musicBuffers = new Map<MusicScene, AudioBuffer>();
+  private musicLoads = new Map<MusicScene, Promise<AudioBuffer>>();
   private musicSource: AudioBufferSourceNode | null = null;
-  private musicLoad: Promise<void> | null = null;
-  private musicLoadFailed = false;
+  private currentMusicScene: MusicScene | null = null;
+  private requestedMusicScene: MusicScene = 'GAMEPLAY';
+  private musicTransitionId = 0;
+  private hypeGain: GainNode | null = null;
+  private hypeTimer: number | null = null;
+  private hypeLevel = 0;
   private lastImpactDuck = -1;
   private voiceGain: GainNode | null = null;
   private activeVoiceOscillators: OscillatorNode[] = [];
@@ -35,9 +50,16 @@ class SoundEngine {
 
       this.musicGain = this.ctx.createGain();
       this.musicGain.gain.setValueAtTime(this.getMusicGain(), this.ctx.currentTime);
+      this.musicSceneGain = this.ctx.createGain();
+      this.musicSceneGain.gain.setValueAtTime(1, this.ctx.currentTime);
       this.musicDuckGain = this.ctx.createGain();
-      this.musicGain.connect(this.musicDuckGain);
+      this.musicGain.connect(this.musicSceneGain);
+      this.musicSceneGain.connect(this.musicDuckGain);
       this.musicDuckGain.connect(this.ctx.destination);
+
+      this.hypeGain = this.ctx.createGain();
+      this.hypeGain.gain.setValueAtTime(0, this.ctx.currentTime);
+      this.hypeGain.connect(this.musicGain);
 
       this.voiceGain = this.ctx.createGain();
       this.voiceGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
@@ -120,6 +142,76 @@ class SoundEngine {
     this.ensureMusicLoop();
   }
 
+  /** Selects music from gameplay state; repeated calls do not restart a track. */
+  public setMusicScene(scene: MusicScene): void {
+    if (this.requestedMusicScene === scene) return;
+    this.requestedMusicScene = scene;
+    this.musicTransitionId++;
+    this.updateHypeLayer();
+    this.init();
+    this.ensureMusicLoop();
+  }
+
+  /** Hype percussion fades in only near a full crowd meter. */
+  public setHypeLevel(level: number): void {
+    this.hypeLevel = Math.max(0, Math.min(1, level));
+    this.updateHypeLayer();
+  }
+
+  private updateHypeLayer(): void {
+    if (!this.ctx || !this.hypeGain) return;
+    const allowed = this.requestedMusicScene === 'GAMEPLAY' && this.hypeLevel >= 0.75;
+    const strength = allowed ? (this.hypeLevel - 0.75) / 0.25 : 0;
+    this.hypeGain.gain.setTargetAtTime(strength * 0.32, this.ctx.currentTime, 0.18);
+    if (allowed && this.hypeTimer === null) {
+      this.scheduleHypeBeat();
+      this.hypeTimer = window.setInterval(() => this.scheduleHypeBeat(), 480);
+    } else if (!allowed && this.hypeTimer !== null) {
+      window.clearInterval(this.hypeTimer);
+      this.hypeTimer = null;
+    }
+  }
+
+  private scheduleHypeBeat(): void {
+    if (!this.ctx || !this.hypeGain || this.ctx.state !== 'running') return;
+    const t = this.ctx.currentTime + 0.015;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(120, t);
+    osc.frequency.exponentialRampToValueAtTime(48, t + 0.16);
+    gain.gain.setValueAtTime(0.9, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    osc.connect(gain);
+    gain.connect(this.hypeGain);
+    osc.start(t);
+    osc.stop(t + 0.21);
+  }
+
+  private loadMusicScene(scene: MusicScene): Promise<AudioBuffer> {
+    const cached = this.musicBuffers.get(scene);
+    if (cached) return Promise.resolve(cached);
+    const loading = this.musicLoads.get(scene);
+    if (loading) return loading;
+    const request = fetch(MUSIC_TRACKS[scene])
+      .then(response => {
+        if (!response.ok) throw new Error(`Music asset unavailable: ${scene}`);
+        return response.arrayBuffer();
+      })
+      .then(bytes => this.ctx!.decodeAudioData(bytes))
+      .then(buffer => {
+        this.musicBuffers.set(scene, buffer);
+        this.musicLoads.delete(scene);
+        return buffer;
+      })
+      .catch(error => {
+        this.musicLoads.delete(scene);
+        throw error;
+      });
+    this.musicLoads.set(scene, request);
+    return request;
+  }
+
   private ensureMusicLoop(): void {
     if (
       !this.musicRequested ||
@@ -130,35 +222,51 @@ class SoundEngine {
       (typeof document !== 'undefined' && document.hidden)
     ) return;
 
-    if (this.musicSource) return;
-    if (this.musicBuffer) {
-      this.pauseMusicLoop();
-      const source = this.ctx.createBufferSource();
-      source.buffer = this.musicBuffer;
-      source.loop = true;
-      source.connect(this.musicGain);
-      this.musicSource = source;
-      source.start();
-      return;
+    if (this.musicSource && this.currentMusicScene === this.requestedMusicScene) return;
+
+    const scene = this.requestedMusicScene;
+    const transitionId = this.musicTransitionId;
+    void this.loadMusicScene(scene)
+      .then(buffer => {
+        if (transitionId !== this.musicTransitionId || scene !== this.requestedMusicScene) return;
+        this.transitionToMusic(scene, buffer);
+      })
+      .catch(() => {
+        // Original ambience remains available if a bundled track cannot decode.
+        if (!this.musicSource && this.musicTimer === null) {
+          this.scheduleMusicPhrase();
+          this.musicTimer = window.setInterval(() => this.scheduleMusicPhrase(), 4800);
+        }
+      });
+  }
+
+  private transitionToMusic(scene: MusicScene, buffer: AudioBuffer): void {
+    if (!this.ctx || !this.musicGain || !this.musicSceneGain) return;
+    const oldSource = this.musicSource;
+    const oldScene = this.currentMusicScene;
+    const t = this.ctx.currentTime;
+    const fadeSeconds = oldSource ? 0.45 : 0.12;
+    this.pauseMusicLoop();
+    this.musicSceneGain.gain.cancelScheduledValues(t);
+    this.musicSceneGain.gain.setValueAtTime(this.musicSceneGain.gain.value, t);
+    this.musicSceneGain.gain.linearRampToValueAtTime(0.0001, t + fadeSeconds);
+
+    const source = this.ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+    source.connect(this.musicGain);
+    source.start(t + fadeSeconds);
+    this.musicSource = source;
+    this.currentMusicScene = scene;
+    this.musicSceneGain.gain.setValueAtTime(0.0001, t + fadeSeconds);
+    this.musicSceneGain.gain.linearRampToValueAtTime(1, t + fadeSeconds + 0.65);
+    if (oldSource) {
+      window.setTimeout(() => {
+        try { oldSource.stop(); } catch { /* Already stopped. */ }
+        oldSource.disconnect();
+        if (oldScene && oldScene !== scene) this.musicBuffers.delete(oldScene);
+      }, Math.ceil((fadeSeconds + 0.05) * 1000));
     }
-    if (!this.musicLoadFailed) {
-      if (!this.musicLoad) {
-        this.musicLoad = fetch('/audio/new-spring-loop.mp3')
-          .then(response => {
-            if (!response.ok) throw new Error('Music asset unavailable');
-            return response.arrayBuffer();
-          })
-          .then(bytes => this.ctx!.decodeAudioData(bytes))
-          .then(buffer => { this.musicBuffer = buffer; })
-          .catch(() => { this.musicLoadFailed = true; })
-          .finally(() => { this.ensureMusicLoop(); });
-      }
-      return;
-    }
-    // Original ambience remains available if the bundled track cannot decode.
-    if (this.musicTimer !== null) return;
-    this.scheduleMusicPhrase();
-    this.musicTimer = window.setInterval(() => this.scheduleMusicPhrase(), 4800);
   }
 
   private scheduleMusicPhrase(): void {
@@ -458,6 +566,55 @@ class SoundEngine {
       osc.start(t + i * 0.03);
       osc.stop(t + i * 0.03 + 0.3);
     });
+  }
+
+  /** Four-second ceremonial reward sting: taiko pickup, rising shamisen-like notes, final clap. */
+  public playRewardFanfare(): void {
+    if (!this.musicEnabled) return;
+    this.init();
+    if (!this.ctx || !this.musicDuckGain || !this.musicSceneGain) return;
+    const ctx = this.ctx;
+    const start = ctx.currentTime + 0.03;
+    const fanfareBus = ctx.createGain();
+    fanfareBus.gain.setValueAtTime(this.getMusicGain() * 1.2, start);
+    fanfareBus.connect(this.musicDuckGain);
+
+    const background = this.musicSceneGain.gain;
+    background.cancelScheduledValues(start);
+    background.setTargetAtTime(0.32, start, 0.08);
+    background.setTargetAtTime(1, start + 4.1, 0.28);
+
+    [0, 0.22, 0.44, 2.7, 2.9, 3.1].forEach((offset, index) => {
+      const drum = ctx.createOscillator();
+      const drumGain = ctx.createGain();
+      const t = start + offset;
+      drum.type = 'sine';
+      drum.frequency.setValueAtTime(index < 3 ? 105 : 135, t);
+      drum.frequency.exponentialRampToValueAtTime(46, t + 0.2);
+      drumGain.gain.setValueAtTime(index === 5 ? 0.95 : 0.68, t);
+      drumGain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+      drum.connect(drumGain);
+      drumGain.connect(fanfareBus);
+      drum.start(t);
+      drum.stop(t + 0.3);
+    });
+
+    [392, 523.25, 659.25, 783.99, 1046.5].forEach((frequency, index) => {
+      const note = ctx.createOscillator();
+      const noteGain = ctx.createGain();
+      const t = start + 0.65 + index * 0.48;
+      note.type = index % 2 === 0 ? 'triangle' : 'sine';
+      note.frequency.setValueAtTime(frequency, t);
+      noteGain.gain.setValueAtTime(0.001, t);
+      noteGain.gain.exponentialRampToValueAtTime(0.34, t + 0.035);
+      noteGain.gain.exponentialRampToValueAtTime(0.001, t + 0.52);
+      note.connect(noteGain);
+      noteGain.connect(fanfareBus);
+      note.start(t);
+      note.stop(t + 0.55);
+    });
+
+    window.setTimeout(() => fanfareBus.disconnect(), 4700);
   }
 
   /**

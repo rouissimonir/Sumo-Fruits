@@ -6,6 +6,7 @@ This document confirms the ownership, commercial licenses, and origin of all med
 
 ### 1. 🎵 Referee Voices, Sound Effects & Music
 * **Background music exception**: New spring (loop version), Shamisen music III by Shamisen music. Supplied by the project owner; source: https://shamisen-music.itch.io/shamisen-music3. See `public/audio/CREDITS.md`. The procedural-audio statements below apply to sound effects and synthesized referee calls only, not this recording.
+* **Additional licensed music**: Natsu-Matsuri -Fun Japanese Shamisen by HarumachiMusic, plus Japan Taiko and Ancient Japan by Alec_Koff, used under the Pixabay Content License. Sources are recorded in `public/audio/CREDITS.md`.
 * **Source & Origin**: 100% bespoke procedural audio synthesis built directly into `src/audio/soundEffects.ts`.
 * **Technology**: Real-time Web Audio API (`AudioContext`, `OscillatorNode`, `BiquadFilterNode`, `GainNode`, `AudioBufferSourceNode` procedural white/pink noise generation).
 * **Components**:
