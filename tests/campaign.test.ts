@@ -8,6 +8,7 @@ import { DEFAULT_ARENA } from '../src/physics/bowlMotion';
 import { RIVAL_PROFILES, RivalSumoController } from '../src/game/RivalSumo';
 import { REWARD_DEFINITIONS } from '../src/types/rewards';
 import { CONDITION_METADATA } from '../src/game/ArenaConditionManager';
+import { getCampaignResultPresentation } from '../src/components/campaign/CampaignResultModal';
 
 test('campaign defines 24 sequential, valid levels in four chapters', () => {
   assert.equal(CAMPAIGN_LEVELS.length, 24);
@@ -59,6 +60,24 @@ test('campaign completes an objective once and unlocks the next bout', () => {
   assert.equal(manager.getHighestUnlockedIndex(), 1);
   manager.recordFusion(2, 2, 200, 3);
   assert.equal(manager.progress.completedLevelIds.filter((id) => id === 'career-01').length, 1);
+});
+
+test('a normal career victory uses the victory result layout instead of the loss layout', () => {
+  const manager = new CareerManager();
+  manager.progress.completedLevelIds = CAMPAIGN_LEVELS.slice(0, 9).map((level) => level.id);
+  manager.startLevel('career-10');
+  manager.sync(1500, 3);
+
+  assert.equal(manager.result?.status, 'WON');
+  assert.equal(manager.result?.reason, 'Objective complete!');
+  assert.equal(getCampaignResultPresentation(manager.result, false), 'STANDARD_WIN');
+  assert.equal(getCampaignResultPresentation(manager.result, true), 'REWARD');
+  assert.equal(getCampaignResultPresentation({ status: 'LOST', reason: 'Out of shots', earnedStamps: 0, newStamps: 0 }, false), 'LOSS');
+
+  for (const level of CAMPAIGN_LEVELS) {
+    const expected = level.rewardId ? 'REWARD' : 'STANDARD_WIN';
+    assert.equal(getCampaignResultPresentation({ status: 'WON', reason: 'Objective complete!', earnedStamps: 1, newStamps: 1 }, !!level.rewardId), expected, level.id);
+  }
 });
 
 test('campaign physical pushout objectives reject salt removal', () => {

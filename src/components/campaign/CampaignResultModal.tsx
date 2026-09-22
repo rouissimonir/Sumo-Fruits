@@ -2,7 +2,7 @@ import React from 'react';
 import { ChevronRight, Gift, Map, RotateCcw, Sparkles, Star } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 import { CAMPAIGN_LEVELS } from '../../content/campaign';
-import { CampaignSnapshot } from '../../types/campaign';
+import { CampaignResult, CampaignSnapshot } from '../../types/campaign';
 import { REWARD_DEFINITIONS, RewardId } from '../../types/rewards';
 
 interface Props {
@@ -12,6 +12,11 @@ interface Props {
   onNext: () => void;
   onEquipAndNext: (rewardId: RewardId) => void;
   onMap: () => void;
+}
+
+export function getCampaignResultPresentation(result: CampaignResult | null, hasReward: boolean): 'REWARD' | 'STANDARD_WIN' | 'LOSS' {
+  if (result?.status !== 'WON') return 'LOSS';
+  return hasReward ? 'REWARD' : 'STANDARD_WIN';
 }
 
 function MawashiMedallion({ mawashiColor, accentColor }: { mawashiColor: string; accentColor: string }): React.ReactElement {
@@ -33,6 +38,7 @@ export const CampaignResultModal: React.FC<Props> = ({ campaign, score, onRetry,
   const hasNext = campaign.activeLevelIndex < CAMPAIGN_LEVELS.length - 1;
   const rewardId = won ? level.rewardId : undefined;
   const reward = rewardId ? REWARD_DEFINITIONS[rewardId] : null;
+  const presentation = getCampaignResultPresentation(result, !!reward);
   const rewardEquipped = reward ? campaign.equippedRewards[reward.slot] === reward.id : false;
   const isFreshReward = !!result?.unlockedRewardId && result.unlockedRewardId === rewardId;
   const nextPrizeLevel = won
@@ -51,12 +57,28 @@ export const CampaignResultModal: React.FC<Props> = ({ campaign, score, onRetry,
     </div>
   );
 
+  const StandardWinResult = () => (
+    <div className="p-5">
+      <div className="text-4xl">🏆</div>
+      <div className="mt-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#D4AF37]">Bout {campaign.activeLevelIndex + 1} cleared</div>
+      <h2 className="mt-1 text-2xl font-black text-white">Victory!</h2>
+      <p className="mt-1 text-sm text-[#CDBDAA]">{result?.reason} · {score.toLocaleString()} pts</p>
+      <div className="mt-4 rounded-xl border border-[#44362B] bg-[#241E19] p-3">
+        <div className="flex justify-between text-xs text-[#A89886]"><span>Victory stamps</span><strong className="text-[#FFD700]">{result?.earnedStamps ?? 0}/3</strong></div>
+        <div className="mt-2 flex justify-center gap-3">{[0, 1, 2].map((index) => <Star key={index} size={27} className={index < (result?.earnedStamps ?? 0) ? 'fill-[#FFD700] text-[#FFD700] drop-shadow-[0_0_8px_rgba(255,215,0,0.7)]' : 'text-[#4A3D31]'} />)}</div>
+        {nextPrize && nextPrizeLevel && <div className="mt-3 flex items-center justify-between rounded-lg border border-[#49382C] bg-[#15110E] px-2.5 py-2 text-left"><span className="min-w-0"><span className="block text-[8px] font-black uppercase tracking-wider text-[#A89886]">Next prize</span><strong className="block truncate text-[11px] text-white">{nextPrize.icon} {nextPrize.name}</strong></span><span className="shrink-0 pl-2 text-[9px] font-bold text-[#D4AF37]">BOUT {nextPrizeLevel.index + 1}</span></div>}
+      </div>
+      {hasNext && <motion.button whileTap={{ scale: 0.95 }} onClick={onNext} className="mt-4 flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-[#E74C3C] py-3 font-black text-white shadow-lg">Next Bout <ChevronRight size={17} /></motion.button>}
+      <div className="mt-3 grid grid-cols-2 gap-2"><motion.button whileTap={{ scale: 0.95 }} onClick={onRetry} className="cursor-pointer rounded-xl border border-[#49382C] bg-[#282019] py-2.5 text-xs font-bold text-white">Replay</motion.button><motion.button whileTap={{ scale: 0.95 }} onClick={onMap} className="flex cursor-pointer items-center justify-center gap-1 rounded-xl border border-[#49382C] bg-[#282019] py-2.5 text-xs font-bold text-white"><Map size={15} /> Career Map</motion.button></div>
+    </div>
+  );
+
   return (
     <AnimatePresence>
       {isVisible && (
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.22 }} className="fixed inset-0 z-[80] flex items-center justify-center bg-black/85 p-4 backdrop-blur-md">
           <motion.div role="dialog" aria-modal="true" initial={{ scale: 0.82, opacity: 0, y: 24 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.88, opacity: 0, y: 16 }} transition={{ type: 'spring', stiffness: 380, damping: 26 }} className={'w-full max-w-sm overflow-hidden rounded-2xl border-2 bg-[#1C1814] text-center shadow-2xl ' + (won ? 'border-[#D4AF37] shadow-[0_0_40px_rgba(212,175,55,0.25)]' : 'border-[#E74C3C] shadow-[0_0_40px_rgba(231,76,60,0.25)]')}>
-            {won && reward ? (
+            {presentation === 'REWARD' && reward ? (
               <>
                 <div className="relative overflow-hidden border-b border-[#D4AF37]/45 bg-[radial-gradient(circle_at_50%_120%,#5E3816_0%,#25170F_48%,#130F0C_100%)] px-5 pb-5 pt-4">
                   <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-[#FFE09A] to-transparent" />
@@ -82,7 +104,7 @@ export const CampaignResultModal: React.FC<Props> = ({ campaign, score, onRetry,
                   <div className="mt-3 grid grid-cols-2 gap-2"><motion.button whileTap={{ scale: 0.95 }} onClick={onRetry} className="cursor-pointer rounded-xl border border-[#49382C] bg-[#282019] py-2.5 text-xs font-bold text-white">Replay</motion.button><motion.button whileTap={{ scale: 0.95 }} onClick={onMap} className="flex cursor-pointer items-center justify-center gap-1 rounded-xl border border-[#49382C] bg-[#282019] py-2.5 text-xs font-bold text-white"><Map size={15} /> Career Map</motion.button></div>
                 </div>
               </>
-            ) : <LostResult />}
+            ) : presentation === 'STANDARD_WIN' ? <StandardWinResult /> : <LostResult />}
           </motion.div>
         </motion.div>
       )}
