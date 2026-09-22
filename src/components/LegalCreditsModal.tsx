@@ -63,8 +63,8 @@ export const LegalCreditsModal: React.FC<LegalCreditsModalProps> = ({
             </div>
             <p className="text-xs text-[#C8B8A6] leading-relaxed">
               {isJa
-                ? 'すべての効果音、太鼓の響き（Taiko）、拍子木（Hyoshigi）、および行司の掛け声（「はっけよい」「残った」等）は、Web Audio APIを用いた完全独自の数学的・プロシージャル合成音です。外部の商用録音素材やサードパーティ音声は一切使用していません。'
-                : '100% procedural Web Audio API synthesis. Taiko resonant thumps, Hyoshigi wooden clappers, and multi-formant Gyōji referee shouts ("Hakkeyoi!", "Nokotta!") are synthesized dynamically in real-time. Zero third-party audio recordings or royalty burdens.'}
+                  ? '太鼓、拍子木、衝突音、行司の掛け声はリアルタイムで合成しています。BGM：Shamisen music III収録「New spring」（ループ版）、作者：Shamisen music。ゲーム用BGMとしてライセンスに基づき使用しています。'
+                  : 'Taiko, wooden clappers, impacts and referee calls are synthesized in real time. Background music: New spring (loop), from Shamisen music III by Shamisen music, used as licensed game background music.'}
             </p>
           </div>
 

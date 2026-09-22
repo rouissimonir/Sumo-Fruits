@@ -1,12 +1,18 @@
 /**
  * Procedural Web Audio Sound Engine for Sumo Fruits: The Bumper Bowl
- * Zero external asset dependencies - instant, crisp, responsive audio.
+ * Bundled Shamisen music with procedural, responsive impact effects.
  */
 
 class SoundEngine {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   private musicGain: GainNode | null = null;
+  private musicDuckGain: GainNode | null = null;
+  private musicBuffer: AudioBuffer | null = null;
+  private musicSource: AudioBufferSourceNode | null = null;
+  private musicLoad: Promise<void> | null = null;
+  private musicLoadFailed = false;
+  private lastImpactDuck = -1;
   private voiceGain: GainNode | null = null;
   private activeVoiceOscillators: OscillatorNode[] = [];
   private activeMusicOscillators = new Set<OscillatorNode>();
@@ -29,7 +35,9 @@ class SoundEngine {
 
       this.musicGain = this.ctx.createGain();
       this.musicGain.gain.setValueAtTime(this.getMusicGain(), this.ctx.currentTime);
-      this.musicGain.connect(this.ctx.destination);
+      this.musicDuckGain = this.ctx.createGain();
+      this.musicGain.connect(this.musicDuckGain);
+      this.musicDuckGain.connect(this.ctx.destination);
 
       this.voiceGain = this.ctx.createGain();
       this.voiceGain.gain.setValueAtTime(1.0, this.ctx.currentTime);
@@ -77,7 +85,17 @@ class SoundEngine {
   }
 
   private getMusicGain(): number {
-    return this.musicEnabled ? this.musicVolume * 0.14 : 0;
+    return this.musicEnabled ? this.musicVolume * 0.35 : 0;
+  }
+
+  /** Make room for impacts without changing the player's volume setting. */
+  private duckMusic(amount: number, seconds: number): void {
+    if (!this.enabled || !this.ctx || !this.musicDuckGain) return;
+    const t = this.ctx.currentTime;
+    const gain = this.musicDuckGain.gain;
+    gain.cancelAndHoldAtTime(t);
+    gain.linearRampToValueAtTime(amount, t + 0.025);
+    gain.setTargetAtTime(1, t + seconds, 0.18);
   }
 
   public setMusicVolume(vol: number): void {
@@ -95,7 +113,7 @@ class SoundEngine {
     if (enabled) this.ensureMusicLoop();
   }
 
-  /** Starts a quiet, original pentatonic dohyō ambience after the first user gesture. */
+  /** Load the bundled loop once, after audio has been unlocked by a gesture. */
   public startMusic(): void {
     this.musicRequested = true;
     this.init();
@@ -109,10 +127,36 @@ class SoundEngine {
       !this.ctx ||
       !this.musicGain ||
       this.ctx.state !== 'running' ||
-      this.musicTimer !== null ||
       (typeof document !== 'undefined' && document.hidden)
     ) return;
 
+    if (this.musicSource) return;
+    if (this.musicBuffer) {
+      this.pauseMusicLoop();
+      const source = this.ctx.createBufferSource();
+      source.buffer = this.musicBuffer;
+      source.loop = true;
+      source.connect(this.musicGain);
+      this.musicSource = source;
+      source.start();
+      return;
+    }
+    if (!this.musicLoadFailed) {
+      if (!this.musicLoad) {
+        this.musicLoad = fetch('/audio/new-spring-loop.mp3')
+          .then(response => {
+            if (!response.ok) throw new Error('Music asset unavailable');
+            return response.arrayBuffer();
+          })
+          .then(bytes => this.ctx!.decodeAudioData(bytes))
+          .then(buffer => { this.musicBuffer = buffer; })
+          .catch(() => { this.musicLoadFailed = true; })
+          .finally(() => { this.ensureMusicLoop(); });
+      }
+      return;
+    }
+    // Original ambience remains available if the bundled track cannot decode.
+    if (this.musicTimer !== null) return;
     this.scheduleMusicPhrase();
     this.musicTimer = window.setInterval(() => this.scheduleMusicPhrase(), 4800);
   }
@@ -330,6 +374,10 @@ class SoundEngine {
     if (!this.ctx || !this.masterGain) return;
 
     const t = this.ctx.currentTime;
+    if (speed > 150 && t - this.lastImpactDuck > 0.3) {
+      this.lastImpactDuck = t;
+      this.duckMusic(0.65, 0.08);
+    }
     const osc = this.ctx.createOscillator();
     const gain = this.ctx.createGain();
 
@@ -352,6 +400,7 @@ class SoundEngine {
    * Tsuppari Clash start - rapid wooden slap / impact
    */
   public playClashStart() {
+    this.duckMusic(0.45, 0.3);
     this.playHyoshigi(0.85);
     this.playTaiko(0.9);
   }
@@ -383,6 +432,7 @@ class SoundEngine {
    * Fusion Merge celebration sound - harmonic chime pop
    */
   public playFusion(tier: number) {
+    this.duckMusic(0.4, 0.35);
     if (!this.enabled) return;
     this.init();
     if (!this.ctx || !this.masterGain) return;
@@ -555,6 +605,7 @@ class SoundEngine {
 
     const t = this.ctx.currentTime;
     const voiceDest = this.voiceGain || this.masterGain;
+    this.duckMusic(0.3, 1.2);
 
     if (type === 'hakkeyoi') {
       // Crisp Tachiai launch shout + rapid double Hyoshigi clappers
