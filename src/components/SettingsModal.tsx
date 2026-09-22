@@ -30,6 +30,7 @@ import { GameStats } from '../game/GameEngine';
 import { ArenaConditionType, ArenaMode, GameModeType } from '../types/game';
 import { CONDITION_METADATA } from '../game/ArenaConditionManager';
 import { GameSettings } from '../types/settings';
+import { exportSaveData, importSaveData, resetSaveData } from '../game/saveData';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -81,23 +82,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const handleExportData = () => {
     try {
-      const backup: Record<string, string | null> = {
-        sumo_suika_high_score: localStorage.getItem('sumo_suika_high_score'),
-        sumo_kimarite_collection_v2: localStorage.getItem('sumo_kimarite_collection_v2'),
-        sumo_career_save_v1: localStorage.getItem('sumo_career_save_v1'),
-        sumo_tutorial_completed_v1: localStorage.getItem('sumo_tutorial_completed_v1'),
-        sumo_missions_v1: localStorage.getItem('sumo_missions_v1'),
-        sumo_fruits_settings_v1: localStorage.getItem('sumo_fruits_settings_v1'),
-      };
-      Object.keys(localStorage).forEach((k) => {
-        if (k.startsWith('daily_basho_')) {
-          backup[k] = localStorage.getItem(k);
-        }
-      });
+      const backup = exportSaveData(localStorage);
 
       const payload = {
         app: 'SumoFruits',
-        version: 1,
+        version: 2,
         exportedAt: new Date().toISOString(),
         saveData: backup,
       };
@@ -123,7 +112,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         // Ignored
       }
 
-      setExportFeedback(isJa ? 'バックアップを保存＆コピーしました！' : 'Save downloaded & copied to clipboard!');
+      setExportFeedback(isJa ? 'バックアップを書き出しました' : 'Save backup exported');
       setTimeout(() => setExportFeedback(null), 3500);
     } catch {
       setExportFeedback(isJa ? 'エクスポートに失敗しました' : 'Export failed');
@@ -133,9 +122,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const processImportString = (rawJson: string) => {
     try {
-      const parsed = JSON.parse(rawJson);
-      const data = parsed.saveData || (parsed.app === 'SumoFruits' ? parsed : null);
-      if (!data) {
+      const parsed = JSON.parse(rawJson) as { app?: string; saveData?: unknown };
+      if (parsed?.app !== 'SumoFruits' || !parsed.saveData) {
         setImportStatus({
           type: 'ERROR',
           msg: isJa ? '無効なSumo Fruitsバックアップ形式です。' : 'Invalid Sumo Fruits backup file format.',
@@ -143,30 +131,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         return;
       }
 
-      if (typeof window !== 'undefined' && window.localStorage) {
-        Object.entries(data).forEach(([key, val]) => {
-          if (typeof val === 'string') {
-            localStorage.setItem(key, val);
-          }
-        });
-      }
+      importSaveData(localStorage, parsed.saveData);
 
       setImportStatus({
         type: 'SUCCESS',
         msg: isJa ? '復元完了！再起動中...' : 'Restored successfully! Reloading...',
       });
 
-      setTimeout(() => {
-        onRestart();
-        setShowImport(false);
-        setImportStatus(null);
-        setImportText('');
-        onClose();
-      }, 1200);
+      setTimeout(() => window.location.reload(), 1200);
     } catch {
       setImportStatus({
         type: 'ERROR',
-        msg: isJa ? 'JSONデータの解析に失敗しました。' : 'Failed to parse JSON text.',
+        msg: isJa ? 'バックアップを復元できませんでした。形式と内容を確認してください。' : 'Could not restore this backup. Check its format and contents.',
       });
     }
   };
@@ -185,23 +161,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleResetData = () => {
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.removeItem('sumo_suika_high_score');
-        localStorage.removeItem('sumo_kimarite_collection_v2');
-        localStorage.removeItem('sumo_career_save_v1');
-        localStorage.removeItem('sumo_tutorial_completed_v1');
-        localStorage.removeItem('sumo_missions_v1');
-        // Clear daily basho keys
-        Object.keys(localStorage).forEach((key) => {
-          if (key.startsWith('daily_basho_')) {
-            localStorage.removeItem(key);
-          }
-        });
+        resetSaveData(localStorage);
       }
       setResetState('DONE');
       setTimeout(() => {
-        onRestart();
-        setResetState('IDLE');
-        onClose();
+        window.location.reload();
       }, 1200);
     } catch {
       setResetState('IDLE');
@@ -972,16 +936,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <span className="text-[10px] font-mono text-[#6E6356]">Local Storage</span>
                 </div>
 
-                {/* iOS WebKit 7-Day Storage Eviction Notice */}
+                {/* Local save and backup guidance for the installed app. */}
                 <div className="p-2.5 bg-[#1A232D] rounded-lg border border-[#2D3E4F] text-xs space-y-1">
                   <div className="flex items-center gap-1.5 text-[#5DADE2] font-bold text-[11px]">
                     <Smartphone size={13} />
-                    <span>{isJa ? 'iOS Safari 7日間自動消去への対策' : 'iOS Safari 7-Day Eviction Notice'}</span>
+                    <span>{isJa ? '端末内のセーブデータ' : 'Save data on this iPhone'}</span>
                   </div>
                   <p className="text-[#96AAB8] leading-relaxed text-[11px]">
                     {isJa
-                      ? 'iOS Safariの仕様（ITP）により、7日間未起動だとブラウザ内保存データが消去される場合があります。Safariの共有ボタン [↑] から「ホーム画面に追加」することで保護されます。また、下のバックアップ書き出しで保管も可能です。'
-                      : 'iOS Safari evicts website local storage after 7 days of non-use (WebKit ITP). To protect your unlocked Kimarite and Career Tour progression indefinitely, tap Share [↑] in Safari and tap "Add to Home Screen", or export a backup file below.'}
+                      ? '進行状況はこの端末のアプリ内に保存されます。アプリを削除すると失われるため、下からバックアップを書き出して保管できます。'
+                      : 'Progress is saved in this app on your iPhone. Deleting the app can erase it. Export a backup below to keep a copy.'}
                   </p>
                 </div>
 
