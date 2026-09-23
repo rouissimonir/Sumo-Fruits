@@ -31,6 +31,7 @@ import { ArenaConditionType, ArenaMode, GameModeType } from '../types/game';
 import { CONDITION_METADATA } from '../game/ArenaConditionManager';
 import { GameSettings } from '../types/settings';
 import { exportSaveData, importSaveData, resetSaveData } from '../game/saveData';
+import { playtestSessionLog } from '../game/PlaytestSessionLog';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -75,10 +76,33 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [showImport, setShowImport] = useState(false);
   const [importText, setImportText] = useState('');
   const [importStatus, setImportStatus] = useState<{ type: 'ERROR' | 'SUCCESS'; msg: string } | null>(null);
+  const [playtestLogEnabled, setPlaytestLogEnabled] = useState(() => playtestSessionLog.isEnabled());
+  const [playtestLogExport, setPlaytestLogExport] = useState('');
+  const [playtestLogFeedback, setPlaytestLogFeedback] = useState('');
 
   if (!isOpen) return null;
 
   const isJa = settings.language === 'JA';
+
+  const togglePlaytestLog = () => {
+    const enabled = !playtestLogEnabled;
+    playtestSessionLog.setEnabled(enabled);
+    if (enabled && stats.gameMode === 'CAREER' && stats.campaign.activeLevelId && !stats.campaign.result) {
+      playtestSessionLog.start(stats.campaign.activeLevelId);
+    }
+    setPlaytestLogEnabled(enabled);
+  };
+
+  const handleExportPlaytestLog = async () => {
+    const json = playtestSessionLog.exportJSON();
+    setPlaytestLogExport(json);
+    try {
+      await navigator.clipboard.writeText(json);
+      setPlaytestLogFeedback(isJa ? 'コピーしました' : 'Copied to clipboard');
+    } catch {
+      setPlaytestLogFeedback(isJa ? '下のテキストをコピーしてください' : 'Copy the text below');
+    }
+  };
 
   const handleExportData = () => {
     try {
@@ -926,7 +950,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
 
-              {/* User Data & Reset (App Store Compliance Guideline 5.1.1 & WebKit ITP Protection) */}
+              {/* Optional local playtest diagnostics. */}
+              <div className="bg-[#241E19] border border-[#3D2E24] rounded-xl p-3.5 space-y-2 text-xs">
+                <div className="font-bold text-[#A89886]">{isJa ? 'プレイテスト記録' : 'Playtest log'}</div>
+                <p className="text-[#96AAB8]">{isJa ? '任意で有効にすると、この端末にキャリアの開始・終了、ショット数、結果、時間を記録します。自動送信はしません。' : 'Optional. Records career starts and results, shots, and time on this device. Nothing is sent automatically.'}</p>
+                <div className="flex gap-2">
+                  <button type="button" onClick={togglePlaytestLog} className="rounded-lg border border-[#5A4535] px-3 py-2 text-white font-bold">
+                    {playtestLogEnabled ? (isJa ? '記録オン' : 'Logging on') : (isJa ? '記録を有効にする' : 'Enable log')}
+                  </button>
+                  <button type="button" onClick={() => void handleExportPlaytestLog()} className="rounded-lg border border-[#5A4535] px-3 py-2 text-white font-bold">
+                    {isJa ? '記録を書き出す' : 'Export log'}
+                  </button>
+                </div>
+                {playtestLogFeedback && <p role="status" className="text-[#F1C40F]">{playtestLogFeedback}</p>}
+                {playtestLogExport && <textarea readOnly aria-label="Playtest log JSON" value={playtestLogExport} rows={3} className="w-full rounded bg-[#181410] p-2 text-[10px] text-white" />}
+              </div>
+
+              {/* User Data & Reset */}
               <div className="bg-[#241E19] border border-[#3D2E24] rounded-xl p-3.5 space-y-3">
                 <div className="text-xs font-bold uppercase tracking-wider text-[#A89886] flex items-center justify-between">
                   <div className="flex items-center gap-1.5">

@@ -34,4 +34,6 @@ export function importSaveData(storage: Storage, data: unknown): number {
 
 export function resetSaveData(storage: Storage): void {
   for (const key of Object.keys(exportSaveData(storage))) storage.removeItem(key);
+  storage.removeItem('sumo_fruits_playtest_log_v1');
+  storage.removeItem('sumo_fruits_playtest_log_enabled_v1');
 }

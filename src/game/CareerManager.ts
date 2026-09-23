@@ -237,7 +237,7 @@ export class CareerManager {
     this.saveProgress();
     this.result = {
       status: 'WON',
-      reason: level.index === CAMPAIGN_LEVELS.length - 1 ? 'Road to Yokozuna conquered!' : 'Objective complete!',
+      reason: level.index === CAMPAIGN_LEVELS.length - 1 ? 'The White Rope claimed!' : 'Objective complete!',
       earnedStamps,
       newStamps: Math.max(0, earnedStamps - oldStamps),
       unlockedRewardId,

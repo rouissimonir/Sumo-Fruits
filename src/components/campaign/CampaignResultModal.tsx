@@ -82,7 +82,7 @@ export const CampaignResultModal: React.FC<Props> = ({ campaign, score, onRetry,
               <>
                 <div className="relative overflow-hidden border-b border-[#D4AF37]/45 bg-[radial-gradient(circle_at_50%_120%,#5E3816_0%,#25170F_48%,#130F0C_100%)] px-5 pb-5 pt-4">
                   <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-[#FFE09A] to-transparent" />
-                  <div className="flex items-center justify-center gap-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#F6C453]"><Sparkles size={13} /> Road to Yokozuna <Sparkles size={13} /></div>
+                  <div className="flex items-center justify-center gap-1 text-[10px] font-black uppercase tracking-[0.2em] text-[#F6C453]"><Sparkles size={13} /> Career Tour <Sparkles size={13} /></div>
                   <div className="mt-2 text-[11px] font-bold uppercase tracking-[0.16em] text-[#D6C3A9]">Bout {campaign.activeLevelIndex + 1} cleared</div>
                   <h2 className="mt-1 text-2xl font-black tracking-tight text-[#FFF5DF]">Climb to Yokozuna</h2>
                   <p className="mt-1 text-xs text-[#CDBDAA]">{level.title} · {score.toLocaleString()} pts</p>

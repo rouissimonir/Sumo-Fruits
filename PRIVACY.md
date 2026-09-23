@@ -13,8 +13,10 @@ The app stores the following game data locally on the player's device:
 - Daily Basho results;
 - tutorial completion; and
 - audio, haptics, accessibility, control, and gameplay preferences.
+- if the player enables the optional playtest log in Settings, career level starts and results, shot counts, duration, and failure reasons.
 
 This information stays inside the app's local storage and is not sent to the developer or any third party. It can be removed by deleting the app or clearing its app data through the operating system.
+The optional log can be copied by the player from Settings and shared only if they choose to do so.
 
 ## Device features
 

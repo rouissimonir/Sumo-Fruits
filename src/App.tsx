@@ -25,6 +25,7 @@ import { App as CapacitorApp } from '@capacitor/app';
 import { HelpCircle, Sparkles } from 'lucide-react';
 import { ArenaMode, GameModeType } from './types/game';
 import { DEFAULT_SETTINGS, GameSettings, loadGameSettings, saveGameSettings } from './types/settings';
+import { playtestSessionLog } from './game/PlaytestSessionLog';
 
 export default function App() {
   const engine = useMemo(() => new GameEngine(), []);
@@ -115,6 +116,16 @@ export default function App() {
   const settingsPausedGameRef = useRef(false);
   const lastCampaignFanfareRef = useRef<string | null>(null);
   const versusFanfarePlayedRef = useRef(false);
+  const campaignResultLoggedRef = useRef(false);
+
+  useEffect(() => {
+    const result = stats.gameMode === 'CAREER' ? stats.campaign.result : null;
+    if (!result) { campaignResultLoggedRef.current = false; return; }
+    if (!campaignResultLoggedRef.current) {
+      campaignResultLoggedRef.current = true;
+      playtestSessionLog.end(result.status, stats.campaign.shotsUsed, result.reason);
+    }
+  }, [stats.gameMode, stats.campaign.result, stats.campaign.shotsUsed]);
 
   // Sync settings with audio and haptics managers
   useEffect(() => {
@@ -253,6 +264,10 @@ export default function App() {
 
   const handleRestart = useCallback(() => {
     engine.restart();
+    campaignResultLoggedRef.current = false;
+    if (engine.gameMode === 'CAREER' && engine.careerManager.activeLevel) {
+      playtestSessionLog.start(engine.careerManager.activeLevel.id);
+    }
   }, [engine]);
 
   const handleTogglePause = useCallback(() => {
@@ -305,6 +320,8 @@ export default function App() {
   const handleStartCareerLevel = useCallback((levelId: string) => {
     settingsPausedGameRef.current = false;
     engine.startCareerLevel(levelId);
+    campaignResultLoggedRef.current = false;
+    playtestSessionLog.start(levelId);
     setIsCampaignMapOpen(false);
     setIsSettingsOpen(false);
     setShowBottomTip(false);
@@ -469,7 +486,7 @@ export default function App() {
         <CampaignResultModal
           campaign={stats.campaign}
           score={stats.score}
-          onRetry={() => engine.restart()}
+          onRetry={handleRestart}
           onNext={() => {
             const next = CAMPAIGN_LEVELS[stats.campaign.activeLevelIndex + 1];
             if (next) handleStartCareerLevel(next.id);

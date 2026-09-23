@@ -6,7 +6,7 @@ export const CAMPAIGN_CHAPTERS = [
   'First Steps',
   "Challenger's Path",
   'Master the Dohyō',
-  'Road to Yokozuna',
+  'The White Rope',
 ] as const;
 
 export const CAMPAIGN_LEVELS: CampaignLevel[] = [

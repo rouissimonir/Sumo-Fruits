@@ -46,7 +46,7 @@ export const CampaignMap: React.FC<Props> = ({ isOpen, campaign, onClose, onStar
           {/* Header Bar */}
           <div className="sticky top-0 z-10 flex items-center justify-between rounded-2xl border border-[#5A4535] bg-[#1C1814]/95 px-4 py-3 shadow-xl backdrop-blur-md">
             <div>
-              <div className="text-[10px] font-black uppercase tracking-[0.22em] text-[#E67E22]">Road to Yokozuna</div>
+              <div className="text-[10px] font-black uppercase tracking-[0.22em] text-[#E67E22]">Career Tour</div>
               <h2 className="text-xl font-black text-white">Career Basho</h2>
             </div>
             <motion.button
