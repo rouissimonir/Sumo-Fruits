@@ -9,9 +9,9 @@ The first submission remains paused until the N0 store listing is accurate. This
 - [x] 0.1 Create progress, decisions, and research records.
 - [x] 0.2 Add repository guidance for the release freeze and future architecture.
 - [ ] 0.3 Capture and frame six actual gameplay screens at both iPhone sizes.
-- [ ] 0.4 Replace the current illustrated App Store screenshots with the real gameplay set in App Store Connect; retain illustrations only as reference.
+- [ ] 0.4 Replace the current illustrated App Store screenshots with the real gameplay set in App Store Connect; local concepts have been archived as reference.
 - [x] 0.5 Rename chapter 4 to The White Rope and remove the old phrase from player-facing copy.
-- [x] 0.6 Add and verify the opt-in, local playtest session log.
+- [ ] 0.6 Add and verify the opt-in, local playtest session log. Code and automated test pass; verify Settings export on the new TestFlight build.
 - [ ] 0.7 Confirm submission status and create the external TestFlight playtest group.
 
 ## N1 — stranger playtest
